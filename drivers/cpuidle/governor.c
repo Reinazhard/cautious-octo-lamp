@@ -111,14 +111,14 @@ s64 cpuidle_governor_latency_req(unsigned int cpu)
 {
 	struct device *device = get_cpu_device(cpu);
 	int device_req = dev_pm_qos_raw_resume_latency(device);
-	int global_req = cpu_latency_qos_limit();
+	int cpu_req = cpu_latency_qos_limit(cpu);
 	int global_wake_req = cpu_wakeup_latency_qos_limit();
 
-	if (global_req > global_wake_req)
-		global_req = global_wake_req;
+	if (cpu_req > global_wake_req)
+		cpu_req = global_wake_req;
 
-	if (device_req > global_req)
-		device_req = global_req;
+	if (device_req > cpu_req)
+		device_req = cpu_req;
 
 	return (s64)device_req * NSEC_PER_USEC;
 }
