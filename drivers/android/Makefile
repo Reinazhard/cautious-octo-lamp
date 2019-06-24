@@ -7,4 +7,5 @@ obj-$(CONFIG_ANDROID_BINDER_ALLOC_KUNIT_TEST)	+= tests/
 obj-y	+= binder/
 obj-$(CONFIG_ANDROID_VENDOR_HOOKS) += vendor_hooks.o
 obj-$(CONFIG_ANDROID_DEBUG_KINFO)	+= debug_kinfo.o
+obj-$(CONFIG_ANDROID_SIMPLE_LMK)	+= simple_lmk.o
 obj-y					+= wonder/

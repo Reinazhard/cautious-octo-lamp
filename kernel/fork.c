@@ -112,6 +112,7 @@
 #include <linux/tick.h>
 #include <linux/unwind_deferred.h>
 #include <linux/pgalloc.h>
+#include <linux/simple_lmk.h>
 #include <linux/uaccess.h>
 
 #include <asm/mmu_context.h>
@@ -1214,6 +1215,7 @@ static inline void __mmput(struct mm_struct *mm)
 		module_put(mm->binfmt->module);
 	lru_gen_del_mm(mm);
 	futex_hash_free(mm);
+	simple_lmk_mm_freed(mm);
 	mmdrop(mm);
 }
 
