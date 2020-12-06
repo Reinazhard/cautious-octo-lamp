@@ -57,29 +57,10 @@
 #define _ANDROID_KABI_RULE(hint, target, value) \
 	__ANDROID_KABI_RULE(hint, #target, #value)
 
-#define _ANDROID_KABI_NORMAL_SIZE_ALIGN(_orig, _new)			\
-	union {								\
-		_Static_assert(						\
-			sizeof(struct { _new; }) <=			\
-				sizeof(struct { _orig; }),		\
-			FILE_LINE ": " __stringify(_new)		\
-				" is larger than " __stringify(_orig));	\
-		_Static_assert(						\
-			__alignof__(struct { _new; }) <=		\
-				__alignof__(struct { _orig; }),		\
-			FILE_LINE ": " __stringify(_orig)		\
-				" is not aligned the same as "		\
-				__stringify(_new));			\
-	}
+#define _ANDROID_KABI_REPLACE(_orig, _new)		_new
 
-#define _ANDROID_KABI_REPLACE(_orig, _new)		      \
-	union {						      \
-		_new;					      \
-		struct {				      \
-			_orig;				      \
-		};					      \
-		_ANDROID_KABI_NORMAL_SIZE_ALIGN(_orig, _new); \
-	}
+#define _ANDROID_KABI_RESERVE(n)
+
 
 
 /*
