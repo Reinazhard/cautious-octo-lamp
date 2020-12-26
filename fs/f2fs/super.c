@@ -1043,8 +1043,7 @@ static int f2fs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		ctx->spec_mask |= F2FS_SPEC_alloc_mode;
 		break;
 	case Opt_fsync:
-		F2FS_CTX_INFO(ctx).fsync_mode = result.uint_32;
-		ctx->spec_mask |= F2FS_SPEC_fsync_mode;
+		f2fs_info(NULL, "changing fsync mode not supported");
 		break;
 	case Opt_test_dummy_encryption:
 		ret = f2fs_parse_test_dummy_encryption(param, ctx);
@@ -2618,7 +2617,7 @@ static void default_options(struct f2fs_sb_info *sbi, bool remount)
 		F2FS_OPTION(sbi).alloc_mode = ALLOC_MODE_REUSE;
 	else
 		F2FS_OPTION(sbi).alloc_mode = ALLOC_MODE_DEFAULT;
-	F2FS_OPTION(sbi).fsync_mode = FSYNC_MODE_POSIX;
+	F2FS_OPTION(sbi).fsync_mode = FSYNC_MODE_STRICT;
 	F2FS_OPTION(sbi).s_resuid = make_kuid(&init_user_ns, F2FS_DEF_RESUID);
 	F2FS_OPTION(sbi).s_resgid = make_kgid(&init_user_ns, F2FS_DEF_RESGID);
 	if (f2fs_sb_has_compression(sbi)) {
