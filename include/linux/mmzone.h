@@ -1518,6 +1518,7 @@ typedef struct pglist_data {
 					     range, including holes */
 	int node_id;
 	wait_queue_head_t kswapd_wait;
+	wait_queue_head_t kshrinkd_wait;
 	wait_queue_head_t pfmemalloc_wait;
 
 	/* workqueues for throttling reclaim for different reasons. */
@@ -1530,6 +1531,7 @@ typedef struct pglist_data {
 	struct mutex kswapd_lock;
 #endif
 	struct task_struct *kswapd;	/* Protected by kswapd_lock */
+	struct task_struct *kshrinkd;	/* Protected by kswapd_lock */
 	int kswapd_order;
 	enum zone_type kswapd_highest_zoneidx;
 

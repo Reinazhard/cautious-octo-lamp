@@ -1422,6 +1422,7 @@ static inline bool pte_needs_soft_dirty_wp(struct vm_area_struct *vma, pte_t pte
 }
 
 /* shrinker related functions */
+extern atomic_long_t kshrinkd_waiters;
 unsigned long shrink_slab(gfp_t gfp_mask, int nid, struct mem_cgroup *memcg,
 			  int priority);
 
