@@ -4900,8 +4900,12 @@ int try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 		 * A similar smp_rmb() lives in __task_needs_rq_lock().
 		 */
 		smp_rmb();
-		if (READ_ONCE(p->on_rq) && ttwu_runnable(p, wake_flags))
-			break;
+		if (READ_ONCE(p->on_rq)) {
+			if (ttwu_runnable(p, wake_flags))
+				break;
+		} else {
+			smp_acquire__after_ctrl_dep();
+		}
 
 		if (READ_ONCE(p->__state) & TASK_UNINTERRUPTIBLE)
 			trace_sched_blocked_reason(p);
@@ -4929,7 +4933,6 @@ int try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 		 * schedule()'s block_task() has 'happened' and p will no longer
 		 * care about it's own p->state. See the comment in __schedule().
 		 */
-		smp_acquire__after_ctrl_dep();
 
 		/*
 		 * We're doing the wakeup (@success == 1), they did a dequeue (p->on_rq
