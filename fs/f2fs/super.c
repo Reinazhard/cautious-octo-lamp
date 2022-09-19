@@ -30,6 +30,7 @@
 #include <linux/ctype.h>
 #include <linux/fs_parser.h>
 #include <linux/fserror.h>
+#include <linux/cleancache.h>
 
 #include "f2fs.h"
 #include "node.h"
@@ -5630,6 +5631,8 @@ reset_checkpoint:
 	f2fs_restore_device_alias(sbi);
 
 	sbi->umount_lock_holder = NULL;
+
+	cleancache_init_fs(sb);
 	return 0;
 
 stop_gc_thread:
