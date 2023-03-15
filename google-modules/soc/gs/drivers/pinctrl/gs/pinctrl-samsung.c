@@ -1071,7 +1071,7 @@ static int samsung_gpiolib_register(struct platform_device *pdev,
 		gc->base = bank->grange.base;
 		gc->ngpio = bank->nr_pins;
 		gc->parent = &pdev->dev;
-		gc->of_node = bank->of_node;
+		gc->fwnode = bank->fwnode;
 		gc->label = bank->name;
 
 		ret = devm_gpiochip_add_data(&pdev->dev, gc, bank);
@@ -1083,6 +1083,57 @@ static int samsung_gpiolib_register(struct platform_device *pdev,
 	}
 
 	return 0;
+}
+
+static void samsung_banks_node_put(struct samsung_pinctrl_drv_data *d)
+{
+	struct samsung_pin_bank *bank;
+	unsigned int i;
+
+	bank = d->pin_banks;
+	for (i = 0; i < d->nr_banks; ++i, ++bank)
+		fwnode_handle_put(bank->fwnode);
+}
+
+/*
+ * Iterate over all driver pin banks to find one matching the name of node,
+ * skipping optional "-gpio" node suffix. When found, assign node to the bank.
+ */
+static void samsung_banks_node_get(struct device *dev, struct samsung_pinctrl_drv_data *d)
+{
+	const char *suffix = "-gpio-bank";
+	struct samsung_pin_bank *bank;
+	struct fwnode_handle *child;
+	/* Pin bank names are up to 4 characters */
+	char node_name[20];
+	unsigned int i;
+	size_t len;
+
+	bank = d->pin_banks;
+	for (i = 0; i < d->nr_banks; ++i, ++bank) {
+		strscpy(node_name, bank->name, sizeof(node_name));
+		len = strlcat(node_name, suffix, sizeof(node_name));
+		if (len >= sizeof(node_name)) {
+			dev_err(dev, "Too long pin bank name '%s', ignoring\n",
+				bank->name);
+			continue;
+		}
+
+		for_each_gpiochip_node(dev, child) {
+			struct device_node *np = to_of_node(child);
+
+			if (of_node_name_eq(np, node_name))
+				break;
+			if (of_node_name_eq(np, bank->name))
+				break;
+		}
+
+		if (child)
+			bank->fwnode = child;
+		else
+			dev_warn(dev, "Missing node for bank %s - invalid DTB\n",
+				 bank->name);
+	}
 }
 
 static void samsung_gpiolib_probe_done(struct samsung_pinctrl_drv_data *drvdata)
@@ -1187,18 +1238,7 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 	 * through samsung_pinctrl_drv_data.
 	 */
 	d->virt_base = virt_base[0];
-
-	for_each_child_of_node(node, np) {
-		if (!of_find_property(np, "gpio-controller", NULL))
-			continue;
-		bank = d->pin_banks;
-		for (i = 0; i < d->nr_banks; ++i, ++bank) {
-			if (of_node_name_eq(np, bank->name)) {
-				bank->of_node = np;
-				break;
-			}
-		}
-	}
+	samsung_banks_node_get(&pdev->dev, d);
 
 	d->pin_base = pin_base;
 	pin_base += d->nr_pins;
@@ -1247,10 +1287,8 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 		ctrl->eint_wkup_init(drvdata);
 
 	ret = samsung_gpiolib_register(pdev, drvdata);
-	if (ret) {
-		samsung_pinctrl_unregister(pdev, drvdata);
-		return ret;
-	}
+	if (ret)
+		goto err_unregister;
 	samsung_gpiolib_probe_done(drvdata);
 
 	platform_set_drvdata(pdev, drvdata);
@@ -1259,6 +1297,12 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 	list_add_tail(&drvdata->node, &drvdata_list);
 
 	return 0;
+
+err_unregister:
+	samsung_pinctrl_unregister(pdev, drvdata);
+err_put_banks:
+	samsung_banks_node_put(drvdata);
+	return ret;
 }
 
 #ifdef CONFIG_PM
