@@ -258,7 +258,7 @@ struct exynos_pcie {
 	struct regmap		*pmureg;
 	phys_addr_t		pmu_alive_pa;
 	struct regmap		*sysreg;
-	int			perst_gpio;
+	struct gpio_desc	*perst_gpio;
 	int			num_lanes;
 	int			ch_num;
 	int			pcie_clk_num;
