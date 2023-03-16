@@ -14,7 +14,7 @@
 #include <linux/cpu_pm.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -22,9 +22,7 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_gpio.h>
 #include <linux/of_irq.h>
-#include <linux/gpio/consumer.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
