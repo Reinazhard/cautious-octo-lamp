@@ -300,11 +300,10 @@ struct fts_hw_platform_data {
 	int flash_chunk; /* Max number of bytes that the DMA can burn on flash
 			  * in one shot in FTI */
 	int (*power) (bool on);
-	int switch_gpio;/* (optional) I2C switch */
-	int irq_gpio;	/* /< number of the gpio associated to the interrupt pin
-			 * */
-	int reset_gpio;	/* /< number of the gpio associated to the reset pin */
-	int disp_rate_gpio; /* disp_rate gpio: LOW=60Hz, HIGH=90Hz */
+	struct gpio_desc *switch_gpio;    /* optional I2C switch */
+	struct gpio_desc *irq_gpio;       /* gpio associated to the interrupt pin* */
+	struct gpio_desc *reset_gpio;     /* optional gpio associated to the reset pin */
+	struct gpio_desc *disp_rate_gpio; /* optional disp_rate gpio: LOW=60Hz, HIGH=90Hz */
 	const char *fw_name;
 	const char *limits_name;
 	const char *device_name;

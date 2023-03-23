@@ -80,15 +80,15 @@ int fts_system_reset(struct fts_ts_info *info)
 		/* disable interrupt before resetting to be able to get boot
 		 * events */
 
-		if (info->board->reset_gpio == GPIO_NOT_DEFINED)
+		if (!info->board->reset_gpio)
 			res = fts_writeU8UX(info, FTS_CMD_HW_REG_W,
 					    ADDR_SIZE_HW_REG,
 					    ADDR_SYSTEM_RESET, data, ARRAY_SIZE(
 						    data));
 		else {
-			gpio_set_value(info->board->reset_gpio, 0);
+			gpiod_set_value(info->board->reset_gpio, 1);
 			msleep(10);
-			gpio_set_value(info->board->reset_gpio, 1);
+			gpiod_set_value(info->board->reset_gpio, 1);
 			res = OK;
 		}
 		if (res < OK)
