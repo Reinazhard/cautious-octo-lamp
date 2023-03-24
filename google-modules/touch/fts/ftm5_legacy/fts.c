@@ -6425,7 +6425,7 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
 		}
 	}
 
-	bdata->switch_gpio = of_get_named_gpio(np, "st,switch_gpio", 0);
+	bdata->switch_gpio = of_get_named_gpio(np, "st,switch-gpio", 0);
 	dev_info(dev, "switch_gpio = %d\n", bdata->switch_gpio);
 
 	bdata->irq_gpio = of_get_named_gpio_flags(np, "st,irq-gpio", 0, NULL);
