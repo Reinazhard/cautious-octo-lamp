@@ -3466,8 +3466,7 @@ static int max77759_aicl_active_cb(struct gvotable_election *el, const char *rea
 	return 0;
 }
 
-static int max77759_probe(struct i2c_client *client,
-			  const struct i2c_device_id *i2c_id)
+static int max77759_probe(struct i2c_client *client)
 {
 	int ret, i;
 	struct max77759_plat *chip;
