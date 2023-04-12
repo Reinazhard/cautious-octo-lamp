@@ -14,6 +14,7 @@
 #include <linux/writeback.h>
 #include <linux/folio_batch.h>
 #include <linux/prefetch.h>
+#include <linux/cleancache.h>
 #include <linux/fsverity.h>
 #include <linux/lockdep.h>
 #include "extent_io.h"
@@ -1064,6 +1065,7 @@ static int btrfs_do_readpage(struct folio *folio, struct extent_map **em_cached,
 	struct extent_map *em;
 	int ret = 0;
 	const size_t blocksize = fs_info->sectorsize;
+	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 
 	if (bio_ctrl->ractl)
 		locked_end = readahead_pos(bio_ctrl->ractl) + readahead_length(bio_ctrl->ractl) - 1;
@@ -1074,6 +1076,15 @@ static int btrfs_do_readpage(struct folio *folio, struct extent_map **em_cached,
 	if (ret < 0) {
 		folio_unlock(folio);
 		return ret;
+	}
+
+	if (!folio_test_uptodate(folio)) {
+		if (cleancache_get_page(&folio->page) == 0) {
+			BUG_ON(blocksize != folio_size(folio));
+			btrfs_unlock_extent(tree, start, end, NULL);
+			folio_unlock(folio);
+			goto out;
+		}
 	}
 
 	if (folio_contains(folio, last_byte >> PAGE_SHIFT)) {
@@ -1211,6 +1222,7 @@ static int btrfs_do_readpage(struct folio *folio, struct extent_map **em_cached,
 		/* Read submission should not fail. */
 		ASSERT(queued == blocksize);
 	}
+out:
 	return 0;
 }
 
