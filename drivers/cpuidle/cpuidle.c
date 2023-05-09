@@ -1,3 +1,4 @@
+#include <trace/events/ipi.h>
 /*
  * cpuidle.c - core cpuidle infrastructure
  *
@@ -40,6 +41,34 @@ LIST_HEAD(cpuidle_detected_devices);
 static int enabled_devices;
 static int off __read_mostly;
 static int initialized __read_mostly;
+
+#ifdef CONFIG_SMP
+static atomic_t idled = ATOMIC_INIT(0);
+
+#if NR_CPUS > 32
+#error idled CPU mask not big enough for NR_CPUS
+#endif
+
+void cpuidle_set_idle_cpu(unsigned int cpu)
+{
+	atomic_or(BIT(cpu), &idled);
+}
+
+void cpuidle_clear_idle_cpu(unsigned int cpu)
+{
+	atomic_andnot(BIT(cpu), &idled);
+}
+
+void wake_idle_cpus_in_mask(const struct cpumask *mask)
+{
+	unsigned long cpus;
+	int cpu;
+
+	cpus = atomic_read(&idled) & *cpumask_bits(mask);
+	for_each_cpu(cpu, to_cpumask(&cpus))
+		smp_send_reschedule(cpu);
+}
+#endif
 
 int cpuidle_disabled(void)
 {

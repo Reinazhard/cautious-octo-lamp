@@ -10,6 +10,7 @@
 #include <linux/suspend.h>
 #include <linux/livepatch.h>
 #include "sched.h"
+#include "pelt.h"
 #include "smp.h"
 
 /* Linker adds these: start and end of __cpuidle functions */
@@ -355,6 +356,7 @@ static void do_idle(void)
 			cpuidle_idle_call(got_tick);
 		}
 		got_tick = tick_nohz_idle_got_tick();
+		cpuidle_clear_idle_cpu(cpu);
 		arch_cpu_idle_exit();
 	}
 

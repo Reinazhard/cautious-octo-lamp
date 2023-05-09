@@ -36,6 +36,7 @@
 #include <linux/seq_file.h>
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
+#include <linux/cpuidle.h>
 
 #include <linux/uaccess.h>
 #include <linux/export.h>
@@ -86,6 +87,7 @@ static void pm_qos_set_value(struct pm_qos_constraints *c, s32 value)
 static bool pm_qos_is_cpu_latency(struct pm_qos_constraints *c);
 static inline void pm_qos_set_value_for_cpus(struct pm_qos_request *new_req,
 					     struct pm_qos_constraints *c,
+					     unsigned long *cpus,
 					     unsigned long new_cpus,
 					     enum pm_qos_req_action new_action)
 {
@@ -127,8 +129,11 @@ static inline void pm_qos_set_value_for_cpus(struct pm_qos_request *new_req,
 			continue;
 
 		for_each_cpu(cpu, to_cpumask(&affected_cpus)) {
-			if (c->target_per_cpu[cpu] != req->node.prio)
+			if (c->target_per_cpu[cpu] != req->node.prio) {
 				c->target_per_cpu[cpu] = req->node.prio;
+				if (cpus)
+					*cpus |= BIT(cpu);
+			}
 		}
 
 		if (!(new_req_cpus &= ~affected_cpus))
@@ -136,14 +141,18 @@ static inline void pm_qos_set_value_for_cpus(struct pm_qos_request *new_req,
 	}
 
 	for_each_cpu(cpu, to_cpumask(&new_req_cpus)) {
-		if (c->target_per_cpu[cpu] != PM_QOS_CPU_LATENCY_DEFAULT_VALUE)
+		if (c->target_per_cpu[cpu] != PM_QOS_CPU_LATENCY_DEFAULT_VALUE) {
 			c->target_per_cpu[cpu] = PM_QOS_CPU_LATENCY_DEFAULT_VALUE;
+			if (cpus)
+				*cpus |= BIT(cpu);
+		}
 	}
 }
 
 static int pm_qos_update_target_cpus(struct pm_qos_constraints *c,
 				     struct plist_node *node,
 				     enum pm_qos_req_action action, int value,
+				     unsigned long *cpus,
 				     unsigned long new_cpus)
 {
 	struct pm_qos_request *req = container_of(node, typeof(*req), node);
@@ -179,7 +188,7 @@ static int pm_qos_update_target_cpus(struct pm_qos_constraints *c,
 
 	curr_value = pm_qos_get_value(c);
 	pm_qos_set_value(c, curr_value);
-	pm_qos_set_value_for_cpus(req, c, new_cpus, action);
+	pm_qos_set_value_for_cpus(req, c, cpus, new_cpus, action);
 
 	spin_unlock(&pm_qos_lock);
 
@@ -214,7 +223,7 @@ static int pm_qos_update_target_cpus(struct pm_qos_constraints *c,
 int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 			 enum pm_qos_req_action action, int value)
 {
-	return pm_qos_update_target_cpus(c, node, action, value, 0);
+	return pm_qos_update_target_cpus(c, node, action, value, NULL, 0);
 }
 
 /**
@@ -293,11 +302,6 @@ static struct pm_qos_constraints cpu_latency_constraints = {
 	.type = PM_QOS_MIN,
 };
 
-static inline bool cpu_latency_qos_value_invalid(s32 value)
-{
-	return value < 0 && value != PM_QOS_DEFAULT_VALUE;
-}
-
 /**
  * cpu_latency_qos_limit - Return current CPU latency QoS limit.
  */
@@ -322,9 +326,13 @@ EXPORT_SYMBOL_GPL(cpu_latency_qos_request_active);
 static void cpu_latency_qos_apply(struct pm_qos_request *req,
 				  enum pm_qos_req_action action, s32 value)
 {
-	int ret = pm_qos_update_target(req->qos, &req->node, action, value);
+	unsigned long cpus = 0;
+	int ret;
+
+	ret = pm_qos_update_target_cpus(req->qos, &req->node, action, value,
+					&cpus, 0);
 	if (ret > 0)
-		wake_up_all_idle_cpus();
+		wake_idle_cpus_in_mask(to_cpumask(&cpus));
 }
 
 #ifdef CONFIG_SMP
@@ -337,7 +345,7 @@ static void cpu_pm_qos_irq_release(struct kref *ref)
 	struct pm_qos_constraints *c = &cpu_latency_constraints;
 
 	pm_qos_update_target_cpus(c, &req->node, PM_QOS_UPDATE_REQ,
-				  c->default_value, CPUMASK_ALL);
+				  c->default_value, NULL, CPUMASK_ALL);
 }
 
 static void cpu_pm_qos_irq_notify(struct irq_affinity_notify *notify,
@@ -348,7 +356,7 @@ static void cpu_pm_qos_irq_notify(struct irq_affinity_notify *notify,
 	struct pm_qos_constraints *c = &cpu_latency_constraints;
 
 	pm_qos_update_target_cpus(c, &req->node, PM_QOS_UPDATE_REQ,
-				  req->node.prio, *cpumask_bits(mask));
+				  req->node.prio, NULL, *cpumask_bits(mask));
 }
 #endif
 
@@ -366,7 +374,7 @@ static void cpu_pm_qos_irq_notify(struct irq_affinity_notify *notify,
  */
 void cpu_latency_qos_add_request(struct pm_qos_request *req, s32 value)
 {
-	if (!req || cpu_latency_qos_value_invalid(value))
+	if (!req)
 		return;
 
 	if (cpu_latency_qos_request_active(req)) {
@@ -450,7 +458,7 @@ EXPORT_SYMBOL_GPL(cpu_latency_qos_add_request);
  */
 void cpu_latency_qos_update_request(struct pm_qos_request *req, s32 new_value)
 {
-	if (!req || cpu_latency_qos_value_invalid(new_value))
+	if (!req)
 		return;
 
 	if (!cpu_latency_qos_request_active(req)) {
@@ -507,7 +515,7 @@ static int cpu_latency_qos_open(struct inode *inode, struct file *filp)
 {
 	struct pm_qos_request *req;
 
-	req = kzalloc_obj(*req);
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 
@@ -583,127 +591,16 @@ static struct miscdevice cpu_latency_qos_miscdev = {
 	.fops = &cpu_latency_qos_fops,
 };
 
-#ifdef CONFIG_PM_QOS_CPU_SYSTEM_WAKEUP
-/* The CPU system wakeup latency QoS. */
-static struct pm_qos_constraints cpu_wakeup_latency_constraints = {
-	.list = PLIST_HEAD_INIT(cpu_wakeup_latency_constraints.list),
-	.target_value = PM_QOS_RESUME_LATENCY_NO_CONSTRAINT,
-	.default_value = PM_QOS_RESUME_LATENCY_NO_CONSTRAINT,
-	.no_constraint_value = PM_QOS_RESUME_LATENCY_NO_CONSTRAINT,
-	.type = PM_QOS_MIN,
-};
-
-/**
- * cpu_wakeup_latency_qos_limit - Current CPU system wakeup latency QoS limit.
- *
- * Returns the current CPU system wakeup latency QoS limit that may have been
- * requested by user space.
- */
-s32 cpu_wakeup_latency_qos_limit(void)
-{
-	return pm_qos_read_value(&cpu_wakeup_latency_constraints);
-}
-
-static int cpu_wakeup_latency_qos_open(struct inode *inode, struct file *filp)
-{
-	struct pm_qos_request *req;
-
-	req = kzalloc_obj(*req);
-	if (!req)
-		return -ENOMEM;
-
-	req->qos = &cpu_wakeup_latency_constraints;
-	pm_qos_update_target(req->qos, &req->node, PM_QOS_ADD_REQ,
-			     PM_QOS_RESUME_LATENCY_NO_CONSTRAINT);
-	filp->private_data = req;
-
-	return 0;
-}
-
-static int cpu_wakeup_latency_qos_release(struct inode *inode,
-					  struct file *filp)
-{
-	struct pm_qos_request *req = filp->private_data;
-
-	filp->private_data = NULL;
-	pm_qos_update_target(req->qos, &req->node, PM_QOS_REMOVE_REQ,
-			     PM_QOS_RESUME_LATENCY_NO_CONSTRAINT);
-	kfree(req);
-
-	return 0;
-}
-
-static ssize_t cpu_wakeup_latency_qos_read(struct file *filp, char __user *buf,
-					   size_t count, loff_t *f_pos)
-{
-	s32 value = pm_qos_read_value(&cpu_wakeup_latency_constraints);
-
-	return simple_read_from_buffer(buf, count, f_pos, &value, sizeof(s32));
-}
-
-static ssize_t cpu_wakeup_latency_qos_write(struct file *filp,
-					    const char __user *buf,
-					    size_t count, loff_t *f_pos)
-{
-	struct pm_qos_request *req = filp->private_data;
-	s32 value;
-
-	if (count == sizeof(s32)) {
-		if (copy_from_user(&value, buf, sizeof(s32)))
-			return -EFAULT;
-	} else {
-		int ret;
-
-		ret = kstrtos32_from_user(buf, count, 16, &value);
-		if (ret)
-			return ret;
-	}
-
-	if (value < 0)
-		return -EINVAL;
-
-	pm_qos_update_target(req->qos, &req->node, PM_QOS_UPDATE_REQ, value);
-
-	return count;
-}
-
-static const struct file_operations cpu_wakeup_latency_qos_fops = {
-	.open = cpu_wakeup_latency_qos_open,
-	.release = cpu_wakeup_latency_qos_release,
-	.read = cpu_wakeup_latency_qos_read,
-	.write = cpu_wakeup_latency_qos_write,
-	.llseek = noop_llseek,
-};
-
-static struct miscdevice cpu_wakeup_latency_qos_miscdev = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "cpu_wakeup_latency",
-	.fops = &cpu_wakeup_latency_qos_fops,
-};
-#endif /* CONFIG_PM_QOS_CPU_SYSTEM_WAKEUP */
-
 static int __init cpu_latency_qos_init(void)
 {
 	int ret;
 
 	ret = misc_register(&cpu_latency_qos_miscdev);
-	if (ret < 0) {
+	if (ret < 0)
 		pr_err("%s: %s setup failed\n", __func__,
 		       cpu_latency_qos_miscdev.name);
-		return ret;
-	}
 
-#ifdef CONFIG_PM_QOS_CPU_SYSTEM_WAKEUP
-	ret = misc_register(&cpu_wakeup_latency_qos_miscdev);
-	if (ret < 0) {
-		pr_err("%s: %s setup failed\n", __func__,
-		       cpu_wakeup_latency_qos_miscdev.name);
-		misc_deregister(&cpu_latency_qos_miscdev);
-		return ret;
-	}
-#endif
-
-	return 0;
+	return ret;
 }
 late_initcall(cpu_latency_qos_init);
 #endif /* CONFIG_CPU_IDLE */
