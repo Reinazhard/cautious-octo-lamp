@@ -15,6 +15,9 @@
 #include <linux/swap.h>
 #include <linux/vmstat.h>
 
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/mm.h>
+
 #include "internal.h"
 #include "page_alloc.h"
 #include "swap.h"
@@ -66,6 +69,7 @@ long si_mem_available(void)
 		global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE);
 	reclaimable -= min(reclaimable / 2, wmark_low);
 	available += reclaimable;
+	trace_android_vh_si_mem_available_adjust(&available);
 
 	if (available < 0)
 		available = 0;
@@ -82,6 +86,7 @@ void si_meminfo(struct sysinfo *val)
 	val->totalhigh = totalhigh_pages();
 	val->freehigh = nr_free_highpages();
 	val->mem_unit = PAGE_SIZE;
+	trace_android_vh_si_meminfo_adjust(&val->totalram, &val->freeram);
 }
 
 EXPORT_SYMBOL(si_meminfo);
