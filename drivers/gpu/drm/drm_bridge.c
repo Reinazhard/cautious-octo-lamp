@@ -1259,6 +1259,7 @@ drm_atomic_bridge_chain_select_bus_fmts(struct drm_bridge *bridge,
 	struct drm_bridge_state *last_bridge_state;
 	unsigned int i, num_out_bus_fmts = 0;
 	enum drm_connector_color_format fmt;
+	u32 out_bus_fmts_onstack;
 	u32 *out_bus_fmts;
 	int ret = 0;
 
@@ -1289,9 +1290,7 @@ drm_atomic_bridge_chain_select_bus_fmts(struct drm_bridge *bridge,
 			return -ENOMEM;
 	} else {
 		num_out_bus_fmts = 1;
-		out_bus_fmts = kmalloc_obj(*out_bus_fmts);
-		if (!out_bus_fmts)
-			return -ENOMEM;
+		out_bus_fmts = &out_bus_fmts_onstack;
 
 		if (conn->display_info.num_bus_formats &&
 		    conn->display_info.bus_formats)
@@ -1327,7 +1326,8 @@ drm_atomic_bridge_chain_select_bus_fmts(struct drm_bridge *bridge,
 		}
 	}
 
-	kfree(out_bus_fmts);
+	if (out_bus_fmts != &out_bus_fmts_onstack)
+		kfree(out_bus_fmts);
 
 	return ret;
 }
