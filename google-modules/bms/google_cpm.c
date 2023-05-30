@@ -399,7 +399,7 @@ struct gcpm_sec_avail_foreach_data {
 
 /* Logging ----------------------------------------------------------------- */
 
-int debug_printk_prlog = LOGLEVEL_INFO;
+static int debug_printk_prlog = LOGLEVEL_INFO;
 
 /* ------------------------------------------------------------------------- */
 
