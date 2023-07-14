@@ -19,6 +19,7 @@
 #include <linux/fault-inject.h>
 #include <linux/debugfs.h>
 #include <linux/msi.h>
+#include <linux/pm_qos.h>
 #include <linux/pm_runtime.h>
 #include <linux/dma-direction.h>
 #include <scsi/scsi_device.h>
@@ -1272,6 +1273,15 @@ struct ufs_hba {
 	bool pm_qos_enabled;
 	/* synchronizes PM QoS request and status updates */
 	struct mutex pm_qos_mutex;
+
+	struct {
+		struct pm_qos_request req;
+		struct work_struct get_work;
+		struct work_struct put_work;
+		struct mutex lock;
+		atomic_t count;
+		bool active;
+	} pm_qos;
 
 	int critical_health_count;
 	atomic_t dev_lvl_exception_count;
