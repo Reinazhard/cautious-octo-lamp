@@ -22,6 +22,8 @@ config GENERIC_IRQ_SHOW_LEVEL
 config GENERIC_IRQ_EFFECTIVE_AFF_MASK
        depends on SMP
        bool
+       depends on !ARM64
+       depends on !ARM64
 
 # Support for delayed migration from interrupt context
 config GENERIC_PENDING_IRQ
