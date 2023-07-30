@@ -209,11 +209,11 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  * wants to be able to disable its tracepoints from being created
  * it can define NOTRACE before including the tracepoint headers.
  */
+#ifndef CONFIG_ANDROID_ONLY_VH_TRACING
 #if defined(CONFIG_TRACEPOINTS) && !defined(NOTRACE)
 #define TRACEPOINTS_ENABLED
 #endif
-
-#ifdef TRACEPOINTS_ENABLED
+#endif /* CONFIG_ANDROID_ONLY_VH_TRACING */
 
 #ifdef CONFIG_HAVE_STATIC_CALL
 #define __DO_TRACE_CALL(name, args)					\
@@ -230,6 +230,8 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 #else
 #define __DO_TRACE_CALL(name, args)	__traceiter_##name(NULL, args)
 #endif /* CONFIG_HAVE_STATIC_CALL */
+
+#ifdef TRACEPOINTS_ENABLED
 
 /*
  * Declare an exported function that Rust code can call to trigger this
