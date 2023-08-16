@@ -154,6 +154,15 @@ static inline void irq_proc_update_valid(struct irq_desc *desc) { }
 
 struct irq_desc *irq_find_desc_at_or_after(unsigned int offset);
 
+#ifdef CONFIG_IRQ_SBALANCE
+extern void sbalance_desc_add(struct irq_desc *desc);
+extern void sbalance_desc_del(struct irq_desc *desc);
+#else
+static inline void sbalance_desc_add(struct irq_desc *desc) { }
+static inline void sbalance_desc_del(struct irq_desc *desc) { }
+#endif
+
+extern bool __irq_can_set_affinity(struct irq_desc *desc);
 extern bool irq_can_set_affinity_usr(unsigned int irq);
 
 extern int irq_do_set_affinity(struct irq_data *data,
