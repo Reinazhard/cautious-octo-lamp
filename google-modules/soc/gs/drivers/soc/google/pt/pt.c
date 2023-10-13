@@ -989,7 +989,7 @@ int pt_driver_unregister(struct pt_driver *driver)
 	else
 		list_del(&driver->list);
 	spin_unlock_irqrestore(&pt_internal_data.sl, flags);
-	if ((ret == 0) && (driver->sysctl_header))
+	if (ret == 0)
 		unregister_sysctl_table(driver->sysctl_header);
 	if (ret == 0)
 		kfree(driver);
@@ -1304,8 +1304,7 @@ static int __init pt_init(void)
 
 static void __exit pt_exit(void)
 {
-	if (pt_internal_data.sysctl_header)
-		unregister_sysctl_table(pt_internal_data.sysctl_header);
+	unregister_sysctl_table(pt_internal_data.sysctl_header);
 	// TODO: wait for client unregister
 }
 
