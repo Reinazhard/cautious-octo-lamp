@@ -147,6 +147,9 @@ KVM_NVHE_ALIAS(__hyp_event_ids_end);
 
 /* pKVM static key */
 KVM_NVHE_ALIAS(kvm_protected_mode_initialized);
+#ifdef CONFIG_TRACING
+KVM_NVHE_ALIAS(__lshrti3);
+#endif
 
 #endif /* CONFIG_KVM */
 
