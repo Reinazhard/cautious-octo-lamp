@@ -6,7 +6,11 @@
  * Copyright 2020 Google LLC
  */
 #include <linux/iova.h>
+#include <linux/dma-buf.h>
+#include <linux/futex.h>
+#include <linux/net.h>
 #include <linux/pm_qos.h>
+#include <linux/shrinker.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/hooks/vendor_hooks.h>
