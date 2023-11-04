@@ -20,7 +20,10 @@
 #include <trace/hooks/sched.h>
 #include <sched.h>
 #include <pelt.h>
-#include "governor.h"
+#include <linux/devfreq-governor.h>
+#include <linux/platform_device.h>
+#include <linux/sched/topology.h>
+#include "../../kernel/sched/pelt.h"
 
 /* SoC-specific ACPM constant definitions */
 #ifdef CONFIG_SOC_GS101
@@ -322,7 +325,7 @@ static u32 find_cpu_freq(struct cpufreq_policy *pol, u64 khz, u32 relation)
 	int idx;
 
 	/* Find the nearest frequency in the table with the chosen relation */
-	idx = cpufreq_frequency_table_target(pol, khz, relation);
+	idx = cpufreq_frequency_table_target(pol, khz, pol->min, pol->max, relation);
 	return tbl[idx].frequency;
 }
 
@@ -424,11 +427,11 @@ static void tensor_aio_ttwu(void *data, struct task_struct *p)
 	update_thermal_pressure();
 	update_freq_scale(false);
 
-	/* Update the thermal load average tracked by PELT */
+	/* Update the hw load average tracked by PELT */
 	rq_lock(rq, &rf);
 	update_rq_clock(rq);
-	update_thermal_load_avg(rq_clock_thermal(rq), rq,
-				arch_scale_thermal_pressure(cpu));
+	update_hw_load_avg(rq_clock_task(rq), rq,
+			   arch_scale_hw_pressure(cpu));
 	rq_unlock(rq, &rf);
 }
 
@@ -562,7 +565,7 @@ static inline u32 find_freq_c(struct exynos_devfreq_data *data, u32 target)
 }
 
 /* This closely mimics cpufreq_table_find_index_dl() */
-static inline u32 find_index_l(struct exynos_devfreq_data *data, u32 target)
+static inline u32 devfreq_find_index_l(struct exynos_devfreq_data *data, u32 target)
 {
 	u32 best = -1, i;
 
@@ -587,7 +590,7 @@ static inline u32 find_index_l(struct exynos_devfreq_data *data, u32 target)
 
 static inline u32 find_freq_l(struct exynos_devfreq_data *data, u32 target)
 {
-	return data->tbl[find_index_l(data, target)];
+	return data->tbl[devfreq_find_index_l(data, target)];
 }
 
 /* Write specified register tuples to all PPC registers */
@@ -737,7 +740,7 @@ static u32 mif_cpu_vote(struct pmu_stat *stat, int cpu, u32 cur, u32 *dsu_vote)
 			vote = cur;
 		} else {
 			vote = mif->tbl[cur] * MEMPERFD_DOWN_PCT / 100;
-			vote = find_index_l(mif, vote);
+			vote = devfreq_find_index_l(mif, vote);
 			if (vote == cur)
 				/* Drop MIF frequency by at least one step */
 				vote++;
@@ -845,7 +848,7 @@ static bool memperf_work(void)
 	cpumask_copy(&cpus, cpu_active_mask);
 
 	/* Get the current MIF freq, since something else could've raised it */
-	cur = find_index_l(mif, READ_ONCE(mif->cur_freq));
+	cur = devfreq_find_index_l(mif, READ_ONCE(mif->cur_freq));
 
 	/* Gather updated memory stall statistics for all active CPUs */
 	for_each_cpu(cpu, &cpus) {
@@ -929,8 +932,8 @@ static void memperfd_wait_timeout(void)
 	timer.expires = jiffies + MEMPERFD_POLL_HZ + 1;
 	add_timer_on(&timer, 0);
 	schedule();
-	del_singleshot_timer_sync(&timer);
-	destroy_timer_on_stack(&timer);
+	timer_delete_sync(&timer);
+	
 }
 
 static void memperfd_wait_for_kick(bool timeout)
@@ -1172,8 +1175,13 @@ static bool cache_cpu_policy(void)
 		 * it for looking up invariant information later, like the
 		 * frequency table and minimum/maximum limits.
 		 */
-		if (!cached->freq_table && cpufreq_get_policy(cached, cpu))
-			return false;
+		if (!cached->freq_table) {
+			struct cpufreq_policy *pol = cpufreq_cpu_get(cpu);
+			if (!pol)
+				return false;
+			*cached = *pol;
+			cpufreq_cpu_put(pol);
+		}
 	}
 
 	return true;
