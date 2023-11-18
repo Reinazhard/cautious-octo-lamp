@@ -14,15 +14,9 @@
 #include <asm/atomic_lse.h>
 #include <asm/cpucaps.h>
 
-#define __lse_ll_sc_body(op, ...)					\
-({									\
-	alternative_has_cap_likely(ARM64_HAS_LSE_ATOMICS) ?		\
-		__lse_##op(__VA_ARGS__) :				\
-		__ll_sc_##op(__VA_ARGS__);				\
-})
+/* Always use LSE atomics */
+#define __lse_ll_sc_body(op, ...)		__lse_##op(__VA_ARGS__)
 
-/* In-line patching at runtime */
-#define ARM64_LSE_ATOMIC_INSN(llsc, lse)				\
-	ALTERNATIVE(llsc, __LSE_PREAMBLE lse, ARM64_HAS_LSE_ATOMICS)
+#define ARM64_LSE_ATOMIC_INSN(llsc, lse)	__LSE_PREAMBLE lse
 
 #endif	/* __ASM_LSE_H */
