@@ -1301,7 +1301,6 @@ static struct iommu_ops samsung_sysmmu_ops = {
 		.attach_dev		= samsung_sysmmu_attach_dev,
 		.set_dev_pasid		= samsung_sysmmu_set_dev_pasid,
 		.map			= samsung_sysmmu_map,
-		.unmap			= samsung_sysmmu_unmap,
 		.unmap_pages		= samsung_sysmmu_unmap_pages,
 		.flush_iotlb_all	= samsung_sysmmu_flush_iotlb_all,
 		.iotlb_sync_map		= samsung_sysmmu_iotlb_sync_map,
