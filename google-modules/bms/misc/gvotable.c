@@ -850,7 +850,7 @@ static int gvotable_get_current_reason_unlocked(struct gvotable_election *el,
 	else if (el->result_is_valid)
 		r = el->reason;
 
-	return r ? strlcpy(reason, r, max_len) : -EAGAIN;
+	return r ? strscpy(reason, r, max_len) : -EAGAIN;
 }
 
 /* Retrieve current reason for election result. */
@@ -1107,7 +1107,7 @@ int gvotable_cast_vote(struct gvotable_election *el, const char *reason,
 		}
 
 		ballot->reason_hash = gvotable_internal_hash(reason);
-		strlcpy(ballot->reason, reason, GVOTABLE_MAX_REASON_LEN);
+		strscpy(ballot->reason, reason, GVOTABLE_MAX_REASON_LEN);
 		if (el->use_alloc)
 			ballot->vote_size = el->vote_size;
 		el->num_voters++;
