@@ -510,7 +510,7 @@ gvotable_create_election(const char *name, int vote_size,
 	if (name) {
 		slot->el->has_name = true;
 		slot->el->hash     = gvotable_internal_hash(name);
-		strlcpy(slot->el->name, name, MAX_NAME_LEN);
+		strscpy(slot->el->name, name, MAX_NAME_LEN);
 
 		gvotable_debugfs_create_el(slot);
 	}
