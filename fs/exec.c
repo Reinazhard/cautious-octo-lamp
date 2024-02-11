@@ -87,10 +87,26 @@ static int bprm_creds_from_file(struct linux_binprm *bprm);
 
 int suid_dumpable = 0;
 
+#define LIBPERFMGR_BIN "/vendor/bin/hw/android.hardware.power-service.pixel-libperfmgr"
 #define SERVICEMANAGER_BIN "/system/bin/servicemanager"
 
 bool task_is_servicemanager(struct task_struct *p);
+bool task_is_libperfmgr(struct task_struct *p);
 void dead_special_task(void);
+
+static struct task_struct *libperfmgr_tsk;
+bool task_is_libperfmgr(struct task_struct *p)
+{
+	struct task_struct *tsk;
+	bool ret;
+
+	rcu_read_lock();
+	tsk = READ_ONCE(libperfmgr_tsk);
+	ret = tsk && same_thread_group(p, tsk);
+	rcu_read_unlock();
+
+	return ret;
+}
 
 static struct task_struct *servicemanager_tsk;
 bool task_is_servicemanager(struct task_struct *p)
@@ -102,6 +118,8 @@ void dead_special_task(void)
 {
 	if (unlikely(current == servicemanager_tsk))
 		WRITE_ONCE(servicemanager_tsk, NULL);
+	else if (unlikely(current == libperfmgr_tsk))
+		WRITE_ONCE(libperfmgr_tsk, NULL);
 }
 
 static LIST_HEAD(formats);
@@ -1887,7 +1905,9 @@ static int bprm_execve(struct linux_binprm *bprm)
 
 	sched_mm_cid_after_execve(current);
 	if (is_global_init(current->parent)) {
-		if (unlikely(!strcmp(bprm->filename, SERVICEMANAGER_BIN)))
+		if (unlikely(!strcmp(bprm->filename, LIBPERFMGR_BIN))) {
+			WRITE_ONCE(libperfmgr_tsk, current);
+		} else if (unlikely(!strcmp(bprm->filename, SERVICEMANAGER_BIN)))
 			WRITE_ONCE(servicemanager_tsk, current);
 	}
 	rseq_execve(current);
