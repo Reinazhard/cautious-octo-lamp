@@ -135,7 +135,9 @@ static int debug_kinfo_probe(struct platform_device *pdev)
 	info->num_syms = kallsyms_num_syms;
 	info->name_len = KSYM_NAME_LEN;
 	info->bit_per_long = BITS_PER_LONG;
+	#ifdef CONFIG_MODULES
 	info->module_name_len = MODULE_NAME_LEN;
+#endif
 	info->symbol_len = KSYM_SYMBOL_LEN;
 	info->_offsets_pa = (u64)__pa_symbol((volatile void *)kallsyms_offsets);
 	info->_text_pa = (u64)__pa_symbol(_text);
@@ -152,9 +154,11 @@ static int debug_kinfo_probe(struct platform_device *pdev)
 	info->thread_size = THREAD_SIZE;
 	info->swapper_pg_dir_pa = (u64)__pa_symbol(swapper_pg_dir);
 	strscpy(info->last_uts_release, init_utsname()->release, sizeof(info->last_uts_release));
+#ifdef CONFIG_MODULES
 	info->enabled_modules_tree_lookup = IS_ENABLED(CONFIG_MODULES_TREE_LOOKUP);
 	info->mod_mem_offset = offsetof(struct module, mem);
 	info->mod_kallsyms_offset = offsetof(struct module, kallsyms);
+#endif
 
 	update_kernel_all_info(all_info);
 
