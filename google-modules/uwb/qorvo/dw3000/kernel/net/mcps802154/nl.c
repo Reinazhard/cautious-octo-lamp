@@ -37,7 +37,7 @@
 	}
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
-#define nla_strscpy nla_strlcpy
+#define nla_strscpy nla_strscpy
 #endif
 
 static struct genl_family mcps802154_nl_family;
