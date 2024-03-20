@@ -112,7 +112,7 @@ int open_channel(void *clt)
 		 "%s: spi_device: max_speed = %d chip select = %02X bits_per_words = %d mode = %04X !\n",
 		__func__,
 		 ((struct spi_device *)client)->max_speed_hz,
-		 ((struct spi_device *)client)->chip_select,
+		 spi_get_chipselect(((struct spi_device *)client), 0),
 		 ((struct spi_device *)client)->bits_per_word,
 		 ((struct spi_device *)client)->mode);
 	log_info(1, "%s: openChannel: completed!\n", __func__);

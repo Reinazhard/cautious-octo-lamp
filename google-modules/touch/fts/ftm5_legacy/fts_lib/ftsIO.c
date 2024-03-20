@@ -66,7 +66,7 @@ int openChannel(void *clt)
 	dev_info(&((struct spi_device *)clt)->dev,
 		"%s: spi_device: max_speed = %d chip select = %02X bits_per_words = %d mode = %04X !\n",
 		__func__, ((struct spi_device *)clt)->max_speed_hz,
-		((struct spi_device *)clt)->chip_select,
+		spi_get_chipselect(((struct spi_device *)clt), 0),
 		((struct spi_device *)clt)->bits_per_word,
 		((struct spi_device *)clt)->mode);
 	dev_info(&((struct spi_device *)clt)->dev, "openChannel: completed!\n");
