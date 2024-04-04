@@ -615,8 +615,11 @@ static int exynos_cpufreq_pm_notifier(struct notifier_block *notifier,
 			policy = cpufreq_cpu_get(cpumask_any(&domain->cpus));
 			if (!policy)
 				continue;
-			if (__exynos_cpufreq_suspend(policy, domain))
+			if (__exynos_cpufreq_suspend(policy, domain)) {
+				cpufreq_cpu_put(policy);
 				return NOTIFY_BAD;
+			}
+			cpufreq_cpu_put(policy);
 		}
 		break;
 	case PM_POST_SUSPEND:
@@ -624,8 +627,11 @@ static int exynos_cpufreq_pm_notifier(struct notifier_block *notifier,
 			policy = cpufreq_cpu_get(cpumask_any(&domain->cpus));
 			if (!policy)
 				continue;
-			if (__exynos_cpufreq_resume(policy, domain))
+			if (__exynos_cpufreq_resume(policy, domain)) {
+				cpufreq_cpu_put(policy);
 				return NOTIFY_BAD;
+			}
+			cpufreq_cpu_put(policy);
 		}
 		break;
 	}
