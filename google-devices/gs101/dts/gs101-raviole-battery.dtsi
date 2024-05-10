@@ -95,11 +95,6 @@
 
 				google,first-usage-date = <0>;
 			};
-
-			google_bms {
-				nvmem = <&pack_bee>;
-			};
-
 		};
 	};
 };
