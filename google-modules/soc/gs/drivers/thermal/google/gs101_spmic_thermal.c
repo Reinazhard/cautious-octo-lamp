@@ -170,7 +170,7 @@ static int gs101_spmic_thermal_read_raw(struct gs101_spmic_thermal_sensor *s, in
 static int gs101_spmic_thermal_get_temp(struct thermal_zone_device *tz,
 					int *temp)
 {
-	struct gs101_spmic_thermal_sensor *s = tz->devdata;
+	struct gs101_spmic_thermal_sensor *s = thermal_zone_device_priv(tz);
 	struct gs101_spmic_thermal_chip *gs101_spmic_thermal = s->chip;
 	int emul_temp;
 	int raw, ret = 0;
@@ -209,7 +209,7 @@ end:
 static int gs101_spmic_thermal_set_trips(struct thermal_zone_device *tz,
 					 int low_temp, int high_temp)
 {
-	struct gs101_spmic_thermal_sensor *s = tz->devdata;
+	struct gs101_spmic_thermal_sensor *s = thermal_zone_device_priv(tz);
 	struct gs101_spmic_thermal_chip *gs101_spmic_thermal = s->chip;
 	struct device *dev = gs101_spmic_thermal->dev;
 	int emul_temp, low_volt, ret = 0;
@@ -268,7 +268,7 @@ static int gs101_spmic_thermal_set_hot_trip(struct gs101_spmic_thermal_sensor *s
 static int gs101_spmic_thermal_set_trip_temp(struct thermal_zone_device *tz,
 					     int trip, int temp)
 {
-	struct gs101_spmic_thermal_sensor *s = tz->devdata;
+	struct gs101_spmic_thermal_sensor *s = thermal_zone_device_priv(tz);
 	const struct thermal_trip *trip_points;
 	int ret = 0;
 
@@ -294,7 +294,7 @@ static int gs101_spmic_thermal_set_trip_temp(struct thermal_zone_device *tz,
 static int gs101_spmic_thermal_set_emul_temp(struct thermal_zone_device *tz,
 					     int temp)
 {
-	struct gs101_spmic_thermal_sensor *sensor = tz->devdata;
+	struct gs101_spmic_thermal_sensor *sensor = thermal_zone_device_priv(tz);
 	int ret;
 	u8 value, mask = 0x1;
 
