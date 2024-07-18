@@ -25,6 +25,7 @@
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/gpio/consumer.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
@@ -332,7 +333,7 @@ static int google_bcl_set_soc(struct bcl_device *bcl_dev, int low, int high)
 
 static int tz_bcl_set_soc(struct thermal_zone_device *tz, int low, int high)
 {
-	return google_bcl_set_soc(tz->devdata, low, high);
+	return google_bcl_set_soc(thermal_zone_device_priv(tz), low, high);
 }
 
 static int google_bcl_read_soc(struct bcl_device *bcl_dev, int *val)
@@ -366,7 +367,7 @@ static int google_bcl_read_soc(struct bcl_device *bcl_dev, int *val)
 
 static int tz_bcl_read_soc(struct thermal_zone_device *tz, int *val)
 {
-	return google_bcl_read_soc(tz->devdata, val);
+	return google_bcl_read_soc(thermal_zone_device_priv(tz), val);
 }
 
 static void google_bcl_evaluate_soc(struct work_struct *work)
@@ -1333,21 +1334,21 @@ static int intf_pmic_init(struct bcl_device *bcl_dev)
 	if (bcl_dev->ifpmic == MAX77759) {
 		ret = google_bcl_register_zone(bcl_dev, UVLO1, "vdroop1", bcl_dev->vdroop1_pin,
 				       	       VD_BATTERY_VOLTAGE - uvlo1_lvl - THERMAL_HYST_LEVEL,
-				       	       gpio_to_irq(bcl_dev->vdroop1_pin), IF_PMIC);
+				       	       gpiod_to_irq(bcl_dev->vdroop1_pin), IF_PMIC);
 		if (ret < 0) {
 			dev_err(bcl_dev->device, "bcl_register fail: UVLO1\n");
 			return -ENODEV;
 		}
 		ret = google_bcl_register_zone(bcl_dev, BATOILO1, "batoilo", bcl_dev->vdroop2_pin,
 				       	       batoilo_lvl - THERMAL_HYST_LEVEL,
-				       	       gpio_to_irq(bcl_dev->vdroop2_pin), IF_PMIC);
+				       	       gpiod_to_irq(bcl_dev->vdroop2_pin), IF_PMIC);
 		if (ret < 0) {
 			dev_err(bcl_dev->device, "bcl_register fail: BATOILO\n");
 			return -ENODEV;
 		}
 		ret = google_bcl_register_zone(bcl_dev, UVLO2, "vdroop2", bcl_dev->vdroop2_pin,
 				       	       VD_BATTERY_VOLTAGE - uvlo2_lvl - THERMAL_HYST_LEVEL,
-				       	       gpio_to_irq(bcl_dev->vdroop2_pin), IF_PMIC);
+				       	       gpiod_to_irq(bcl_dev->vdroop2_pin), IF_PMIC);
 		if (ret < 0) {
 			dev_err(bcl_dev->device, "bcl_register fail: UVLO2\n");
 			return -ENODEV;
@@ -1371,21 +1372,21 @@ static int intf_pmic_init(struct bcl_device *bcl_dev)
 	if (bcl_dev->ifpmic == MAX77779) {
 		ret = google_bcl_register_zone(bcl_dev, UVLO1, "vdroop1", bcl_dev->vdroop1_pin,
 				       	       VD_BATTERY_VOLTAGE - uvlo1_lvl - THERMAL_HYST_LEVEL,
-				       	       gpio_to_irq(bcl_dev->vdroop1_pin), IF_PMIC);
+				       	       gpiod_to_irq(bcl_dev->vdroop1_pin), IF_PMIC);
 		if (ret < 0) {
 			dev_err(bcl_dev->device, "bcl_register fail: UVLO1\n");
 			return -ENODEV;
 		}
 		ret = google_bcl_register_zone(bcl_dev, BATOILO1, "batoilo", bcl_dev->vdroop2_pin,
 				       	       batoilo_lvl - THERMAL_HYST_LEVEL,
-				       	       gpio_to_irq(bcl_dev->vdroop2_pin), IF_PMIC);
+				       	       gpiod_to_irq(bcl_dev->vdroop2_pin), IF_PMIC);
 		if (ret < 0) {
 			dev_err(bcl_dev->device, "bcl_register fail: BATOILO\n");
 			return -ENODEV;
 		}
 		ret = google_bcl_register_zone(bcl_dev, BATOILO2, "batoilo2", bcl_dev->vdroop2_pin,
 					       batoilo2_lvl - THERMAL_HYST_LEVEL,
-					       gpio_to_irq(bcl_dev->vdroop2_pin), IF_PMIC);
+					       gpiod_to_irq(bcl_dev->vdroop2_pin), IF_PMIC);
 		if (ret < 0) {
 			dev_err(bcl_dev->device, "bcl_register fail: BATOILO2\n");
 			return -ENODEV;
@@ -2500,8 +2501,7 @@ void google_bcl_enable_timer(struct bcl_device *bcl_dev)
 	if (!IS_ENABLED(CONFIG_SOC_ZUMAPRO))
 		return;
 
-	hrtimer_init(&(bcl_dev->hr_timer), CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	bcl_dev->hr_timer.function = bcl_hrtimer_irq_handler;
+	hrtimer_setup(&(bcl_dev->hr_timer), bcl_hrtimer_irq_handler, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	setup_batoilo_ifpmic_qbat_open(bcl_dev, false);
 }
 
