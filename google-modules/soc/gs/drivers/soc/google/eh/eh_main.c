@@ -1093,7 +1093,7 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 				  virt_to_phys(&eh_dev->decompr_status[index]));
 #endif
 
-	src_data = (__ffs(alignment) - 5) << EH_DCMD_BUF_SIZE_SHIFT;
+	src_data = ((u64)(__ffs(alignment) - 5)) << EH_DCMD_BUF_SIZE_SHIFT;
 	src_data |= src_paddr;
 	eh_write_register(eh_dev, EH_REG_DCMD_BUF0(index), src_data);
 	eh_write_register(eh_dev, EH_REG_DCMD_BUF1(index), 0);
