@@ -266,26 +266,16 @@ static int gs101_spmic_thermal_set_hot_trip(struct gs101_spmic_thermal_sensor *s
  * programmed as shutdown threshold.
  */
 static int gs101_spmic_thermal_set_trip_temp(struct thermal_zone_device *tz,
-					     int trip, int temp)
+					     const struct thermal_trip *trip,
+					     int temp)
 {
 	struct gs101_spmic_thermal_sensor *s = thermal_zone_device_priv(tz);
-	const struct thermal_trip *trip_points;
-	int ret = 0;
 
-	if (!s->chip->sensors_ready)
-		return -EAGAIN;
-
-	trip_points = of_thermal_get_trip_points(s->tzd);
-	if (!trip_points)
-		return -EINVAL;
-
-	if (trip_points[trip].type != THERMAL_TRIP_HOT)
-		return ret;
+	if (trip->type != THERMAL_TRIP_HOT)
+		return 0;
 
 	/* Use THERMAL_TRIP_HOT for HW thermal shutdown */
-	ret = gs101_spmic_thermal_set_hot_trip(s, temp);
-
-	return ret;
+	return gs101_spmic_thermal_set_hot_trip(s, temp);
 }
 
 /*
