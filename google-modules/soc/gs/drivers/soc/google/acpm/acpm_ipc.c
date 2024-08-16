@@ -1130,11 +1130,6 @@ int acpm_ipc_probe(struct platform_device *pdev)
 	return ret;
 }
 
-int acpm_ipc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 bool acpm_ipc_get_rx_buffer_properties(unsigned int channel_id, void __iomem **base,
 				       unsigned int *size)
 {

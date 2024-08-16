@@ -582,11 +582,6 @@ static int slg51000_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int slg51000_pinctrl_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static const struct platform_device_id slg51000_pinctrl_id[] = {
 	{ "slg51000_gpio", 0 },
 	{ },
@@ -599,7 +594,6 @@ static struct platform_driver slg51000_pinctrl_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = slg51000_pinctrl_probe,
-	.remove = slg51000_pinctrl_remove,
 	.id_table = slg51000_pinctrl_id,
 };
 
