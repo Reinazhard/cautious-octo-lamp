@@ -126,7 +126,7 @@ const static struct dev_pm_ops aoc_core_pm_ops = {
 	.resume = aoc_core_resume,
 };
 
-static int aoc_bus_match(struct device *dev, struct device_driver *drv);
+static int aoc_bus_match(struct device *dev, const struct device_driver *drv);
 static int aoc_bus_probe(struct device *dev);
 static void aoc_bus_remove(struct device *dev);
 
@@ -1099,7 +1099,7 @@ static struct platform_driver aoc_driver = {
 		},
 };
 
-static int aoc_bus_match(struct device *dev, struct device_driver *drv)
+static int aoc_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct aoc_driver *driver = AOC_DRIVER(drv);
 
@@ -1122,7 +1122,8 @@ static int aoc_bus_match(struct device *dev, struct device_driver *drv)
 
 	/* Drivers with a name only match services with that name */
 	if (driver_matches_by_name &&
-	    !driver_matches_service_by_name(drv, (char *)device_name)) {
+	    !driver_matches_service_by_name((struct device_driver *)drv,
+					    (char *)device_name)) {
 		return 0;
 	}
 
@@ -2155,7 +2156,7 @@ static const struct file_operations aoc_fops = {
 	.owner = THIS_MODULE,
 };
 
-static char *aoc_devnode(const struct device *dev, umode_t *mode)
+static char *aoc_devnode(struct device *dev, umode_t *mode)
 {
 	if (!mode || !dev)
 		return NULL;
