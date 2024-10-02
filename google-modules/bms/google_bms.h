@@ -191,7 +191,6 @@ typedef struct {
 #define BATTERY_DEBUG_ATTRIBUTE(name, fn_read, fn_write) \
 static const struct file_operations name = {	\
 	.open	= simple_open,			\
-	.llseek	= no_llseek,			\
 	.read	= fn_read,			\
 	.write	= fn_write,			\
 }
@@ -965,7 +964,6 @@ enum charging_policy_vote {
 #define DEBUG_ATTRIBUTE_WO(name) \
 static const struct file_operations name ## _fops = {	\
 	.open	= simple_open,			\
-	.llseek	= no_llseek,			\
 	.write	= name ## _store,			\
 }
 

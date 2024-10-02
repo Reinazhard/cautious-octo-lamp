@@ -224,7 +224,7 @@ static u32 gvotable_internal_hash(const char *str)
 static void gvotable_internal_update_reason(struct gvotable_election *el,
 					    const char *new_reason)
 {
-	strlcpy(el->reason, new_reason, GVOTABLE_MAX_REASON_LEN);
+	strscpy(el->reason, new_reason, GVOTABLE_MAX_REASON_LEN);
 }
 
 static void gvotable_internal_copy_result(struct gvotable_election *el,
@@ -1149,7 +1149,6 @@ EXPORT_SYMBOL_GPL(gvotable_cast_vote);
 #define GVOTABLE_DEBUG_ATTRIBUTE(name, fn_read, fn_write) \
 static const struct file_operations name = {	\
 	.open	= simple_open,			\
-	.llseek	= no_llseek,			\
 	.read	= fn_read,			\
 	.write	= fn_write,			\
 }
