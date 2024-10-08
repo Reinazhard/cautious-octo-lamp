@@ -829,6 +829,8 @@ static void wakeup_mask_init(struct device_node *cpupm_dn)
 	struct device_node *root_dn, *wm_dn, *dn;
 	int count, i;
 
+	/* balance of_node_put() in of_find_node_by_name() */
+	of_node_get(cpupm_dn);
 	root_dn = of_find_node_by_name(cpupm_dn, "wakeup-mask");
 	if (!root_dn) {
 		pr_warn("wakeup-mask is omitted in device tree\n");
@@ -840,6 +842,8 @@ static void wakeup_mask_init(struct device_node *cpupm_dn)
 		return;
 
 	/* initialize wakeup-mask */
+	/* balance of_node_put() in of_find_node_by_name() */
+	of_node_get(root_dn);
 	wm_dn = of_find_node_by_name(root_dn, "wakeup-masks");
 	if (!wm_dn) {
 		pr_warn("wakeup-masks is omitted in device tree\n");
@@ -864,6 +868,8 @@ static void wakeup_mask_init(struct device_node *cpupm_dn)
 	}
 
 	/* initialize eint-wakeup-mask */
+	/* balance of_node_put() in of_find_node_by_name() */
+	of_node_get(root_dn);
 	wm_dn = of_find_node_by_name(root_dn, "eint-wakeup-masks");
 	if (!wm_dn) {
 		pr_warn("eint-wakeup-masks is omitted in device tree\n");
