@@ -880,8 +880,7 @@ struct pt_driver *pt_driver_register(struct device_node *node,
 	int ret, bytes_written;
 	int cnt = 0;
 
-	for (child = of_get_next_child(node, NULL); child;
-	     child = of_get_next_child(node, child)) {
+	for_each_child_of_node(node, child) {
 		int size;
 
 		if (!of_get_property(child, "id_size_priority", &size))
@@ -906,8 +905,7 @@ struct pt_driver *pt_driver_register(struct device_node *node,
 	driver->properties->cnt = cnt;
 
 	cnt = 0;
-	for (child = of_get_next_child(node, NULL); child;
-		child = of_get_next_child(node, child)) {
+	for_each_child_of_node(node, child) {
 		int size;
 
 		if (!of_get_property(child, "id_size_priority", &size))
