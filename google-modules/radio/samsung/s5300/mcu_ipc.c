@@ -441,7 +441,6 @@ static int cp_mbox_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *irq_np __free(device_node) = NULL;
-	struct device_node *irq_child_np = NULL;
 	u32 count = 0;
 	int irq;
 	int err = 0;
@@ -490,7 +489,7 @@ static int cp_mbox_probe(struct platform_device *pdev)
 		err = -EINVAL;
 		goto fail;
 	}
-	for_each_child_of_node(irq_np, irq_child_np) {
+	for_each_child_of_node_scoped(irq_np, irq_child_np) {
 		struct cp_mbox_irq_data *irq_data = NULL;
 
 		if (count >= MAX_CP_MBOX_IRQ_IDX) {

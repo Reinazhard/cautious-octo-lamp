@@ -384,7 +384,7 @@ static struct notifier_block exynos_pm_notifier_block = {
 
 static int parse_dt_wakeup_stat_names(struct device *dev, struct device_node *np)
 {
-	struct device_node *root, *child;
+	struct device_node *root;
 	int ret;
 	int size, n, idx = 0;
 
@@ -402,7 +402,7 @@ static int parse_dt_wakeup_stat_names(struct device *dev, struct device_node *np
 	if (!pm_info->ws_names)
 		return -ENOMEM;
 
-	for_each_child_of_node(root, child) {
+	for_each_child_of_node_scoped(root, child) {
 		size = of_property_count_strings(child, "ws-name");
 		if (size < 0 || size > 32) {
 			dev_err(dev, "failed to get wakeup_stats name cnt(%d)\n", size);

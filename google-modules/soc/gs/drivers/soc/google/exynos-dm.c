@@ -291,7 +291,6 @@ static int exynos_dm_index_validate(int index)
 #ifdef CONFIG_OF
 static int exynos_dm_parse_dt(struct device_node *np, struct exynos_dm_device *dm)
 {
-	struct device_node *child_np;
 	struct device_node *domain_np __free(device_node) = NULL;
 	const char *name;
 	int ret = 0;
@@ -315,7 +314,7 @@ static int exynos_dm_parse_dt(struct device_node *np, struct exynos_dm_device *d
 	if (!dm->domain_order)
 		return -ENOMEM;
 
-	for_each_child_of_node(domain_np, child_np) {
+	for_each_child_of_node_scoped(domain_np, child_np) {
 		int index;
 		const char *available;
 #if IS_ENABLED(CONFIG_GS_ACPM)

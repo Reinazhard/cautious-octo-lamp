@@ -182,7 +182,7 @@ power_keys_get_devtree_pdata(struct s2mpg12_dev *iodev)
 {
 	#define S2MPG12_SUPPORT_KEY_NUM	(1)
 	struct device *dev = iodev->dev;
-	struct device_node *mfd_np, *key_np, *pp;
+	struct device_node *mfd_np, *key_np;
 	struct power_keys_platform_data *pdata;
 	struct power_keys_button *button;
 	int error, nbuttons, i;
@@ -229,7 +229,7 @@ power_keys_get_devtree_pdata(struct s2mpg12_dev *iodev)
 	pdata->nbuttons = nbuttons;
 
 	i = 0;
-	for_each_child_of_node(key_np, pp) {
+	for_each_child_of_node_scoped(key_np, pp) {
 		button = &pdata->buttons[i++];
 		if (of_property_read_u32(pp, "linux,code", &button->code)) {
 			error = -EINVAL;

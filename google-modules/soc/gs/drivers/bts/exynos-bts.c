@@ -1748,8 +1748,6 @@ static int bts_parse_data(struct device_node *np, struct bts_device *data)
 {
 	struct bts_scen *scen;
 	struct bts_info *info;
-	struct device_node *child_np = NULL;
-	struct device_node *snp = NULL;
 	struct resource res;
 	int i, j, map_cnt, count;
 	int of_data_int_array[OF_DATA_NUM_MAX];
@@ -1910,7 +1908,7 @@ static int bts_parse_data(struct device_node *np, struct bts_device *data)
 
 	i = 0;
 
-	for_each_child_of_node(np, child_np) {
+	for_each_child_of_node_scoped(np, child_np) {
 #if IS_ENABLED(CONFIG_SOC_ZUMA)
 		if (of_property_read_bool(child_np, "nocl_node"))
 			continue;
@@ -1998,7 +1996,7 @@ static int bts_parse_data(struct device_node *np, struct bts_device *data)
 		for (j = 0; j < data->num_scen; j++)
 			info[i].stat[j].stat_on = 0;
 
-		for_each_child_of_node(child_np, snp) {
+		for_each_child_of_node_scoped(child_np, snp) {
 			for (j = 0; j < data->num_scen; j++) {
 				if (strcmp(snp->name, scen[j].name))
 					continue;
