@@ -375,11 +375,6 @@ static int slg51002_generic_seq_direction_output(struct gpio_chip *chip,
 }
 
 /* pinctrl_ops functions */
-static int slg51002_pinctrl_get_groups_count(struct pinctrl_dev *pctldev)
-{
-	return 0;
-}
-
 static const char *slg51002_pinctrl_get_group_name(
 		struct pinctrl_dev *pctldev, unsigned int group)
 {
@@ -584,7 +579,6 @@ static struct platform_driver slg51002_pinctrl_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = slg51002_pinctrl_probe,
-	.remove = slg51002_pinctrl_remove,
 	.id_table = slg51002_pinctrl_id,
 };
 
