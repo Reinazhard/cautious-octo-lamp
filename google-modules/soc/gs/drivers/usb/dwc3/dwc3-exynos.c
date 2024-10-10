@@ -1358,6 +1358,7 @@ pm_runtime_undo:
 phys_unregister:
 	platform_device_unregister(exynos->usb2_phy);
 	platform_device_unregister(exynos->usb3_phy);
+	of_node_put(dwc3_np);
 extcon_unregister:
 	if (exynos->edev) {
 		extcon_unregister_notifier(exynos->edev, EXTCON_USB, &exynos->device_nb);

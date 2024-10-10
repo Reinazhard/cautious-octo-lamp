@@ -4,6 +4,7 @@
  *
  */
 
+#include <linux/cleanup.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include "modem_prj.h"
@@ -1530,7 +1531,7 @@ static int tpmon_set_target(struct tpmon_data *data)
 
 static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 {
-	struct device_node *tpmon_np = NULL;
+	struct device_node *tpmon_np __free(device_node);
 	struct device_node *child_np = NULL;
 	struct device_node *boost_np = NULL;
 	struct tpmon_data *data = NULL;
