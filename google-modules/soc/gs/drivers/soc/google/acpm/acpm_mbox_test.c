@@ -798,6 +798,7 @@ static int acpm_mfd_set_pmic(void)
 	p_np = of_parse_phandle(np, "main-pmic", 0);
 	if (p_np) {
 		i2c_main = of_find_i2c_device_by_node(p_np);
+		of_node_put(p_np);
 		if (!i2c_main) {
 			dev_err(mbox->device, "%s: Cannot find main-pmic i2c\n",
 				__func__);
@@ -806,8 +807,6 @@ static int acpm_mfd_set_pmic(void)
 		mbox->mfd->s2mpg_main = i2c_get_clientdata(i2c_main);
 	} else
 		dev_err(mbox->device, "%s: Cannot find main-pmic\n", __func__);
-
-	of_node_put(p_np);
 
 	if (!mbox->mfd->s2mpg_main) {
 		dev_err(mbox->device, "%s: S2MPG-Main device not found\n",
@@ -838,6 +837,7 @@ static int acpm_mfd_set_pmic(void)
 	p_np = of_parse_phandle(np, "sub-pmic", 0);
 	if (p_np) {
 		i2c_sub = of_find_i2c_device_by_node(p_np);
+		of_node_put(p_np);
 		if (!i2c_sub) {
 			dev_err(mbox->device, "%s: Cannot find sub-pmic i2c\n",
 				__func__);
@@ -846,8 +846,6 @@ static int acpm_mfd_set_pmic(void)
 		mbox->mfd->s2mpg_sub = i2c_get_clientdata(i2c_sub);
 	} else
 		dev_err(mbox->device, "%s: Cannot find sub-pmic\n", __func__);
-
-	of_node_put(p_np);
 
 	if (!mbox->mfd->s2mpg_sub) {
 		dev_err(mbox->device, "%s: S2MPG-Sub device not found\n",
