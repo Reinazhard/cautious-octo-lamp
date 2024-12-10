@@ -68,6 +68,7 @@
 #include <linux/wait_api.h>
 #include <linux/workqueue_api.h>
 #include <linux/livepatch_sched.h>
+#include <linux/tensor_aio.h>
 
 #ifdef CONFIG_PREEMPT_DYNAMIC
 # ifdef CONFIG_GENERIC_IRQ_ENTRY
@@ -966,6 +967,7 @@ void update_rq_clock(struct rq *rq)
 	delta = clock - rq->clock;
 	if (delta < 0)
 		return;
+	tensor_aio_update_rq_clock(rq);
 	rq->clock += delta;
 
 	update_rq_clock_task(rq, delta);
