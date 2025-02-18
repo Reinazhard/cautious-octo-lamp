@@ -3,6 +3,8 @@
 # ASoC-based ALSA driver gluing all the audio amplifier drivers
 #
 
+ccflags-y += -I$(srctree)/sound/usb -I$(srctree)/google-modules/soc/gs/include
+
 obj-$(CONFIG_AOC_DRIVER)	+= aoc_alsa_dev.o
 obj-$(CONFIG_AOC_DRIVER)	+= aoc_alsa_dev_util.o
 aoc_alsa_dev_util-objs		:= aoc_alsa_path.o aoc_alsa_drv.o \
