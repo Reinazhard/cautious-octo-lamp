@@ -952,15 +952,11 @@ static void samsung_sysmmu_release_device(struct device *dev)
 	struct sysmmu_clientdata *client;
 	unsigned int i;
 
-	if (!fwspec || fwspec->ops != &samsung_sysmmu_ops)
-		return;
 
 	client = (struct sysmmu_clientdata *) dev_iommu_priv_get(dev);
 	for (i = 0; i < client->sysmmu_count; i++)
 		device_link_del(client->dev_link[i]);
 	kfree(client->dev_link);
-
-	iommu_fwspec_free(dev);
 }
 
 static void samsung_sysmmu_group_data_release(void *iommu_data)
@@ -1092,7 +1088,7 @@ static int samsung_sysmmu_of_xlate(struct device *dev,
 }
 
 static int samsung_sysmmu_set_dev_pasid(struct iommu_domain *dom, struct device *dev,
-					ioasid_t pasid)
+					ioasid_t pasid, struct iommu_domain *old)
 {
 	struct sysmmu_clientdata *client;
 	struct samsung_sysmmu_domain *domain;
