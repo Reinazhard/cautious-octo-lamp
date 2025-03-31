@@ -1195,10 +1195,10 @@ group_put:
 	return ret;
 }
 
-static void samsung_sysmmu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
+static void samsung_sysmmu_remove_dev_pasid(struct device *dev, ioasid_t pasid,
+					    struct iommu_domain *dom)
 {
 	struct sysmmu_clientdata *client;
-	struct iommu_domain *dom;
 	struct samsung_sysmmu_domain *domain;
 	struct iommu_group *group;
 	struct sysmmu_groupdata *groupdata;
@@ -1212,9 +1212,6 @@ static void samsung_sysmmu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
 	WARN(vid >= MAX_VIDS, "VID %u for device %s above or equal maximum of %u\n",
 	     vid, dev_name(dev), MAX_VIDS);
 
-	dom = iommu_get_domain_for_dev_pasid(dev, pasid, 0);
-	if (WARN_ON(IS_ERR(dom)) || !dom)
-		return;
 	domain = to_sysmmu_domain(dom);
 	client = (struct sysmmu_clientdata *)dev_iommu_priv_get(dev);
 	if (WARN_ON(!domain->vid) || WARN_ON(vid != domain->vid))
@@ -1325,7 +1322,23 @@ static void samsung_sysmmu_get_resv_regions(struct device *dev, struct list_head
 	}
 }
 
+static int blocked_domain_set_dev_pasid(struct iommu_domain *domain,
+					struct device *dev, ioasid_t pasid,
+					struct iommu_domain *old)
+{
+	samsung_sysmmu_remove_dev_pasid(dev, pasid, old);
+	return 0;
+}
+
+static struct iommu_domain samsung_sysmmu_blocked_domain = {
+	.type	= IOMMU_DOMAIN_BLOCKED,
+	.ops	= &(const struct iommu_domain_ops) {
+		.set_dev_pasid = blocked_domain_set_dev_pasid,
+	}
+};
+
 static struct iommu_ops samsung_sysmmu_ops = {
+	.blocked_domain		= &samsung_sysmmu_blocked_domain,
 	.capable		= samsung_sysmmu_capable,
 	.domain_alloc		= samsung_sysmmu_domain_alloc,
 	.probe_device		= samsung_sysmmu_probe_device,
@@ -1335,7 +1348,6 @@ static struct iommu_ops samsung_sysmmu_ops = {
 	.get_resv_regions	= samsung_sysmmu_get_resv_regions,
 	.dev_enable_feat	= samsung_sysmmu_dev_enable_feat,
 	.dev_disable_feat	= samsung_sysmmu_dev_disable_feat,
-	.remove_dev_pasid	= samsung_sysmmu_remove_dev_pasid,
 	.owner						= THIS_MODULE,
 	.default_domain_ops	= &(const struct iommu_domain_ops) {
 		.attach_dev		= samsung_sysmmu_attach_dev,
