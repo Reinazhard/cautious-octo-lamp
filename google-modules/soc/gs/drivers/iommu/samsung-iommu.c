@@ -902,7 +902,6 @@ static struct iommu_device *samsung_sysmmu_probe_device(struct device *dev)
 
 static void samsung_sysmmu_release_device(struct device *dev)
 {
-	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct sysmmu_clientdata *client;
 	unsigned int i;
 
