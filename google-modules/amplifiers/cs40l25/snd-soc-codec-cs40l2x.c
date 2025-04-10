@@ -615,7 +615,7 @@ static int cs40l2x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	unsigned int asp_fmt;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		dev_err(priv->dev, "This device can be slave only\n");

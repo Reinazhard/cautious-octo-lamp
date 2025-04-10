@@ -562,10 +562,10 @@ static int cs35l41_amp_reset_put(struct snd_kcontrol *kcontrol,
 
 	if (cs35l41->dsp.preloaded) {
 		dev_info(cs35l41->dev, "Reload DSP\n");
-		snd_soc_component_disable_pin(component, "DSP1 Preload");
+		snd_soc_dapm_disable_pin(dapm, "DSP1 Preload");
 		snd_soc_dapm_sync(dapm);
 		usleep_range(4000, 5000);
-		snd_soc_component_force_enable_pin(component, "DSP1 Preload");
+		snd_soc_dapm_force_enable_pin(dapm, "DSP1 Preload");
 		snd_soc_dapm_sync(dapm);
 		flush_work(&cs35l41->dsp.boot_work);
 	}
@@ -2599,10 +2599,10 @@ static int cs35l41_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	unsigned int asp_fmt, lrclk_fmt, sclk_fmt, clock_mode;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		clock_mode = 1;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		clock_mode = 0;
 		break;
 	default:
