@@ -77,7 +77,7 @@ static struct v4l2_query_ext_ctrl *__mfc_dec_get_ctrl(int id)
 }
 
 /* Check whether a ctrl value if correct */
-static int __maybe_unused __mfc_dec_check_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
+static int __mfc_dec_check_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 {
 	struct v4l2_query_ext_ctrl *c;
 
@@ -1327,35 +1327,14 @@ static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 	return 0;
 }
 
-/* Get a ctrl */
-static int __maybe_unused mfc_dec_g_ctrl(struct file *file, void *priv,
-			struct v4l2_control *ctrl)
+static int __mfc_dec_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 {
-	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	int ret = 0;
-
-	mfc_debug_enter();
-	ret = __mfc_dec_get_ctrl_val(ctx, ctrl);
-	mfc_debug_leave();
-
-	return ret;
-}
-
-/* Set a ctrl */
-static int __maybe_unused mfc_dec_s_ctrl(struct file *file, void *priv,
-			 struct v4l2_control *ctrl)
-{
-	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_ctx_ctrl *ctx_ctrl;
-	int ret = 0;
 	int found = 0;
 
-	mfc_debug_enter();
-
-	ret = __mfc_dec_check_ctrl_val(ctx, ctrl);
-	if (ret)
-		return ret;
+	mfc_debug(5, "[CTRLS] set id: %#x, value: %d (%#x)\n",
+			ctrl->id, ctrl->value, ctrl->value);
 
 	switch (ctrl->id) {
 	case V4L2_CID_MPEG_VIDEO_DECODER_MPEG4_DEBLOCK_FILTER:
@@ -1479,8 +1458,6 @@ static int __maybe_unused mfc_dec_s_ctrl(struct file *file, void *priv,
 		break;
 	}
 
-	mfc_debug_leave();
-
 	return 0;
 }
 
@@ -1600,8 +1577,7 @@ static int mfc_dec_g_ext_ctrls(struct file *file, void *priv,
 	int i;
 	int ret = 0;
 
-	if (f->which != V4L2_CTRL_CLASS_CODEC)
-		return -EINVAL;
+	mfc_debug(5, "[CTRLS] which: %#x\n", f->which);
 
 	for (i = 0; i < f->count; i++) {
 		ext_ctrl = (f->controls + i);
@@ -1619,6 +1595,46 @@ static int mfc_dec_g_ext_ctrls(struct file *file, void *priv,
 		mfc_debug(5, "[CTRLS][%d] id: %#x, value: %d\n",
 				i, ext_ctrl->id, ext_ctrl->value);
 	}
+
+	return ret;
+}
+
+static int mfc_dec_s_ext_ctrls(struct file *file, void *priv,
+				struct v4l2_ext_controls *f)
+{
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct v4l2_ext_control *ext_ctrl;
+	struct v4l2_control ctrl;
+	int i;
+	int ret = 0;
+
+	mfc_debug_enter();
+
+	mfc_debug(5, "[CTRLS] which: %#x\n", f->which);
+
+	for (i = 0; i < f->count; i++) {
+		ext_ctrl = (f->controls + i);
+
+		ctrl.id = ext_ctrl->id;
+		ctrl.value = ext_ctrl->value;
+
+		ret = __mfc_dec_check_ctrl_val(ctx, &ctrl);
+		if (ret != 0) {
+			f->error_idx = i;
+			break;
+		}
+
+		ret = __mfc_dec_set_param(ctx, &ctrl);
+		if (ret != 0) {
+			f->error_idx = i;
+			break;
+		}
+
+		mfc_debug(5, "[CTRLS][%d] id: %#x, value: %d\n",
+				i, ext_ctrl->id, ext_ctrl->value);
+	}
+
+	mfc_debug_leave();
 
 	return ret;
 }
@@ -1643,6 +1659,7 @@ static const struct v4l2_ioctl_ops mfc_dec_ioctl_ops = {
 	.vidioc_query_ext_ctrl		= mfc_dec_query_ext_ctrl,
 	.vidioc_g_selection		= mfc_dec_g_selection,
 	.vidioc_g_ext_ctrls		= mfc_dec_g_ext_ctrls,
+	.vidioc_s_ext_ctrls		= mfc_dec_s_ext_ctrls,
 };
 
 const struct v4l2_ioctl_ops *mfc_get_dec_v4l2_ioctl_ops(void)

@@ -2117,7 +2117,7 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 	return ret;
 }
 
-static int __maybe_unused __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
+static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 {
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_enc_params *p = &enc->params;
@@ -2251,25 +2251,6 @@ static int __maybe_unused __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l
 	return ret;
 }
 
-static int __maybe_unused mfc_enc_s_ctrl(struct file *file, void *priv,
-			 struct v4l2_control *ctrl)
-{
-	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	int ret = 0;
-
-	mfc_debug_enter();
-
-	ret = __mfc_enc_check_ctrl_val(ctx, ctrl);
-	if (ret != 0)
-		return ret;
-
-	ret = __mfc_enc_set_ctrl_val(ctx, ctrl);
-
-	mfc_debug_leave();
-
-	return ret;
-}
-
 static int mfc_enc_g_ext_ctrls(struct file *file, void *priv,
 			      struct v4l2_ext_controls *f)
 {
@@ -2279,8 +2260,7 @@ static int mfc_enc_g_ext_ctrls(struct file *file, void *priv,
 	int i;
 	int ret = 0;
 
-	if (f->which != V4L2_CTRL_CLASS_CODEC)
-		return -EINVAL;
+	mfc_debug(5, "[CTRLS] which: %#x\n", f->which);
 
 	for (i = 0; i < f->count; i++) {
 		ext_ctrl = (f->controls + i);
@@ -2313,8 +2293,7 @@ static int mfc_enc_s_ext_ctrls(struct file *file, void *priv,
 
 	mfc_debug_enter();
 
-	if (f->which != V4L2_CTRL_CLASS_CODEC)
-		return -EINVAL;
+	mfc_debug(5, "[CTRLS] which: %#x\n", f->which);
 
 	for (i = 0; i < f->count; i++) {
 		ext_ctrl = (f->controls + i);
@@ -2328,7 +2307,7 @@ static int mfc_enc_s_ext_ctrls(struct file *file, void *priv,
 			break;
 		}
 
-		ret = __mfc_enc_set_param(ctx, &ctrl);
+		ret = __mfc_enc_set_ctrl_val(ctx, &ctrl);
 		if (ret != 0) {
 			f->error_idx = i;
 			break;
@@ -2351,8 +2330,7 @@ static int mfc_enc_try_ext_ctrls(struct file *file, void *priv,
 
 	mfc_debug_enter();
 
-	if (f->which != V4L2_CTRL_CLASS_CODEC)
-		return -EINVAL;
+	mfc_debug(5, "[CTRLS] which: %#x\n", f->which);
 
 	for (i = 0; i < f->count; i++) {
 		ext_ctrl = (f->controls + i);
