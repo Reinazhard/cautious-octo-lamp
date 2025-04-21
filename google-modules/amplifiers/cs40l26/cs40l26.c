@@ -5682,7 +5682,7 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 		destroy_workqueue(cs40l26->vibe_workqueue);
 	}
 
-	del_timer_sync(&cs40l26->hibernate_timer);
+	timer_delete_sync(&cs40l26->hibernate_timer);
 
 	if (vp_consumer)
 		regulator_disable(vp_consumer);
