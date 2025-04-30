@@ -26,6 +26,7 @@
 #include <linux/delayacct.h>
 #include <linux/zswap.h>
 #include <linux/swap_ops.h>
+#include <linux/kthread.h>
 #include "swap.h"
 #include "swap_table.h"
 
@@ -197,6 +198,33 @@ static void swap_zeromap_folio_clear(struct folio *folio)
 	swap_cluster_unlock(ci);
 }
 
+static bool swap_sched_async_compress(struct folio *folio)
+{
+	struct swap_info_struct *sis;
+	int nid = numa_node_id();
+	pg_data_t *pgdat = NODE_DATA(nid);
+
+	if (unlikely(!pgdat->kcompressd))
+		return false;
+
+	if (!current_is_kswapd())
+		return false;
+
+	if (!folio_test_anon(folio))
+		return false;
+
+	sis = __swap_entry_to_info(folio->swap);
+	if (data_race(sis->flags & SWP_SYNCHRONOUS_IO)) {
+		if (kfifo_avail(&pgdat->kcompress_fifo) >= sizeof(folio) &&
+		    kfifo_in(&pgdat->kcompress_fifo, &folio, sizeof(folio))) {
+			wake_up_interruptible(&pgdat->kcompressd_wait);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 /*
  * We may have stale swap cache pages in memory: notice
  * them here and get rid of the unnecessary final write.
@@ -247,6 +275,13 @@ int swap_writeout(struct swap_io_ctx *ctx, struct folio *folio)
 		return AOP_WRITEPAGE_ACTIVATE;
 	}
 	rcu_read_unlock();
+
+	/*
+	 * Try to do swap I/O asynchronously if possible to avoid
+	 * blocking kswapd on I/O operations
+	 */
+	if (swap_sched_async_compress(folio))
+		return 0;
 
 	__swap_writepage(ctx, folio);
 	return 0;
@@ -384,6 +419,25 @@ void __swap_writepage(struct swap_io_ctx *ctx, struct folio *folio)
 	folio_start_writeback(folio);
 	folio_unlock(folio);
 	swap_add_folio(ctx, folio, WRITE);
+}
+
+int kcompressd(void *p)
+{
+	pg_data_t *pgdat = (pg_data_t *)p;
+	struct swap_io_ctx ctx = {};
+	struct folio *folio;
+
+	while (!kthread_should_stop()) {
+		wait_event_interruptible(pgdat->kcompressd_wait,
+				!kfifo_is_empty(&pgdat->kcompress_fifo));
+
+		while (!kfifo_is_empty(&pgdat->kcompress_fifo)) {
+			if (kfifo_out(&pgdat->kcompress_fifo, &folio, sizeof(folio)))
+				__swap_writepage(&ctx, folio);
+		}
+		swap_write_submit(&ctx);
+	}
+	return 0;
 }
 
 /*

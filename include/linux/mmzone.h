@@ -24,6 +24,7 @@
 #include <linux/local_lock.h>
 #include <linux/zswap.h>
 #include <linux/sizes.h>
+#include <linux/kfifo.h>
 #include <asm/page.h>
 
 /* Free memory management - zoned buddy allocator.  */
@@ -1532,6 +1533,10 @@ typedef struct pglist_data {
 #endif
 	struct task_struct *kswapd;	/* Protected by kswapd_lock */
 	struct task_struct *kshrinkd;	/* Protected by kswapd_lock */
+#define KCOMPRESS_FIFO_SIZE 256
+	wait_queue_head_t kcompressd_wait;
+	struct task_struct *kcompressd;
+	struct kfifo kcompress_fifo;
 	int kswapd_order;
 	enum zone_type kswapd_highest_zoneidx;
 
