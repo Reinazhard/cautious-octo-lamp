@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+subdir-ccflags-y += -Wno-missing-prototypes -I$(srctree)/drivers/thermal
+
 subdir-ccflags-y += \
 		-I$(ROOT_DIR)/private/google-modules/bms
 
