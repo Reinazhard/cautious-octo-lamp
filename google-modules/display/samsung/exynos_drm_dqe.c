@@ -16,6 +16,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_modeset_lock.h>
 #include <drm/drm_atomic_helper.h>
+#include <soc/google/gs-chipid.h>
 
 #include <dqe_cal.h>
 #include <decon_cal.h>
@@ -1488,7 +1489,6 @@ static struct attribute *atc_attrs[] = {
 };
 ATTRIBUTE_GROUPS(atc);
 
-extern u32 gs_chipid_get_type(void);
 static enum dqe_version exynos_get_dqe_version(void)
 {
 	enum dqe_version dqe_ver = DQE_V1;
