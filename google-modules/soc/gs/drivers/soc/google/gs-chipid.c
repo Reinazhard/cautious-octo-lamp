@@ -69,10 +69,6 @@ struct gs_chipid_info {
 	struct platform_device *pdev;
 };
 
-#define GS101_SOC_ID		0x09845000
-#define GS201_SOC_ID		0x09855000
-#define ZUMA_SOC_ID		0x09865000
-#define ZUMAPRO_SOC_ID		0x09875000
 #define SOC_MASK		0xFFFFF000
 #define SOC_MASK_V2		0x00FFFFFF
 #define SOC_TYPE_MASK		0x000000FF
