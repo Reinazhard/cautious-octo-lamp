@@ -1781,7 +1781,7 @@ out:
   * - F1 = Perform a system reset and reenable the sensing and the interrupt
   */
 static ssize_t stm_fts_cmd_write(struct file *fp, struct kobject *kobj,
-				 struct bin_attribute *battr, char *buf,
+				 const struct bin_attribute *battr, char *buf,
 				 loff_t offset, size_t count)
 {
 	u8 result, n = 0;
@@ -1890,7 +1890,7 @@ out:
 }
 
 static ssize_t stm_fts_cmd_read(struct file *fp, struct kobject *kobj,
-				struct bin_attribute *battr, char *buf,
+				const struct bin_attribute *battr, char *buf,
 				loff_t offset, size_t count)
 {
 	int res, j, doClean = 0, index = 0;
@@ -2867,9 +2867,9 @@ static DEVICE_ATTR_RW(touchsim);
 
 static DEVICE_ATTR_RW(default_mf);
 
-static BIN_ATTR_RW(stm_fts_cmd, 0);
+static const BIN_ATTR_RW(stm_fts_cmd, 0);
 
-static struct bin_attribute *fts_bin_attr_group[] = {
+static const struct bin_attribute *fts_bin_attr_group[] = {
 	&bin_attr_stm_fts_cmd,
 	NULL,
 };
