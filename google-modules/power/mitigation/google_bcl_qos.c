@@ -22,6 +22,7 @@
 #include "bcl.h"
 
 #define CREATE_TRACE_POINTS
+#include <trace/events/clock.h>
 #include <trace/events/bcl_exynos.h>
 
 
