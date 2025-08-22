@@ -52,6 +52,15 @@ bool kbase_is_page_migration_enabled(void)
 }
 KBASE_EXPORT_TEST_API(kbase_is_page_migration_enabled);
 
+/*
+ * FIXME(b/440410669): These PageMovable APIs were removed upstream in kernel
+ * v6.17-rc1. This is a temporary workaround to allow the driver to build and
+ * load on newer kernels. While this unblocks development, a proper solution
+ * is still required.
+ */
+#define __SetPageMovable(p, op)	({(void)(p); (void)(op);})
+#define __ClearPageMovable(p)	({(void)(p);})
+
 bool kbase_alloc_page_metadata(struct kbase_device *kbdev, struct page *p, dma_addr_t dma_addr,
 			       u8 group_id)
 {
@@ -714,6 +723,9 @@ void kbase_mem_migrate_set_address_space_ops(struct kbase_device *kbdev, struct 
 void kbase_mem_migrate_init(struct kbase_device *kbdev)
 {
 	struct kbase_mem_migrate *mem_migrate = &kbdev->mem_migrate;
+
+	pr_warn_once("Page migration disabled due to kernel API changes (b/440410669)\n");
+	kbase_page_migration_enabled = 0;
 
 	/* Page migration should only be enabled if compaction is
 	 * enabled in the kernel otherwise pages cannot be marked as
