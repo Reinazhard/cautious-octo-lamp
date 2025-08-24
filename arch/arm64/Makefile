@@ -109,7 +109,7 @@ else
   asm-arch := armv8.4-a
 endif
 
-KBUILD_CFLAGS += $(call cc-option,-mcpu=cortex-a76.cortex-a55)
+KBUILD_CFLAGS += $(call cc-option,-mcpu=cortex-a76.cortex-a55+dotprod+crypto)
 
 ifeq ($(CONFIG_SHADOW_CALL_STACK), y)
 KBUILD_CFLAGS	+= -ffixed-x18
