@@ -672,7 +672,7 @@ int gvotable_election_set_name(struct gvotable_election *el, const char *name)
 
 	el->has_name = true;
 	el->hash = gvotable_internal_hash(name);
-	strlcpy(el->name, name, MAX_NAME_LEN);
+	strscpy(el->name, name, MAX_NAME_LEN);
 
 	/* el->has_name ==> find internal will now find the election */
 	slot = gvotable_find_internal(name);

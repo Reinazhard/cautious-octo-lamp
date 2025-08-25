@@ -4684,7 +4684,7 @@ static int google_cpm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, gcpm);
 
 	psy_cfg.drv_data = gcpm;
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.fwnode = dev_fwnode(&pdev->dev);
 	gcpm->psy = devm_power_supply_register(gcpm->device,
 					       &gcpm_psy_desc.psy_dsc,
 					       &psy_cfg);
@@ -4706,7 +4706,7 @@ static int google_cpm_probe(struct platform_device *pdev)
 
 	/* gcpm_pps_psy_cfg.of_node is used to find out the snk_pdos */
 	gcpm_pps_psy_cfg.drv_data = gcpm;
-	gcpm_pps_psy_cfg.of_node = pdev->dev.of_node;
+	gcpm_pps_psy_cfg.fwnode = dev_fwnode(&pdev->dev);
 	gcpm->pps_psy = devm_power_supply_register(gcpm->device,
 						   &gcpm_pps_psy_desc,
 						   &gcpm_pps_psy_cfg);

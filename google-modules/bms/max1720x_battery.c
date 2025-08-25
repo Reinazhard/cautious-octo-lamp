@@ -6686,7 +6686,7 @@ static int max1720x_probe(struct i2c_client *client,
 						       "maxim,zero-irq");
 
 	psy_cfg.drv_data = chip;
-	psy_cfg.of_node = chip->dev->of_node;
+	psy_cfg.fwnode = dev_fwnode(chip->dev);
 
 	ret = of_property_read_string(dev->of_node,
 				      "maxim,dual-battery", &psy_name);

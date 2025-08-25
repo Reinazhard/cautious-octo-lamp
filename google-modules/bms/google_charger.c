@@ -413,8 +413,7 @@ static void reschedule_chg_work(struct chg_drv *chg_drv)
 	pr_debug("%s: rescheduling\n", __func__);
 }
 
-static enum alarmtimer_restart
-google_chg_alarm_handler(struct alarm *alarm, ktime_t time)
+static void google_chg_alarm_handler(struct alarm *alarm, ktime_t time)
 {
 	struct chg_drv *chg_drv =
 	    container_of(alarm, struct chg_drv, chg_wakeup_alarm);
@@ -422,8 +421,6 @@ google_chg_alarm_handler(struct alarm *alarm, ktime_t time)
 	__pm_stay_awake(chg_drv->chg_ws);
 
 	reschedule_chg_work(chg_drv);
-
-	return ALARMTIMER_NORESTART;
 }
 
 static void chg_psy_work(struct work_struct *work)
@@ -1207,8 +1204,7 @@ error:
 	chg_reset_termination_data(chg_drv);
 }
 
-static enum alarmtimer_restart chg_termination_alarm_cb(struct alarm *alarm,
-							ktime_t now)
+static void chg_termination_alarm_cb(struct alarm *alarm, ktime_t now)
 {
 	struct chg_termination *chg_term =
 			container_of(alarm, struct chg_termination, alarm);
@@ -1220,8 +1216,6 @@ static enum alarmtimer_restart chg_termination_alarm_cb(struct alarm *alarm,
 
 	pm_stay_awake(chg_drv->device);
 	schedule_work(&chg_term->work);
-
-	return ALARMTIMER_NORESTART;
 }
 
 static void chg_reset_termination_data(struct chg_drv *chg_drv)

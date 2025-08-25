@@ -2009,7 +2009,7 @@ static int rt9471_register_psy(struct rt9471_chip *chip)
 	chip->psy_desc.set_property = rt9471_psy_set_property;
 	chip->psy_desc.get_property = rt9471_psy_get_property;
 	chip->psy_desc.property_is_writeable = rt9471_psy_is_writeable;
-	chip->psy_cfg.of_node = chip->dev->of_node;
+	chip->psy_cfg.fwnode = dev_fwnode(chip->dev);
 	chip->psy_cfg.drv_data = chip;
 	chip->psy = devm_power_supply_register(chip->dev, &chip->psy_desc,
 					       &chip->psy_cfg);

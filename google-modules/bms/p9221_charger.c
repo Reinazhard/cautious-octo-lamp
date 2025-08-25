@@ -8521,7 +8521,7 @@ static int p9221_charger_probe(struct i2c_client *client,
 	charger->cust_id = 5;
 
 	psy_cfg.drv_data = charger;
-	psy_cfg.of_node = charger->dev->of_node;
+	psy_cfg.fwnode = dev_fwnode(charger->dev);
 	charger->wc_psy = devm_power_supply_register(charger->dev,
 						     &p9221_psy_desc.psy_dsc,
 						     &psy_cfg);

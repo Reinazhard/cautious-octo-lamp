@@ -2113,7 +2113,7 @@ static int max77759_init_wcin_psy(struct max77759_chgr_data *data)
 	int ret;
 
 	wcin_cfg.drv_data = data;
-	wcin_cfg.of_node = dev->of_node;
+	wcin_cfg.fwnode = dev_fwnode(dev);
 
 	if (of_property_read_bool(dev->of_node, "max77759,dc-psy-type-wireless"))
 		max77759_wcin_psy_desc.psy_dsc.type = POWER_SUPPLY_TYPE_WIRELESS;

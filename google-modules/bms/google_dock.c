@@ -630,7 +630,7 @@ static int google_dock_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dock);
 
 	psy_cfg.drv_data = dock;
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.fwnode = dev_fwnode(&pdev->dev);
 
 	if (of_property_read_bool(pdev->dev.of_node, "google,psy-type-unknown"))
 		dock_psy_desc.type = POWER_SUPPLY_TYPE_UNKNOWN;
