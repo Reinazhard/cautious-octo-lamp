@@ -642,7 +642,7 @@ static const struct pinconf_ops samsung_pinconf_ops = {
  * The samsung_gpio_set_vlaue() should be called with "bank->slock" held
  * to avoid race condition.
  */
-static void samsung_gpio_set_value(struct gpio_chip *gc,
+static int samsung_gpio_set_value(struct gpio_chip *gc,
 					  unsigned offset, int value)
 {
 	struct samsung_pin_bank *bank = gpiochip_get_data(gc);
@@ -657,6 +657,8 @@ static void samsung_gpio_set_value(struct gpio_chip *gc,
 	if (value)
 		data |= 1 << offset;
 	writel(data, reg + type->reg_offset[PINCFG_TYPE_DAT]);
+
+	return 0;
 }
 
 /* gpiolib gpio_set callback function */
