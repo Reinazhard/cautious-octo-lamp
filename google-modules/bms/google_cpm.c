@@ -3723,7 +3723,7 @@ static void gcpm_init_work(struct work_struct *work)
 	if (gcpm->tcpm_phandle && !gcpm->tcpm_psy) {
 		struct power_supply *tcpm_psy;
 
-		tcpm_psy = pps_get_tcpm_psy(gcpm->device->of_node,
+		tcpm_psy = pps_get_tcpm_psy(dev_fwnode(gcpm->device),
 					    GCPM_TCPM_PSY_MAX);
 		if (!IS_ERR_OR_NULL(tcpm_psy)) {
 			const char *name = tcpm_psy->desc->name;

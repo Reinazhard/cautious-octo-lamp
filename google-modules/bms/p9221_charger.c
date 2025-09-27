@@ -8292,9 +8292,9 @@ static void p9221_soc_work(struct work_struct *work)
 	if (!charger->batt_psy) {
 		static struct power_supply *psy[2];
 
-		err = power_supply_get_by_phandle_array(charger->dev->of_node,
-							"idt,fuel-gauge",
-							psy, ARRAY_SIZE(psy));
+		err = power_supply_get_by_reference_array(dev_fwnode(charger->dev),
+							  "idt,fuel-gauge",
+							  psy, ARRAY_SIZE(psy));
 		if (err < 0 || IS_ERR_OR_NULL(psy[0])) {
 			schedule_delayed_work(&charger->soc_work, msecs_to_jiffies(1000));
 			pr_info("%s: wait for fg err=%d\n", __func__, err);

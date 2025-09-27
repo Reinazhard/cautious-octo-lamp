@@ -151,7 +151,7 @@ void pps_set_logbuffer(struct pd_pps_data *pps_data, struct logbuffer *log);
 void pps_log(struct pd_pps_data *pps, const char *fmt, ...);
 
 /* probe */
-struct power_supply *pps_get_tcpm_psy(struct device_node *node, size_t size);
+struct power_supply *pps_get_tcpm_psy(struct fwnode_handle *fwnode, size_t size);
 
 int pps_request_pdo(struct pd_pps_data *pps_data, unsigned int ta_idx,
 		    unsigned int ta_max_vol, unsigned int ta_max_cur);

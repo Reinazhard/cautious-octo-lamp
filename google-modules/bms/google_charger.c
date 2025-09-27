@@ -5968,9 +5968,9 @@ static struct power_supply *get_tcpm_psy(struct chg_drv *chg_drv)
 	int i, ret;
 	struct power_supply *tcpm_psy = NULL;
 
-	ret = power_supply_get_by_phandle_array(chg_drv->device->of_node,
-						"google,tcpm-power-supply", psy,
-						ARRAY_SIZE(psy));
+	ret = power_supply_get_by_reference_array(dev_fwnode(chg_drv->device),
+						  "google,tcpm-power-supply",
+						  psy, ARRAY_SIZE(psy));
 	if (ret < 0 && !chg_drv->usb_skip_probe) {
 		dev_dbg_ratelimited(chg_drv->device,
 				    "failed to get tcpm power supply, retrying... ret:%d\n",

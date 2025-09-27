@@ -12,7 +12,6 @@
 #include <linux/version.h>
 #include <linux/delay.h>
 #include <linux/dev_printk.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 
 #include "pca9468_regs.h"
