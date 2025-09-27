@@ -87,8 +87,8 @@ static struct power_supply *google_get_power_supply(struct bcl_device *bcl_dev, 
 	int err = 0;
 
 	batt_psy = NULL;
-	err = power_supply_get_by_phandle_array(bcl_dev->device->of_node, str,
-						psy, ARRAY_SIZE(psy));
+	err = power_supply_get_by_reference_array(dev_fwnode(bcl_dev->device), str,
+						  psy, ARRAY_SIZE(psy));
 	if (err > 0)
 		batt_psy = psy[0];
 	return batt_psy;
