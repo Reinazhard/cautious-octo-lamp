@@ -189,7 +189,7 @@ static int max77779_pinconf_set(struct pinctrl_dev *pctldev,
 			err =  max77779_external_pmic_reg_update(info->core, reg, mask, rval);
 			break;
 		}
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 		case PIN_CONFIG_OUTPUT_ENABLE:
 		{
 			const u8 reg = MAX77779_PMIC_GPIO_SGPIO_CNFG0 + pin;
