@@ -290,14 +290,11 @@ static int exynos_drm_gem_offset(struct drm_device *dev, struct drm_file *filep,
 	struct drm_gem_object *obj;
 	int ret = 0;
 
-	mutex_lock(&dev->struct_mutex);
-
 	obj = drm_gem_object_lookup(filep, handle);
 	if (!obj) {
 		pr_err("Failed to lookup gem object from handle %u.\n",
 			  handle);
-		ret = -EINVAL;
-		goto unlock;
+		return -EINVAL;
 	}
 
 	ret = drm_gem_create_mmap_offset(obj);
@@ -310,8 +307,6 @@ static int exynos_drm_gem_offset(struct drm_device *dev, struct drm_file *filep,
 	*offset = drm_vma_node_offset_addr(&obj->vma_node);
 out:
 	drm_gem_object_put(obj);
-unlock:
-	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
