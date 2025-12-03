@@ -394,6 +394,9 @@ impl Transaction {
                                 _oneway_node = alloc.take_oneway_node();
                             }
                             drop(alloc_guard);
+                            crate::trace::trace_transaction_update_buffer_release(
+                                t_outdated.debug_id,
+                            );
                             // Save the transaction to be dropped after locks are released.
                             _t_outdated = t_outdated;
                         }
@@ -618,6 +621,8 @@ impl DeliverToRead for Transaction {
         if self.set_priority_called.xchg(true, Relaxed) {
             return;
         }
+
+        crate::trace::trace_transaction_thread_selected(self, to_thread);
 
         let node_prio = target_node.node_prio();
         let mut desired = self.priority;

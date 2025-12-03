@@ -92,6 +92,7 @@ use kernel::bindings::rust_binder_layout;
 #[no_mangle]
 static RUST_BINDER_LAYOUT: rust_binder_layout = rust_binder_layout {
     t: transaction::TRANSACTION_LAYOUT,
+    th: thread::THREAD_LAYOUT,
     p: process::PROCESS_LAYOUT,
     n: node::NODE_LAYOUT,
 };

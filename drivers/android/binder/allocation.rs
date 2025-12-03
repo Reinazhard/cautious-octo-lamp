@@ -250,6 +250,8 @@ impl Drop for Allocation {
             return;
         }
 
+        crate::trace::trace_transaction_failed_buffer_release(self.debug_id);
+
         if let Some(mut info) = self.allocation_info.take() {
             if let Some(oneway_node) = info.oneway_node.as_ref() {
                 oneway_node.pending_oneway_finished();
@@ -415,6 +417,8 @@ impl<'a> AllocationView<'a> {
                 return Err(EINVAL);
             }
         }
+
+        crate::trace::trace_transaction_node_send(self.alloc.debug_id, &node, obj, &newobj);
 
         Ok(())
     }

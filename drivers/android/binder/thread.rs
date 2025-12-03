@@ -438,6 +438,14 @@ pub(crate) struct ThreadPrioState {
     pub(crate) next: BinderPriority,
 }
 
+use core::mem::offset_of;
+use kernel::bindings::rb_thread_layout;
+pub(crate) const THREAD_LAYOUT: rb_thread_layout = rb_thread_layout {
+    arc_offset: Arc::<Thread>::DATA_OFFSET,
+    process: offset_of!(Thread, process),
+    id: offset_of!(Thread, id),
+};
+
 /// This represents a thread that's used with binder.
 #[pin_data]
 pub(crate) struct Thread {
@@ -756,6 +764,12 @@ impl Thread {
                 prio::to_kernel_prio(policy, priority),
             );
         }
+
+        crate::trace::trace_set_priority(
+            task,
+            desired.prio,
+            prio::to_kernel_prio(policy, priority),
+        );
 
         let mut prio_state = self.prio_lock.lock();
         if !verify && prio_state.state == PriorityState::Abort {
@@ -1151,6 +1165,8 @@ impl Thread {
                 return Err(err);
             }
         };
+
+        crate::trace::trace_transaction_alloc_buf(debug_id, data_size, offsets_size, buffers_size);
 
         let mut buffer_reader = UserSlice::new(info.data_ptr, data_size).reader();
         let mut end_of_previous_object = 0;
@@ -1596,6 +1612,7 @@ impl Thread {
                         if buffer.looper_need_return_on_free() {
                             self.inner.lock().looper_need_return = true;
                         }
+                        crate::trace::trace_transaction_buffer_release(buffer.debug_id);
                         drop(buffer);
                     }
                 }
