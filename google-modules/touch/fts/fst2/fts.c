@@ -786,6 +786,7 @@ static int register_panel_bridge(struct fts_ts_info *info)
 #ifdef CONFIG_OF
 	info->panel_bridge.of_node = info->client->dev.of_node;
 #endif
+	INIT_LIST_HEAD(&info->panel_bridge.list);
 	info->panel_bridge.funcs = &panel_bridge_funcs;
 	drm_bridge_add(&info->panel_bridge);
 
