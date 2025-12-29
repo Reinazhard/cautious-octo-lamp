@@ -333,7 +333,7 @@ static int cs40l2x_pcm_ev(struct snd_soc_dapm_widget *w,
 static int cs40l2x_vol_get(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 	struct regmap *regmap = priv->regmap;
 	struct device *dev = priv->dev;
@@ -374,7 +374,7 @@ vol_get_err:
 static int cs40l2x_vol_put(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 	struct regmap *regmap = priv->regmap;
 	struct device *dev = priv->dev;
@@ -412,7 +412,7 @@ static int cs40l2x_vol_put(struct snd_kcontrol *kcontrol,
 static int cs40l2x_tuning_get(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 
 	ucontrol->value.enumerated.item[0] = priv->tuning;
@@ -423,7 +423,7 @@ static int cs40l2x_tuning_get(struct snd_kcontrol *kcontrol,
 static int cs40l2x_tuning_put(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 	struct cs40l2x_private *core = priv->core;
 
@@ -450,7 +450,7 @@ static int cs40l2x_tuning_put(struct snd_kcontrol *kcontrol,
 static int cs40l2x_delay_get(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 	struct regmap *regmap = priv->regmap;
 	struct device *dev = priv->dev;
@@ -483,7 +483,7 @@ static int cs40l2x_delay_get(struct snd_kcontrol *kcontrol,
 static int cs40l2x_delay_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 	struct regmap *regmap = priv->regmap;
 	struct device *dev = priv->dev;
@@ -517,7 +517,7 @@ static int cs40l2x_delay_put(struct snd_kcontrol *kcontrol,
 static int cs40l2x_slots_get(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 
 	ucontrol->value.integer.value[0] = priv->rx1_slot;
@@ -529,7 +529,7 @@ static int cs40l2x_slots_get(struct snd_kcontrol *kcontrol,
 static int cs40l2x_slots_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct cs40l2x_codec *priv = snd_soc_component_get_drvdata(comp);
 
 	priv->rx1_slot = ucontrol->value.integer.value[0];
