@@ -188,7 +188,7 @@ static void exynos_wakeup_sys_powerdown(enum sys_powerdown mode, bool early_wake
 }
 
 u64 get_frc_time(void);
-static int exynos_pm_syscore_suspend(void)
+static int exynos_pm_syscore_suspend(void *data)
 {
 #ifdef CONFIG_CP_PMUCAL
 	if (!exynos_check_cp_status()) {
@@ -231,7 +231,7 @@ static int exynos_pm_syscore_suspend(void)
 	return 0;
 }
 
-static void exynos_pm_syscore_resume(void)
+static void exynos_pm_syscore_resume(void *data)
 {
 	pm_dbg->mifdn_cnt = acpm_get_mifdn_count();
 	pm_info->apdn_cnt = acpm_get_apsocdn_count();
@@ -296,9 +296,13 @@ bool is_test_pcieon_suspend_set(void)
 }
 EXPORT_SYMBOL_GPL(is_test_pcieon_suspend_set);
 
-static struct syscore_ops exynos_pm_syscore_ops = {
+static const struct syscore_ops exynos_pm_syscore_ops = {
 	.suspend	= exynos_pm_syscore_suspend,
 	.resume		= exynos_pm_syscore_resume,
+};
+
+static struct syscore exynos_pm_syscore = {
+	.ops = &exynos_pm_syscore_ops,
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -550,7 +554,7 @@ static int exynos_pm_drvinit(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	register_syscore_ops(&exynos_pm_syscore_ops);
+	register_syscore(&exynos_pm_syscore);
 	register_pm_notifier(&exynos_pm_notifier_block);
 #ifdef CONFIG_DEBUG_FS
 	exynos_pm_debugfs_init();

@@ -1577,12 +1577,12 @@ int exynos_bts_debugfs_init(void)
 	return 0;
 }
 
-static int exynos_bts_syscore_suspend(void)
+static int exynos_bts_syscore_suspend(void *data)
 {
 	return 0;
 }
 
-static void exynos_bts_syscore_resume(void)
+static void exynos_bts_syscore_resume(void *data)
 {
 	struct bts_info *info = btsdev->bts_list;
 	unsigned int i;
@@ -1597,9 +1597,13 @@ static void exynos_bts_syscore_resume(void)
 }
 
 /* Syscore operation */
-static struct syscore_ops exynos_bts_syscore_ops = {
+static const struct syscore_ops exynos_bts_syscore_ops = {
 	.suspend = exynos_bts_syscore_suspend,
 	.resume = exynos_bts_syscore_resume,
+};
+
+static struct syscore exynos_bts_syscore = {
+	.ops = &exynos_bts_syscore_ops,
 };
 
 /* BTS Initialize */
@@ -2107,7 +2111,7 @@ static int bts_probe(struct platform_device *pdev)
 	if (exynos_bts_debugfs_init())
 		dev_err(btsdev->dev, "exynos_bts_debugfs_init failed\n");
 
-	register_syscore_ops(&exynos_bts_syscore_ops);
+	register_syscore(&exynos_bts_syscore);
 
 	pr_info("%s successfully done.\n", __func__);
 
