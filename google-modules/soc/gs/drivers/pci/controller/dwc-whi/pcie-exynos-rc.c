@@ -278,9 +278,8 @@ static void pcie_dma_free_attrs(struct device *dev, size_t size,
 		pcie_iommu_unmap(dma_addr, size, pcie_ch_to_hsi(ch_num));
 }
 
-static dma_addr_t pcie_dma_map_page(struct device *dev, struct page *page,
-				    size_t offset, size_t size,
-				    enum dma_data_direction dir,
+static dma_addr_t pcie_dma_map_phys(struct device *dev, phys_addr_t phys,
+				    size_t size, enum dma_data_direction dir,
 				    unsigned long attrs)
 {
 	struct pci_dev *epdev = to_pci_dev_from_dev(dev);
@@ -289,8 +288,10 @@ static dma_addr_t pcie_dma_map_page(struct device *dev, struct page *page,
 	dma_addr_t dma_addr;
 	int ret;
 
-	dma_addr = dma_map_page_attrs(&fake_dma_dev, page, offset,
-				      size, dir, attrs);
+	if (unlikely(attrs & DMA_ATTR_MMIO))
+		return DMA_MAPPING_ERROR;
+
+	dma_addr = dma_map_phys(&fake_dma_dev, phys, size, dir, attrs);
 	if (exynos_pcie->s2mpu) {
 		s2mpu_update_refcnt(dev, dma_addr, size, true, dir);
 	} else if (exynos_pcie->use_sysmmu) {
@@ -304,7 +305,7 @@ static dma_addr_t pcie_dma_map_page(struct device *dev, struct page *page,
 	return dma_addr;
 }
 
-static void pcie_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
+static void pcie_dma_unmap_phys(struct device *dev, dma_addr_t dma_addr,
 				size_t size, enum dma_data_direction dir,
 				unsigned long attrs)
 {
@@ -312,7 +313,7 @@ static void pcie_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
 	int ch_num = get_ch_num(epdev);
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
 
-	dma_unmap_page_attrs(&fake_dma_dev, dma_addr, size, dir, attrs);
+	dma_unmap_phys(&fake_dma_dev, dma_addr, size, dir, attrs);
 
 	if (exynos_pcie->s2mpu)
 		s2mpu_update_refcnt(dev, dma_addr, size, false, dir);
@@ -325,12 +326,10 @@ static const struct dma_map_ops pcie_dma_ops = {
 	.free = pcie_dma_free_attrs,
 	.mmap = NULL,
 	.get_sgtable = NULL,
-	.map_page = pcie_dma_map_page,
-	.unmap_page = pcie_dma_unmap_page,
+	.map_phys = pcie_dma_map_phys,
+	.unmap_phys = pcie_dma_unmap_phys,
 	.map_sg = NULL,
 	.unmap_sg = NULL,
-	.map_resource = NULL,
-	.unmap_resource = NULL,
 	.sync_single_for_cpu = NULL,
 	.sync_single_for_device = NULL,
 	.sync_sg_for_cpu = NULL,
