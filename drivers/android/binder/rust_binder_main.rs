@@ -89,8 +89,7 @@ module! {
 }
 
 use kernel::bindings::rust_binder_layout;
-#[no_mangle]
-static RUST_BINDER_LAYOUT: rust_binder_layout = rust_binder_layout {
+const RUST_BINDER_LAYOUT: rust_binder_layout = rust_binder_layout {
     t: transaction::TRANSACTION_LAYOUT,
     th: thread::THREAD_LAYOUT,
     p: process::PROCESS_LAYOUT,
@@ -310,6 +309,10 @@ impl kernel::Module for BinderModule {
     fn init(_module: &'static kernel::ThisModule) -> Result<Self> {
         // SAFETY: The module initializer never runs twice, so we only call this once.
         unsafe { crate::context::CONTEXTS.init() };
+
+        // SAFETY: Nobody will access this except through tracepoints triggered by this driver, so
+        // currently safe to write.
+        unsafe { bindings::RUST_BINDER_LAYOUT = RUST_BINDER_LAYOUT };
 
         let netlink = crate::netlink::BINDER_NL_FAMILY.register()?;
         BINDER_SHRINKER.register(c"android-binder")?;
