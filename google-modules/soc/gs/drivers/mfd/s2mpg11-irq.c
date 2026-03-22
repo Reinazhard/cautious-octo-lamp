@@ -12,7 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/wakeup_reason.h>
-#include <linux/mfd/samsung/s2mpg11.h>
+#include <linux/mfd/samsung/s2mpg11-local.h>
 #include <linux/mfd/samsung/s2mpg11-register.h>
 
 static const u8 s2mpg11_mask_reg[] = {
