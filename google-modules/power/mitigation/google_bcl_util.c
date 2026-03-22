@@ -12,8 +12,8 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #if IS_ENABLED(CONFIG_REGULATOR_S2MPG10)
-#include <linux/mfd/samsung/s2mpg10.h>
-#include <linux/mfd/samsung/s2mpg11.h>
+#include <linux/mfd/samsung/s2mpg10-local.h>
+#include <linux/mfd/samsung/s2mpg11-local.h>
 #include <linux/mfd/samsung/s2mpg10-register.h>
 #include <linux/mfd/samsung/s2mpg11-register.h>
 #elif IS_ENABLED(CONFIG_REGULATOR_S2MPG12)

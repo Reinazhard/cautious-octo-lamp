@@ -25,6 +25,7 @@
 #include "uapi/brownout_stats.h"
 
 #if IS_ENABLED(CONFIG_SOC_GS101)
+#include <linux/mfd/samsung/s2mpg11.h>
 #define MAIN_METER_PWR_WARN0	S2MPG10_METER_PWR_WARN0
 #define SUB_METER_PWR_WARN0	S2MPG11_METER_PWR_WARN0
 #elif IS_ENABLED(CONFIG_SOC_GS201)
