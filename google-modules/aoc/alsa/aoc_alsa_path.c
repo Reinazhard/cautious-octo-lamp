@@ -1224,7 +1224,7 @@ static int aoc_path_put(uint32_t ep_id, uint32_t hw_id,
 			struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_dapm_widget *widget =
-		snd_soc_dapm_kcontrol_widget(kcontrol);
+		snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(widget->dapm);
 	struct aoc_chip *chip =
