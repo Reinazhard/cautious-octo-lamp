@@ -292,6 +292,8 @@ kernel::impl_flags!(
     }
 );
 
+pub(crate) const LOOPER_VH_MASK: u32 = LOOPER_REGISTERED | LOOPER_ENTERED | LOOPER_EXITED;
+
 impl InnerThread {
     fn new(pid: i32) -> Result<Self> {
         fn next_err_id() -> u32 {
@@ -1597,6 +1599,27 @@ impl Thread {
         }
     }
 
+    fn enter_exit_looper(&self, cmd: u32) {
+        let mut inner;
+        match cmd {
+            BC_REGISTER_LOOPER => {
+                let valid = self.process.register_thread();
+                inner = self.inner.lock();
+                inner.looper_register(valid);
+            }
+            BC_ENTER_LOOPER => {
+                inner = self.inner.lock();
+                inner.looper_enter();
+            }
+            BC_EXIT_LOOPER => {
+                inner = self.inner.lock();
+                inner.looper_exit();
+            }
+            _ => unreachable!(),
+        }
+        crate::trace::vh_looper_entry(self, inner.looper_flags);
+    }
+
     fn write(self: &Arc<Self>, req: &mut BinderWriteRead) -> Result {
         let write_start = req.write_buffer.wrapping_add(req.write_consumed);
         let write_len = req.write_size.saturating_sub(req.write_consumed);
@@ -1648,12 +1671,9 @@ impl Thread {
                 BC_REQUEST_DEATH_NOTIFICATION => self.process.request_death(&mut reader, self)?,
                 BC_CLEAR_DEATH_NOTIFICATION => self.process.clear_death(&mut reader, self)?,
                 BC_DEAD_BINDER_DONE => self.process.dead_binder_done(reader.read()?, self),
-                BC_REGISTER_LOOPER => {
-                    let valid = self.process.register_thread();
-                    self.inner.lock().looper_register(valid);
+                BC_REGISTER_LOOPER | BC_ENTER_LOOPER | BC_EXIT_LOOPER => {
+                    self.enter_exit_looper(cmd)
                 }
-                BC_ENTER_LOOPER => self.inner.lock().looper_enter(),
-                BC_EXIT_LOOPER => self.inner.lock().looper_exit(),
                 BC_REQUEST_FREEZE_NOTIFICATION => self.process.request_freeze_notif(&mut reader)?,
                 BC_CLEAR_FREEZE_NOTIFICATION => self.process.clear_freeze_notif(&mut reader)?,
                 BC_FREEZE_NOTIFICATION_DONE => self.process.freeze_notif_done(&mut reader)?,
@@ -1810,7 +1830,12 @@ impl Thread {
     }
 
     pub(crate) fn release(self: &Arc<Self>) {
-        self.inner.lock().is_dead = true;
+        {
+            let mut inner = self.inner.lock();
+            inner.is_dead = true;
+            inner.looper_flags |= LOOPER_EXITED;
+            crate::trace::vh_looper_entry(self, inner.looper_flags);
+        }
 
         self.unwind_transaction_stack();
 
