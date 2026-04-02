@@ -2508,7 +2508,7 @@ got_it:
 	if ((map->m_flags & F2FS_MAP_MAPPED)) {
 		block_nr = map->m_pblk + block_in_file - map->m_lblk;
 
-		if (!!folio_test_uptodate(folio) && (!folio_test_swapcache(folio) &&
+		if (!folio_test_uptodate(folio) && (!folio_test_swapcache(folio) &&
 					!cleancache_get_page(&folio->page))) {
 			folio_mark_uptodate(folio);
 			goto confused;
