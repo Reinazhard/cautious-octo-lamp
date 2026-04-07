@@ -175,7 +175,7 @@ const unsigned long RUST_CONST_HELPER_GPU_BUDDY_TRIM_DISABLE = GPU_BUDDY_TRIM_DI
 #if IS_ENABLED(CONFIG_ANDROID_BINDER_IPC_RUST)
 #include "../../drivers/android/binder/rust_binder.h"
 #include "../../drivers/android/binder/rust_binder_events.h"
-#include "../../drivers/android/binder/rust_binder_hooks.h"
+#include <trace/hooks/rust_binder.h>
 #endif
 
 #ifdef CONFIG_ASHMEM_RUST
