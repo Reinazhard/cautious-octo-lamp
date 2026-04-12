@@ -130,7 +130,7 @@ static inline bool rt_mutex_waiter_is_top_waiter(struct rt_mutex_base *lock,
 						 struct rt_mutex_waiter *waiter)
 	__must_hold(&lock->wait_lock)
 {
-	struct rb_node *leftmost = rb_first_cached(&lock->waiters);
+	struct rb_node *leftmost = data_race(lock->waiters.rb_leftmost);
 
 	return rb_entry(leftmost, struct rt_mutex_waiter, tree.entry) == waiter;
 }
