@@ -758,6 +758,10 @@ static int mfc_core_probe(struct platform_device *pdev)
 #endif
 
 #ifdef CONFIG_MFC_USE_COREDUMP
+	ret = device_set_driver_override(&mfc_core_sscd_dev.dev, SSCD_NAME);
+	if (ret)
+		dev_err(&pdev->dev, "failed to set driver override\n");
+
 	if (platform_device_register(&mfc_core_sscd_dev)) {
 		dev_err(&pdev->dev, "failed to register sscd_dev\n");
 	} else {
