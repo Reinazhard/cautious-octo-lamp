@@ -201,8 +201,7 @@ static void swap_zeromap_folio_clear(struct folio *folio)
 static bool swap_sched_async_compress(struct folio *folio)
 {
 	struct swap_info_struct *sis;
-	int nid = numa_node_id();
-	pg_data_t *pgdat = NODE_DATA(nid);
+	pg_data_t *pgdat = folio_pgdat(folio);
 
 	if (unlikely(!pgdat->kcompressd))
 		return false;
@@ -429,13 +428,23 @@ int kcompressd(void *p)
 
 	while (!kthread_should_stop()) {
 		wait_event_interruptible(pgdat->kcompressd_wait,
-				!kfifo_is_empty(&pgdat->kcompress_fifo));
+				!kfifo_is_empty(&pgdat->kcompress_fifo) ||
+				kthread_should_stop());
 
-		while (!kfifo_is_empty(&pgdat->kcompress_fifo)) {
-			if (kfifo_out(&pgdat->kcompress_fifo, &folio, sizeof(folio)))
+		if (kthread_should_stop())
+			break;
+
+		if (!kfifo_is_empty(&pgdat->kcompress_fifo)) {
+			struct blk_plug plug;
+
+			blk_start_plug(&plug);
+			while (kfifo_out(&pgdat->kcompress_fifo, &folio, sizeof(folio))) {
 				__swap_writepage(&ctx, folio);
+				cond_resched();
+			}
+			swap_write_submit(&ctx);
+			blk_finish_plug(&plug);
 		}
-		swap_write_submit(&ctx);
 	}
 	return 0;
 }
