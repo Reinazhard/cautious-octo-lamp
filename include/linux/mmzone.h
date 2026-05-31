@@ -1536,7 +1536,7 @@ typedef struct pglist_data {
 #define KCOMPRESS_FIFO_SIZE 256
 	wait_queue_head_t kcompressd_wait;
 	struct task_struct *kcompressd;
-	struct kfifo kcompress_fifo;
+	DECLARE_KFIFO_PTR(kcompress_fifo, struct folio *);
 	int kswapd_order;
 	enum zone_type kswapd_highest_zoneidx;
 

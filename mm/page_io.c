@@ -201,10 +201,7 @@ static void swap_zeromap_folio_clear(struct folio *folio)
 static bool swap_sched_async_compress(struct folio *folio)
 {
 	struct swap_info_struct *sis;
-	pg_data_t *pgdat = folio_pgdat(folio);
-
-	if (unlikely(!pgdat->kcompressd))
-		return false;
+	pg_data_t *pgdat;
 
 	if (!current_is_kswapd())
 		return false;
@@ -212,10 +209,13 @@ static bool swap_sched_async_compress(struct folio *folio)
 	if (!folio_test_anon(folio))
 		return false;
 
+	pgdat = folio_pgdat(folio);
+	if (unlikely(!pgdat->kcompressd))
+		return false;
+
 	sis = __swap_entry_to_info(folio->swap);
 	if (data_race(sis->flags & SWP_SYNCHRONOUS_IO)) {
-		if (kfifo_avail(&pgdat->kcompress_fifo) >= sizeof(folio) &&
-		    kfifo_in(&pgdat->kcompress_fifo, &folio, sizeof(folio))) {
+		if (kfifo_put(&pgdat->kcompress_fifo, folio)) {
 			wake_up_interruptible(&pgdat->kcompressd_wait);
 			return true;
 		}
@@ -438,7 +438,7 @@ int kcompressd(void *p)
 			struct blk_plug plug;
 
 			blk_start_plug(&plug);
-			while (kfifo_out(&pgdat->kcompress_fifo, &folio, sizeof(folio))) {
+			while (kfifo_get(&pgdat->kcompress_fifo, &folio)) {
 				__swap_writepage(&ctx, folio);
 				cond_resched();
 			}

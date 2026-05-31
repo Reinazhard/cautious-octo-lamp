@@ -7780,8 +7780,7 @@ void __meminit kswapd_run(int nid)
 			wake_up_process(pgdat->kswapd);
 
 			ret = kfifo_alloc(&pgdat->kcompress_fifo,
-					KCOMPRESS_FIFO_SIZE * sizeof(struct folio *),
-					GFP_KERNEL);
+					KCOMPRESS_FIFO_SIZE, GFP_KERNEL);
 			if (ret) {
 				pr_err("Failed to allocate kcompress_fifo on node %d\n", nid);
 			} else {
