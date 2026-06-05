@@ -150,22 +150,26 @@ union nb_lock_type {
 	raw_spinlock_t raw_spinlock;
 };
 
-static void nb_raw_spin_lock(union nb_lock_type *lock)
+static unsigned long nb_raw_spin_lock(union nb_lock_type *lock)
 {
-	raw_spin_lock(&lock->raw_spinlock);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&lock->raw_spinlock, flags);
+	return flags;
 }
 
-static void nb_raw_spin_unlock(union nb_lock_type *lock)
+static void nb_raw_spin_unlock(union nb_lock_type *lock, unsigned long flags)
 {
-	raw_spin_unlock(&lock->raw_spinlock);
+	raw_spin_unlock_irqrestore(&lock->raw_spinlock, flags);
 }
 
-static void nb_rt_mutex_lock(union nb_lock_type *lock)
+static unsigned long nb_rt_mutex_lock(union nb_lock_type *lock)
 {
 	rt_mutex_lock(&lock->rt_mutex);
+	return 0;
 }
 
-static void nb_rt_mutex_unlock(union nb_lock_type *lock)
+static void nb_rt_mutex_unlock(union nb_lock_type *lock, unsigned long flags)
 {
 	rt_mutex_unlock(&lock->rt_mutex);
 }
@@ -178,8 +182,8 @@ struct exynos_devfreq_data {
 	struct devfreq *df;
 	struct notifier_block min_nb;
 	struct notifier_block max_nb;
-	void (*nb_lock_fn)(union nb_lock_type *);
-	void (*nb_unlock_fn)(union nb_lock_type *);
+	unsigned long (*nb_lock_fn)(union nb_lock_type *);
+	void (*nb_unlock_fn)(union nb_lock_type *, unsigned long);
 	union nb_lock_type min_nb_lock;
 	union nb_lock_type max_nb_lock;
 	union nb_lock_type nb_lock;
@@ -1841,10 +1845,11 @@ static int __noreturn memperf_thread(void *data)
 
 static void exynos_qos_notify(struct exynos_devfreq_data *data)
 {
+	unsigned long flags;
 	u32 freq;
 
 	/* Set the frequency to the floor of the current limits */
-	data->nb_lock_fn(&data->nb_lock);
+	flags = data->nb_lock_fn(&data->nb_lock);
 	freq = min(data->min_freq, data->max_freq);
 	if (freq != data->cur_freq) {
 		/* Pairs with memperfd and exynos_df_get_cur_freq() */
@@ -1858,7 +1863,7 @@ static void exynos_qos_notify(struct exynos_devfreq_data *data)
 			update_qos_req(&bci->min_req, find_freq_c(bci, freq));
 #endif
 	}
-	data->nb_unlock_fn(&data->nb_lock);
+	data->nb_unlock_fn(&data->nb_lock, flags);
 }
 
 static int exynos_qos_min_notifier(struct notifier_block *nb,
@@ -1867,11 +1872,12 @@ static int exynos_qos_min_notifier(struct notifier_block *nb,
 	struct exynos_devfreq_data *data =
 		container_of(nb, typeof(*data), min_nb);
 	u32 freq = find_freq_l(data, value);
+	unsigned long flags;
 
-	data->nb_lock_fn(&data->min_nb_lock);
+	flags = data->nb_lock_fn(&data->min_nb_lock);
 	data->min_freq = freq;
 	exynos_qos_notify(data);
-	data->nb_unlock_fn(&data->min_nb_lock);
+	data->nb_unlock_fn(&data->min_nb_lock, flags);
 	return NOTIFY_OK;
 }
 
@@ -1881,11 +1887,12 @@ static int exynos_qos_max_notifier(struct notifier_block *nb,
 	struct exynos_devfreq_data *data =
 		container_of(nb, typeof(*data), max_nb);
 	u32 freq = find_freq_h(data, value);
+	unsigned long flags;
 
-	data->nb_lock_fn(&data->max_nb_lock);
+	flags = data->nb_lock_fn(&data->max_nb_lock);
 	data->max_freq = freq;
 	exynos_qos_notify(data);
-	data->nb_unlock_fn(&data->max_nb_lock);
+	data->nb_unlock_fn(&data->max_nb_lock, flags);
 	return NOTIFY_OK;
 }
 
@@ -1935,9 +1942,10 @@ static int exynos_devfreq_pm(struct device *dev, bool resume)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct exynos_devfreq_data *data = platform_get_drvdata(pdev);
+	unsigned long flags;
 	int ret = 0;
 
-	data->nb_lock_fn(&data->nb_lock);
+	flags = data->nb_lock_fn(&data->nb_lock);
 	if (data->use_acpm) {
 		ret = exynos_acpm_pm(data, resume);
 		if (WARN_ON(ret))
@@ -1956,7 +1964,7 @@ static int exynos_devfreq_pm(struct device *dev, bool resume)
 				 resume ? data->cur_freq : data->suspend_freq);
 	data->suspended = !resume;
 unlock:
-	data->nb_unlock_fn(&data->nb_lock);
+	data->nb_unlock_fn(&data->nb_lock, flags);
 	return ret;
 }
 
