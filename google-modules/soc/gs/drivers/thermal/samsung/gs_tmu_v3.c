@@ -1409,14 +1409,17 @@ static int gs_pi_controller(struct gs_tmu_data *data, int control_temp)
 	if (data->hardlimit_enable && data->is_hardlimited)
 		state = max(state, data->max_cdev);
 
-	// TODO: refactor locking
+	/*
+	 * cdev->lock is taken under tz->lock; call __thermal_cdev_update()
+	 * directly because thermal_cdev_update() would take cdev->lock
+	 * again.
+	 */
 	mutex_unlock(&data->lock);
 	mutex_lock(&tz->lock);
 	instance->target = state;
 	mutex_lock(&cdev->lock);
-	cdev->updated = false;
+	__thermal_cdev_update(cdev);
 	mutex_unlock(&cdev->lock);
-	thermal_cdev_update(cdev);
 	mutex_unlock(&tz->lock);
 	mutex_lock(&data->lock);
 	data->max_cdev = state;
@@ -1797,13 +1800,16 @@ static void gs_throttle_hard_limit(struct kthread_work *work)
 			data->max_cdev = state;
 			mutex_unlock(&data->lock);
 
-			// TODO: refactor locking
+			/*
+			 * cdev->lock is taken under tz->lock; call
+			 * __thermal_cdev_update() directly, as
+			 * thermal_cdev_update() would re-take cdev->lock.
+			 */
 			mutex_lock(&tz->lock);
-			mutex_lock(&cdev->lock);
-			cdev->updated = false;
-			mutex_unlock(&cdev->lock);
 			instance->target = state;
-			thermal_cdev_update(cdev);
+			mutex_lock(&cdev->lock);
+			__thermal_cdev_update(cdev);
+			mutex_unlock(&cdev->lock);
 			mutex_unlock(&tz->lock);
 
 			mutex_lock(&data->lock);
@@ -1830,13 +1836,16 @@ static void gs_throttle_hard_limit(struct kthread_work *work)
 			data->max_cdev = state;
 			mutex_unlock(&data->lock);
 
-			// TODO: refactor locking
+			/*
+			 * cdev->lock is taken under tz->lock; call
+			 * __thermal_cdev_update() directly, as
+			 * thermal_cdev_update() would re-take cdev->lock.
+			 */
 			mutex_lock(&tz->lock);
-			mutex_lock(&cdev->lock);
-			cdev->updated = false;
-			mutex_unlock(&cdev->lock);
 			instance->target = state;
-			thermal_cdev_update(cdev);
+			mutex_lock(&cdev->lock);
+			__thermal_cdev_update(cdev);
+			mutex_unlock(&cdev->lock);
 			mutex_unlock(&tz->lock);
 
 			mutex_lock(&data->lock);
