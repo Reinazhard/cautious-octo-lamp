@@ -5805,7 +5805,7 @@ chg_thermal_device_register(const char *of_name,
 		return -EINVAL;
 	}
 
-	ctdev->tcd = thermal_of_cooling_device_register(cooling_node,
+	ctdev->tcd = thermal_of_cooling_device_register(cooling_node, 0,
 							tcd_name,
 							ctdev,
 							ops);
