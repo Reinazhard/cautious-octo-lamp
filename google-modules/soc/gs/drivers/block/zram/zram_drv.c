@@ -2839,8 +2839,8 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
 #define RECOMPRESS_IDLE		(1 << 0)
 #define RECOMPRESS_HUGE		(1 << 1)
 
-static int scan_slots_for_recompress(struct zram *zram, u32 mode, u32 prio_max,
-				     struct zram_pp_ctl *ctl)
+static void scan_slots_for_recompress(struct zram *zram, u32 mode, u32 prio_max,
+				      struct zram_pp_ctl *ctl)
 {
 	unsigned long nr_pages = zram->disksize >> PAGE_SHIFT;
 	struct zram_pp_slot *pps = NULL;
@@ -2858,7 +2858,7 @@ static int scan_slots_for_recompress(struct zram *zram, u32 mode, u32 prio_max,
 		if (!pps)
 			pps = kmalloc(sizeof(*pps), GFP_KERNEL);
 		if (!pps)
-			return -ENOMEM;
+			return;
 
 		INIT_LIST_HEAD(&pps->entry);
 
@@ -2891,7 +2891,6 @@ next:
 	}
 
 	kfree(pps);
-	return 0;
 }
 
 /*
