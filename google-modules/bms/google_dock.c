@@ -278,8 +278,8 @@ static void google_dock_icl_ramp_reset(struct dock_drv *dock)
 static void google_dock_icl_ramp_start(struct dock_drv *dock)
 {
 	dev_info(dock->device, "ICL ramp set alarm %dms\n", dock->icl_ramp_delay_ms);
-	alarm_start_relative(&dock->icl_ramp_alarm,
-			     ms_to_ktime(dock->icl_ramp_delay_ms));
+	alarm_start_timer(&dock->icl_ramp_alarm,
+			  ms_to_ktime(dock->icl_ramp_delay_ms), true);
 }
 
 static void google_dock_notifier_check_dc(struct dock_drv *dock)

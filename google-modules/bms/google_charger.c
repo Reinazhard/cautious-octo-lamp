@@ -1164,8 +1164,8 @@ static void chg_termination_work(struct work_struct *work)
 			pr_info("Get CHARGE_COUNTER fail, try_cnt=%d, rc=%d\n",
 				chg_term->retry_cnt, rc);
 			/* try again and keep the pm_stay_awake */
-			alarm_start_relative(&chg_term->alarm,
-					     ms_to_ktime(CHG_TERM_RETRY_MS));
+			alarm_start_timer(&chg_term->alarm,
+					  ms_to_ktime(CHG_TERM_RETRY_MS), true);
 			return;
 		} else {
 			goto error;
@@ -1197,7 +1197,7 @@ static void chg_termination_work(struct work_struct *work)
 	pr_info("Prevent overcharge data: cc: %d, cc_full_ref: %d, delay: %d\n",
 		cc, chg_term->cc_full_ref, delay);
 
-	alarm_start_relative(&chg_term->alarm, ms_to_ktime(delay));
+	alarm_start_timer(&chg_term->alarm, ms_to_ktime(delay), true);
 
 	pm_relax(chg_drv->device);
 	return;
@@ -1250,8 +1250,8 @@ static void chg_eval_chg_termination(struct chg_termination *chg_term)
 	 * battery. Trigger the function once charging is completed
 	 * to prevent overcharing.
 	 */
-	alarm_start_relative(&chg_term->alarm,
-			     ms_to_ktime(CHG_TERM_LONG_DELAY_MS));
+	alarm_start_timer(&chg_term->alarm,
+			  ms_to_ktime(CHG_TERM_LONG_DELAY_MS), true);
 	chg_term->alarm_start = true;
 	chg_term->cc_full_ref = 0;
 	chg_term->retry_cnt = 0;
@@ -4807,8 +4807,8 @@ static int msc_update_charger_cb(struct gvotable_election *el,
 
 msc_reschedule:
 	alarm_try_to_cancel(&chg_drv->chg_wakeup_alarm);
-	alarm_start_relative(&chg_drv->chg_wakeup_alarm,
-			     ms_to_ktime(update_interval));
+	alarm_start_timer(&chg_drv->chg_wakeup_alarm,
+			  ms_to_ktime(update_interval), true);
 
 	pr_debug("MSC_CHG fv_uv=%d, cc_max=%d, rerun in %d ms (%d)\n",
 		 fv_uv, cc_max, update_interval, rc);

@@ -975,7 +975,7 @@ static int feature_set_dc_icl(struct p9221_charger_data *charger, u32 ilim_ua)
 	dev_info(&charger->client->dev, "ICL ramp set alarm %dms, %dua, ramp=%d\n",
 		 delay, charger->icl_ramp_alt_ua, charger->icl_ramp);
 
-	alarm_start_relative(&charger->icl_ramp_alarm, ms_to_ktime(delay));
+	alarm_start_timer(&charger->icl_ramp_alarm, ms_to_ktime(delay), true);
 	return 0;
 }
 
@@ -3695,8 +3695,8 @@ static void p9221_icl_ramp_start(struct p9221_charger_data *charger)
 		 charger->pdata->icl_ramp_delay_ms, charger->icl_ramp_ua,
 		 charger->icl_ramp);
 
-	alarm_start_relative(&charger->icl_ramp_alarm,
-			     ms_to_ktime(charger->pdata->icl_ramp_delay_ms));
+	alarm_start_timer(&charger->icl_ramp_alarm,
+			  ms_to_ktime(charger->pdata->icl_ramp_delay_ms), true);
 }
 
 static void p9221_set_online(struct p9221_charger_data *charger)
@@ -6102,7 +6102,7 @@ static ssize_t authstart_store(struct device *dev,
 	if (ret == 0) {
 		charger->set_auth_icl = true;
 		pm_stay_awake(charger->dev);
-		alarm_start_relative(&charger->auth_dc_icl_alarm, timeout);
+		alarm_start_timer(&charger->auth_dc_icl_alarm, timeout, true);
 		schedule_delayed_work(&charger->auth_dc_icl_work,
 				      msecs_to_jiffies(WLCDC_AUTH_CHECK_INIT_DELAY_MS));
 	} else if (ret < 0) {
