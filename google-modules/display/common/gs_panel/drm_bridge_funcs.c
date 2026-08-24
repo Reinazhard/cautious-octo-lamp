@@ -891,7 +891,7 @@ static int gs_panel_bridge_atomic_check(struct drm_bridge *bridge,
 					struct drm_connector_state *conn_state)
 {
 	struct gs_panel *ctx = bridge_to_gs_panel(bridge);
-	struct drm_atomic_state *state = new_crtc_state->state;
+	struct drm_atomic_commit *state = new_crtc_state->state;
 	const struct drm_display_mode *current_mode = &ctx->current_mode->mode;
 	int ret;
 

@@ -221,7 +221,7 @@ static int writeback_atomic_check(struct drm_encoder *encoder,
 }
 
 static void writeback_atomic_commit(struct drm_connector *connector,
-		struct drm_atomic_state *atomic_state)
+		struct drm_atomic_commit *atomic_state)
 {
 	struct drm_connector_state *state = drm_atomic_get_new_connector_state(atomic_state, connector);
 	struct drm_writeback_connector *wb_conn = conn_to_wb_conn(connector);

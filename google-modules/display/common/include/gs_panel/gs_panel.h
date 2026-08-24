@@ -403,7 +403,7 @@ struct gs_panel_funcs {
 	 *
 	 * TODO(b/279520499): implementation
 	 */
-	int (*atomic_check)(struct gs_panel *gs_panel, struct drm_atomic_state *state);
+	int (*atomic_check)(struct gs_panel *gs_panel, struct drm_atomic_commit *state);
 
 	/**
 	 * @commit_done
@@ -1677,7 +1677,7 @@ void gs_panel_update_te2(struct gs_panel *ctx);
  *
  * This is meant to be called by panel drivers during the `atomic_check` operation
  */
-void gs_panel_update_lhbm_hist_data_helper(struct gs_panel *ctx, struct drm_atomic_state *state,
+void gs_panel_update_lhbm_hist_data_helper(struct gs_panel *ctx, struct drm_atomic_commit *state,
 					   bool enabled,
 					   enum gs_drm_connector_lhbm_hist_roi_type roi_type, int d,
 					   int r);

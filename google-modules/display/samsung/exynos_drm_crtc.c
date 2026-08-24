@@ -40,7 +40,7 @@ enum crtc_active_state {
 };
 
 static void exynos_drm_crtc_atomic_enable(struct drm_crtc *crtc,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state, crtc);
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
@@ -59,7 +59,7 @@ static void exynos_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void exynos_drm_crtc_atomic_disable(struct drm_crtc *crtc,
-					   struct drm_atomic_state *state)
+					   struct drm_atomic_commit *state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	const enum crtc_active_state active_state =
@@ -154,7 +154,7 @@ static void exynos_crtc_update_lut(struct drm_crtc *crtc,
 }
 
 static int exynos_crtc_atomic_check(struct drm_crtc *crtc,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
@@ -270,7 +270,7 @@ static int exynos_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void exynos_crtc_atomic_begin(struct drm_crtc *crtc,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 
@@ -279,7 +279,7 @@ static void exynos_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void exynos_crtc_atomic_flush(struct drm_crtc *crtc,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
@@ -477,18 +477,18 @@ exynos_drm_crtc_duplicate_state(struct drm_crtc *crtc)
 	return &copy->base;
 }
 
-struct drm_atomic_state
+struct drm_atomic_commit
 *exynos_duplicate_active_crtc_state(struct drm_crtc *crtc,
 				struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_crtc_state *crtc_state;
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct decon_device *decon = exynos_crtc->ctx;
 	int err;
 
-	state = drm_atomic_state_alloc(dev);
+	state = drm_atomic_commit_alloc(dev);
 	if (!state)
 		return ERR_PTR(-ENOMEM);
 
@@ -502,7 +502,7 @@ struct drm_atomic_state
 
 	if (!crtc_state->active) {
 		if (!atomic_read(&decon->recovery.recovering)) {
-			drm_atomic_state_put(state);
+			drm_atomic_commit_put(state);
 			return NULL;
 		}
 		pr_warn("crtc[%s]: skipping duplication of inactive crtc state\n", crtc->name);
@@ -523,14 +523,14 @@ struct drm_atomic_state
 
 free_state:
 	if (err < 0) {
-		drm_atomic_state_put(state);
+		drm_atomic_commit_put(state);
 		state = ERR_PTR(err);
 	}
 
 	return state;
 }
 
-struct drm_atomic_state
+struct drm_atomic_commit
 *exynos_crtc_suspend(struct drm_crtc *crtc,
 			struct drm_modeset_acquire_ctx *ctx)
 {
@@ -539,16 +539,16 @@ struct drm_atomic_state
 	struct drm_connector_state *conn_state;
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
-	struct drm_atomic_state *state, *suspend_state;
+	struct drm_atomic_commit *state, *suspend_state;
 	int ret, i;
 
 	suspend_state = exynos_duplicate_active_crtc_state(crtc, ctx);
 	if (IS_ERR_OR_NULL(suspend_state))
 		return suspend_state;
 
-	state = drm_atomic_state_alloc(crtc->dev);
+	state = drm_atomic_commit_alloc(crtc->dev);
 	if (!state) {
-		drm_atomic_state_put(suspend_state);
+		drm_atomic_commit_put(suspend_state);
 		return ERR_PTR(-ENOMEM);
 	}
 	state->acquire_ctx = ctx;
@@ -590,22 +590,22 @@ retry:
 	ret = drm_atomic_commit(state);
 out:
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
-		drm_atomic_state_clear(suspend_state);
+		drm_atomic_commit_clear(state);
+		drm_atomic_commit_clear(suspend_state);
 		ret = drm_modeset_backoff(ctx);
 		if (!ret)
 			goto retry;
 	} else if (ret) {
-		drm_atomic_state_put(suspend_state);
+		drm_atomic_commit_put(suspend_state);
 		suspend_state = ERR_PTR(ret);
 	}
 
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 
 	return suspend_state;
 }
 
-int exynos_crtc_resume(struct drm_atomic_state *state,
+int exynos_crtc_resume(struct drm_atomic_commit *state,
 				struct drm_modeset_acquire_ctx *ctx)
 {
 	return drm_atomic_helper_commit_duplicated_state(state, ctx);
@@ -1274,7 +1274,7 @@ void exynos_drm_crtc_te_handler(struct drm_crtc *crtc)
 		exynos_crtc->ops->te_handler(exynos_crtc);
 }
 
-void exynos_crtc_wait_for_flip_done(struct drm_atomic_state *old_state)
+void exynos_crtc_wait_for_flip_done(struct drm_atomic_commit *old_state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
@@ -1319,7 +1319,7 @@ bool exynos_crtc_needs_disable(struct drm_crtc_state *old_state,
 }
 
 void exynos_crtc_set_mode(struct drm_device *dev,
-			struct drm_atomic_state *old_state)
+			struct drm_atomic_commit *old_state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state;

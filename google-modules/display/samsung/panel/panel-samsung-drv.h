@@ -475,7 +475,7 @@ struct exynos_panel_funcs {
 	 *
 	 * Should return 0 on success (no problems with atomic commit) otherwise negative errno
 	 */
-	int (*atomic_check)(struct exynos_panel *exynos_panel, struct drm_atomic_state *state);
+	int (*atomic_check)(struct exynos_panel *exynos_panel, struct drm_atomic_commit *state);
 
 	/**
 	 * @commit_done

@@ -67,7 +67,7 @@ static void gs_panel_connector_attach_touch(struct gs_panel *ctx,
  * connector state (without adjusted mode), or to decide if modeset may be required
  */
 static int gs_panel_connector_atomic_check(struct drm_connector *connector,
-					   struct drm_atomic_state *state)
+					   struct drm_atomic_commit *state)
 {
 	struct gs_drm_connector *gs_connector = to_gs_connector(connector);
 	struct gs_panel *ctx = gs_connector_to_panel(gs_connector);

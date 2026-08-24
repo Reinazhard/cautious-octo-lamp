@@ -32,7 +32,7 @@ static void exynos_recovery_handler(struct work_struct *work)
 					struct exynos_recovery, work);
 	struct decon_device *decon = container_of(recovery, struct decon_device,
 					recovery);
-	struct drm_atomic_state *rcv_state;
+	struct drm_atomic_commit *rcv_state;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_crtc *crtc = &decon->crtc->base;
 	int ret;
@@ -43,7 +43,7 @@ static void exynos_recovery_handler(struct work_struct *work)
 	rcv_state = exynos_crtc_suspend(crtc, &ctx);
 	if (!IS_ERR_OR_NULL(rcv_state)) {
 		ret = exynos_crtc_resume(rcv_state, &ctx);
-		drm_atomic_state_put(rcv_state);
+		drm_atomic_commit_put(rcv_state);
 	} else {
 		ret = -EINVAL;
 	}

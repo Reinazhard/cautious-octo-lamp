@@ -340,7 +340,7 @@ static void wb_conn_state_to_win_config(struct dpu_bts_win_config *win_config,
 }
 
 static void exynos_atomic_bts_pre_update(struct drm_device *dev,
-					 struct drm_atomic_state *old_state)
+					 struct drm_atomic_commit *old_state)
 {
 	struct decon_device *decon;
 	struct drm_crtc *crtc;
@@ -467,7 +467,7 @@ static void exynos_atomic_bts_pre_update(struct drm_device *dev,
 }
 
 static void exynos_atomic_bts_post_update(struct drm_device *dev,
-					  struct drm_atomic_state *old_state)
+					  struct drm_atomic_commit *old_state)
 {
 	struct decon_device *decon;
 	struct drm_crtc *crtc;
@@ -584,7 +584,7 @@ static void exynos_rmem_free(struct decon_device *decon)
 }
 
 static void
-exynos_disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state,
+exynos_disable_outputs(struct drm_device *dev, struct drm_atomic_commit *old_state,
 			unsigned int *disabling_crtc_mask)
 {
 	struct decon_device *decon;
@@ -772,7 +772,7 @@ exynos_disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_stat
  * PM since planes updates then only happen when the CRTC is actually enabled.
  */
 static void exynos_drm_atomic_helper_commit_modeset_disables(struct drm_device *dev,
-			struct drm_atomic_state *old_state, unsigned int *disabling_crtc_mask)
+			struct drm_atomic_commit *old_state, unsigned int *disabling_crtc_mask)
 {
 	exynos_disable_outputs(dev, old_state, disabling_crtc_mask);
 
@@ -782,7 +782,7 @@ static void exynos_drm_atomic_helper_commit_modeset_disables(struct drm_device *
 	exynos_crtc_set_mode(dev, old_state);
 }
 
-static void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
+static void exynos_atomic_commit_tail(struct drm_atomic_commit *old_state)
 {
 	int i;
 	struct drm_device *dev = old_state->dev;

@@ -308,7 +308,7 @@ struct gs_drm_connector_properties *
 gs_drm_connector_get_properties(struct gs_drm_connector *gs_conector);
 
 static inline struct gs_drm_connector_state *
-crtc_get_new_gs_connector_state(const struct drm_atomic_state *state,
+crtc_get_new_gs_connector_state(const struct drm_atomic_commit *state,
 				const struct drm_crtc_state *crtc_state)
 {
 	const struct drm_connector *conn;
@@ -327,7 +327,7 @@ crtc_get_new_gs_connector_state(const struct drm_atomic_state *state,
 }
 
 static inline struct gs_drm_connector_state *
-crtc_get_old_gs_connector_state(const struct drm_atomic_state *state,
+crtc_get_old_gs_connector_state(const struct drm_atomic_commit *state,
 				const struct drm_crtc_state *crtc_state)
 {
 	const struct drm_connector *conn;

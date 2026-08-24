@@ -2770,7 +2770,7 @@ static enum drm_mode_status dp_conn_mode_valid(struct drm_connector *connector, 
 	return MODE_OK;
 }
 
-static int dp_conn_atomic_check(struct drm_connector *c, struct drm_atomic_state *state)
+static int dp_conn_atomic_check(struct drm_connector *c, struct drm_atomic_commit *state)
 {
 	struct dp_device *dp = connector_to_dp(c);
 

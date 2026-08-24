@@ -600,7 +600,7 @@ static bool s6e3hc3_set_self_refresh(struct exynos_panel *ctx, bool enable)
 	return true;
 }
 
-static int s6e3hc3_atomic_check(struct exynos_panel *ctx, struct drm_atomic_state *state)
+static int s6e3hc3_atomic_check(struct exynos_panel *ctx, struct drm_atomic_commit *state)
 {
 	struct drm_connector *conn = &ctx->exynos_connector.base;
 	struct drm_connector_state *new_conn_state = drm_atomic_get_new_connector_state(state, conn);

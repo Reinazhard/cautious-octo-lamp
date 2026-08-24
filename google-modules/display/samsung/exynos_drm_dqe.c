@@ -1383,14 +1383,14 @@ static ssize_t force_update_store(struct device *dev,
 	struct decon_device *decon = dqe->decon;
 	struct drm_crtc *crtc = &decon->crtc->base;
 	struct drm_device *drm_dev = decon->drm_dev;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_crtc_state *crtc_state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
 	dqe->force_atc_config.dirty = true;
 
-	state = drm_atomic_state_alloc(drm_dev);
+	state = drm_atomic_commit_alloc(drm_dev);
 	if (!state)
 		return -ENOMEM;
 	drm_modeset_acquire_init(&ctx, 0);
@@ -1405,12 +1405,12 @@ retry:
 	ret = drm_atomic_commit(state);
 out:
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry;
 	}
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 

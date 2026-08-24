@@ -2927,7 +2927,7 @@ static int exynos_drm_connector_check_mode(struct exynos_panel *ctx,
  * connector state (without adjusted mode), or to decide if modeset may be required
  */
 static int exynos_drm_connector_atomic_check(struct drm_connector *connector,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct exynos_drm_connector *exynos_connector = to_exynos_connector(connector);
 	struct exynos_panel *ctx = exynos_connector_to_panel(exynos_connector);
@@ -4251,7 +4251,7 @@ static int exynos_panel_bridge_atomic_check(struct drm_bridge *bridge,
 					    struct drm_connector_state *conn_state)
 {
 	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
-	struct drm_atomic_state *state = new_crtc_state->state;
+	struct drm_atomic_commit *state = new_crtc_state->state;
 	struct exynos_drm_connector_state *exynos_conn_state =
 						to_exynos_connector_state(conn_state);
 	const struct drm_display_mode *current_mode = &ctx->current_mode->mode;

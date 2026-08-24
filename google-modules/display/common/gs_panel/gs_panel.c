@@ -1450,7 +1450,7 @@ static void gs_panel_normal_mode_work(struct work_struct *work)
 			      msecs_to_jiffies(ctx->normal_mode_work_delay_ms));
 }
 
-void gs_panel_update_lhbm_hist_data_helper(struct gs_panel *ctx, struct drm_atomic_state *state,
+void gs_panel_update_lhbm_hist_data_helper(struct gs_panel *ctx, struct drm_atomic_commit *state,
 					   bool enabled,
 					   enum gs_drm_connector_lhbm_hist_roi_type roi_type,
 					   int circle_d, int circle_r)

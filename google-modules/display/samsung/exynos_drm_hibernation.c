@@ -97,7 +97,7 @@ static int exynos_crtc_self_refresh_update(struct drm_crtc *crtc, bool enable, b
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_connector *conn;
 	struct drm_connector_state *conn_state;
 	struct drm_crtc_state *crtc_state;
@@ -106,7 +106,7 @@ static int exynos_crtc_self_refresh_update(struct drm_crtc *crtc, bool enable, b
 
 	drm_modeset_acquire_init(&ctx, 0);
 
-	state = drm_atomic_state_alloc(dev);
+	state = drm_atomic_commit_alloc(dev);
 	if (!state) {
 		ret = -ENOMEM;
 		goto out_drop_locks;
@@ -161,13 +161,13 @@ retry:
 
 out:
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry;
 	}
 
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 
 out_drop_locks:
 	drm_modeset_drop_locks(&ctx);

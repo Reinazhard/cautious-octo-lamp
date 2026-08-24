@@ -505,7 +505,7 @@ struct decon_device {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
 	struct exynos_drm_crtc		*crtc;
-	struct drm_atomic_state		*suspend_state;
+	struct drm_atomic_commit		*suspend_state;
 	/* dpp information saved in dpp channel number order */
 	struct dpp_device		*dpp[MAX_WIN_PER_DECON];
 	struct dpp_device		*rcd;
@@ -622,13 +622,13 @@ void decon_force_vblank_event(struct decon_device *decon);
 #if IS_ENABLED(CONFIG_EXYNOS_BTS)
 void decon_mode_bts_pre_update(struct decon_device *decon,
 				const struct drm_crtc_state *crtc_state,
-				const struct drm_atomic_state *state);
+				const struct drm_atomic_commit *state);
 void decon_mode_bts_op_rate_update(struct decon_device *decon,
 				const u32 op_rate);
 #else
 static inline void decon_mode_bts_pre_update(struct decon_device *decon,
 				const struct drm_crtc_state *crtc_state,
-				const struct drm_atomic_state *state) { }
+				const struct drm_atomic_commit *state) { }
 static inline void decon_mode_bts_op_rate_update(struct decon_device *decon,
 				const u32 op_rate) { }
 #endif

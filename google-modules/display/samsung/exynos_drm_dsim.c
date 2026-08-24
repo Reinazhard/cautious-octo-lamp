@@ -140,7 +140,7 @@ inline void dsim_trace_msleep(u32 delay_ms)
 EXPORT_SYMBOL_GPL(dsim_trace_msleep);
 
 static struct drm_crtc *drm_encoder_get_new_crtc(struct drm_encoder *encoder,
-						 struct drm_atomic_state *state)
+						 struct drm_atomic_commit *state)
 {
 	struct drm_connector *connector;
 	const struct drm_connector_state *conn_state;
@@ -157,7 +157,7 @@ static struct drm_crtc *drm_encoder_get_new_crtc(struct drm_encoder *encoder,
 }
 
 static struct drm_crtc *drm_encoder_get_old_crtc(struct drm_encoder *encoder,
-						 struct drm_atomic_state *state)
+						 struct drm_atomic_commit *state)
 {
 	struct drm_connector *connector;
 	const struct drm_connector_state *conn_state;
@@ -359,7 +359,7 @@ static void _dsim_enable(struct dsim_device *dsim)
 	}
 }
 
-static void dsim_encoder_enable(struct drm_encoder *encoder, struct drm_atomic_state *state)
+static void dsim_encoder_enable(struct drm_encoder *encoder, struct drm_atomic_commit *state)
 {
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
 	struct drm_crtc *crtc = drm_encoder_get_new_crtc(encoder, state);
@@ -546,7 +546,7 @@ static void _dsim_disable(struct dsim_device *dsim)
 	dsim_debug(dsim, "-\n");
 }
 
-static void dsim_encoder_disable(struct drm_encoder *encoder, struct drm_atomic_state *state)
+static void dsim_encoder_disable(struct drm_encoder *encoder, struct drm_atomic_commit *state)
 {
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
 	struct drm_crtc *crtc = drm_encoder_get_old_crtc(encoder, state);
