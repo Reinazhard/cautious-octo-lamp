@@ -100,6 +100,7 @@
 #include <linux/ksm.h>
 #include <linux/cpufreq_times.h>
 #include <uapi/linux/lsm.h>
+#include <linux/simple_lmk.h>
 #include <trace/events/oom.h>
 #include "internal.h"
 #include "fd.h"
@@ -1157,10 +1158,7 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
 	if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
 		task->signal->oom_score_adj_min = (short)oom_adj;
 	trace_oom_score_adj_update(task);
-#ifdef CONFIG_ANDROID_SIMPLE_LMK
-	extern void simple_lmk_update_adj(struct task_struct *task);
 	simple_lmk_update_adj(task);
-#endif
 
 	if (mm) {
 		struct task_struct *p;
