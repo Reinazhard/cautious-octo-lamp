@@ -1655,6 +1655,7 @@ struct task_struct {
 	struct bpf_net_context		*bpf_net_context;
 #ifdef CONFIG_ANDROID_SIMPLE_LMK
 	struct task_struct		*simple_lmk_next;
+	unsigned long			simple_lmk_cache_time;
 #endif
 
 #ifdef CONFIG_KSTACK_ERASE
