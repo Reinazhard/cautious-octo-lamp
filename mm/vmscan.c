@@ -59,7 +59,6 @@
 #include <linux/mmu_notifier.h>
 #include <linux/parser.h>
 #include <linux/swap_ops.h>
-#include <linux/simple_lmk.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -7205,7 +7204,6 @@ restart:
 		bool ret;
 		bool was_frozen;
 
-		simple_lmk_decide_reclaim(sc.priority);
 		sc.reclaim_idx = highest_zoneidx;
 
 		/*
