@@ -516,6 +516,8 @@ static void update_triggers(struct psi_group *group, u64 now,
 		if (cmpxchg(&t->event, 0, 1) == 0) {
 			if (t->of)
 				kernfs_notify(t->of->kn);
+			else if (t->ext_wq)
+				wake_up_interruptible(t->ext_wq);
 			else
 				wake_up_interruptible(&t->event_wait);
 		}
@@ -1404,6 +1406,7 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group, char *buf,
 	t->of = of;
 	if (!of)
 		init_waitqueue_head(&t->event_wait);
+	t->ext_wq = NULL;
 	t->pending_event = false;
 	t->aggregator = privileged ? PSI_POLL : PSI_AVGS;
 
@@ -1429,6 +1432,12 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group, char *buf,
 	}
 	return t;
 }
+
+void psi_trigger_set_waitq(struct psi_trigger *t, wait_queue_head_t *wq)
+{
+	t->ext_wq = wq;
+}
+EXPORT_SYMBOL_GPL(psi_trigger_set_waitq);
 
 void psi_trigger_destroy(struct psi_trigger *t)
 {
