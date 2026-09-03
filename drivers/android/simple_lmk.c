@@ -24,9 +24,6 @@
 /* Kill up to this many victims per reclaim */
 #define MAX_VICTIMS 32
 
-/* Timeout in jiffies for each reclaim */
-#define RECLAIM_EXPIRES msecs_to_jiffies(CONFIG_ANDROID_SIMPLE_LMK_TIMEOUT_MSEC)
-
 /* Android oom_score_adj range is 0 to 1000 */
 #define ADJ_MAX 1000
 
@@ -431,7 +428,7 @@ static int simple_lmk_reclaim_thread(void *data)
 		 * during the scan) is not lost.
 		 */
 		atomic_set(&needs_reclaim, 0);
-		
+
 		/* Acquire the lock before scanning */
 		if (!test_and_set_bit(0, &lmk_lock)) {
 			scan_and_kill();
@@ -474,7 +471,7 @@ static struct mm_struct *next_reap_victim(void)
 		 */
 		if (!mm_flags_test(MMF_OOM_SKIP, mm))
 			break;
-			
+
 		mmap_read_unlock(mm);
 		mmput(mm);
 	}
@@ -719,7 +716,7 @@ static int simple_lmk_init_set(const char *val, const struct kernel_param *kp)
 		if (WARN_ON(IS_ERR(thread)))
 			return PTR_ERR(thread);
 
-		
+
 		WARN_ON(register_oom_notifier(&simple_lmk_oom_nb));
 
 		complete(&psi_init_done);
