@@ -9795,20 +9795,20 @@ void
 wl_cfgnan_add_ndi_data(struct bcm_cfg80211 *cfg, s32 idx, char const *name,
 	struct wireless_dev *wdev)
 {
-	u16 len;
 	wl_nancfg_t *nancfg = cfg->nancfg;
+
 	if (!name || (idx < 0) || (idx >= cfg->nancfg->max_ndi_supported)) {
 		return;
 	}
 
-	/* Ensure ifname string size <= IFNAMSIZ including null termination */
-	len = MIN(strlen(name), (IFNAMSIZ - 1));
-	strncpy(nancfg->ndi[idx].ifname, name, len);
-	nancfg->ndi[idx].ifname[len] = '\0';
+	strscpy(nancfg->ndi[idx].ifname, name);
+
 	nancfg->ndi[idx].in_use = true;
 	nancfg->ndi[idx].created = true;
+
 	/* Store nan ndev */
 	cfg->nancfg->ndi[idx].nan_ndev = wdev_to_ndev(wdev);
+
 	return;
 }
 

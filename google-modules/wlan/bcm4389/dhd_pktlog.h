@@ -291,10 +291,9 @@ extern bool dhd_pktlog_filter_existed(dhd_pktlog_filter_t *filter, char *arg, ui
 #define DHD_PKTLOG_FILTER_ADD(pattern, filter_pattern, dhdp)	\
 {	\
 	do {	\
-		if ((strlen(pattern) + 1) < sizeof(filter_pattern)) {	\
-			strncpy(filter_pattern, pattern, sizeof(filter_pattern));	\
-			dhd_pktlog_filter_add(dhdp->pktlog->pktlog_filter, filter_pattern);	\
-		}	\
+		if (strscpy(filter_pattern, pattern) != -E2BIG)	\
+			dhd_pktlog_filter_add(dhdp->pktlog->pktlog_filter,	\
+					      filter_pattern);	\
 	} while (0);	\
 }
 

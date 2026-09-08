@@ -85,7 +85,6 @@
 #endif /* DHD_EWPR_VER2 */
 
 extern char dhd_version[];
-extern char fw_version[];
 
 /**
  * Host configures a soft doorbell for d2h rings, by specifying a 32bit host
@@ -10076,9 +10075,7 @@ dhd_msgbuf_dump_iovar_name(dhd_pub_t *dhd)
 		char iovbuf[32];
 		int dump_size = 128;
 		uint8 *ioctl_buf = (uint8 *)prot->ioctbuf.va;
-		memset(iovbuf, 0, sizeof(iovbuf));
-		strncpy(iovbuf, ioctl_buf, sizeof(iovbuf) - 1);
-		iovbuf[sizeof(iovbuf) - 1] = '\0';
+		strscpy(iovbuf, ioctl_buf);
 		DHD_ERROR(("Current IOVAR (%s): %s\n",
 			prot->curr_ioctl_cmd == WLC_SET_VAR ?
 			"WLC_SET_VAR" : "WLC_GET_VAR", iovbuf));

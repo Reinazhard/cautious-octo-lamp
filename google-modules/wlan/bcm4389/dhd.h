@@ -539,6 +539,8 @@ enum dhd_op_flags {
 #define FWID_STR_1 "FWID: 01-"
 #define FWID_STR_2 "FWID=01-"
 extern char bus_api_revision[];
+extern char fw_version[CLM_VER_STR_LEN];
+extern char clm_version[FW_VER_STR_LEN];
 
 enum dhd_bus_wake_state {
 	WAKE_LOCK_OFF			= 0,
