@@ -1696,7 +1696,7 @@ dtbindingtree := Documentation/devicetree/bindings
 	$(Q)$(MAKE) $(build)=$(dtbindingtree) \
 		    $(dtbindingtree)/$(patsubst %.yaml,%.example.dtb,$@) dt_binding_check_one
 
-dtstree := google-devices/gs101/dts
+dtstree := google-devices/raviole/dts
 DTC_INCLUDE := $(srctree)/google-modules/soc/gs/include/dtc
 export DTC_INCLUDE
 
