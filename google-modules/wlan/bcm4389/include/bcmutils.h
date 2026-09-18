@@ -35,7 +35,6 @@
 extern "C" {
 #endif
 
-#define bcm_strncpy_s(dst, noOfElements, src, count)    strncpy((dst), (src), (count))
 #ifdef FREEBSD
 #define bcm_strncat_s(dst, noOfElements, src, count)    strcat((dst), (src))
 #else
@@ -45,8 +44,6 @@ extern "C" {
 #define bcm_sprintf_s snprintf
 
 /*
- * #define bcm_strcpy_s(dst, count, src)            strncpy((dst), (src), (count))
- * Use bcm_strcpy_s instead as it is a safer option
  * bcm_strcat_s: Use bcm_strncat_s as a safer option
  *
  */

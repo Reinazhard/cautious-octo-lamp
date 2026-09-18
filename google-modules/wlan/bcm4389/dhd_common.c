@@ -111,6 +111,7 @@
 
 #if defined(__linux__)
 #include <dhd_linux.h>
+#include <linux/hex.h>
 #endif /* __linux__ */
 
 #ifdef DHD_WMF
@@ -2581,8 +2582,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 		break;
 #endif /* NDIS && DHD_DEBUG */
 	case IOV_GVAL(IOV_BCMERRORSTR):
-		bcm_strncpy_s((char *)arg, len, bcmerrorstr(dhd_pub->bcmerror), BCME_STRLEN);
-		((char *)arg)[BCME_STRLEN - 1] = 0x00;
+		strscpy((char *)arg, bcmerrorstr(dhd_pub->bcmerror), len);
 		break;
 
 	case IOV_GVAL(IOV_BCMERROR):
@@ -6009,53 +6009,54 @@ int
 wl_pattern_atoh(char *src, char *dst)
 {
 	int i;
+	size_t src_len;
+
 	if (strncmp(src, "0x", 2) != 0 &&
 	    strncmp(src, "0X", 2) != 0) {
 		DHD_ERROR(("Mask invalid format. Needs to start with 0x\n"));
 		return -1;
 	}
 	src = src + 2; /* Skip past 0x */
-	if (strlen(src) % 2 != 0) {
+	src_len = strlen(src);
+	if (src_len % 2 != 0) {
 		DHD_ERROR(("Mask invalid format. Needs to be of even length\n"));
 		return -1;
 	}
-	for (i = 0; *src != '\0'; i++) {
-		char num[3];
-		bcm_strncpy_s(num, sizeof(num), src, 2);
-		num[2] = '\0';
-		dst[i] = (uint8)strtoul(num, NULL, 16);
-		src += 2;
-	}
-	return i;
+	if (hex2bin((u8 *)dst, src, src_len / 2)) {
+		DHD_ERROR(("Mask invalid format. Needs to be hex\n"));
+		return -1;
+	return src_len / 2;
 }
 
 int
 pattern_atoh_len(char *src, char *dst, int len)
 {
 	int i;
+	size_t src_len;
+
 	if (strncmp(src, "0x", HD_PREFIX_SIZE) != 0 &&
-			strncmp(src, "0X", HD_PREFIX_SIZE) != 0) {
+	    strncmp(src, "0X", HD_PREFIX_SIZE) != 0) {
 		DHD_ERROR(("Mask invalid format. Needs to start with 0x\n"));
 		return -1;
 	}
 	src = src + HD_PREFIX_SIZE; /* Skip past 0x */
-	if (strlen(src) % HD_BYTE_SIZE != 0) {
+	src_len = strlen(src);
+	if (src_len % HD_BYTE_SIZE != 0) {
 		DHD_ERROR(("Mask invalid format. Needs to be of even length\n"));
 		return -1;
 	}
-	for (i = 0; *src != '\0'; i++) {
-		char num[HD_BYTE_SIZE + 1];
+	if (len < 0 || src_len / HD_BYTE_SIZE > len) {
+		DHD_ERROR(("pattern not in range, idx: %zu len: %d\n",
+			   src_len / HD_BYTE_SIZE, len));
+		return -1;
+ 	}
 
-		if (i > len - 1) {
-			DHD_ERROR(("pattern not in range, idx: %d len: %d\n", i, len));
-			return -1;
-		}
-		bcm_strncpy_s(num, sizeof(num), src, HD_BYTE_SIZE);
-		num[HD_BYTE_SIZE] = '\0';
-		dst[i] = (uint8)strtoul(num, NULL, 16);
-		src += HD_BYTE_SIZE;
+	if (hex2bin((u8 *)dst, src, src_len / HD_BYTE_SIZE)) {
+		DHD_ERROR(("Mask invalid format. Needs to be hex\n"));
+		return -1;
 	}
-	return i;
+
+	return src_len / HD_BYTE_SIZE;
 }
 #endif /* PKT_FILTER_SUPPORT || DHD_PKT_LOGGING */
 
@@ -6094,8 +6095,7 @@ dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable, int master_
 
 	str = "pkt_filter_enable";
 	str_len = strlen(str);
-	bcm_strncpy_s(buf, sizeof(buf) - 1, str, sizeof(buf) - 1);
-	buf[ sizeof(buf) - 1 ] = '\0';
+	strscpy(buf, str);
 	buf_len = str_len + 1;
 
 	pkt_filterp = (wl_pkt_filter_enable_t *)(buf + str_len + 1);
@@ -6233,8 +6233,7 @@ dhd_pktfilter_offload_set(dhd_pub_t * dhd, char *arg)
 
 	str = "pkt_filter_add";
 	str_len = strlen(str);
-	bcm_strncpy_s(buf, MAX_PKTFLT_BUF_SIZE, str, str_len);
-	buf[ str_len ] = '\0';
+	strscpy(buf, str, MAX_PKTFLT_BUF_SIZE);
 	buf_len = str_len + 1;
 
 	pkt_filterp = (wl_pkt_filter_t *) (buf + str_len + 1);

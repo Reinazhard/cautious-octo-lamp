@@ -7610,8 +7610,9 @@ wl_android_set_ssid(struct net_device *dev, const char* hapd_ssid)
 		ssid.SSID_len = DOT11_MAX_SSID_LEN;
 		WL_ERR(("wl_android_set_ssid : Too long SSID Length %zu\n", strlen(hapd_ssid)));
 	}
-	bcm_strncpy_s(ssid.SSID, sizeof(ssid.SSID), hapd_ssid, ssid.SSID_len);
-	DHD_INFO(("wl_android_set_ssid: HAPD_SSID = %s\n", ssid.SSID));
+	strtomem(ssid.SSID, hapd_ssid);
+	DHD_INFO(("wl_android_set_ssid: HAPD_SSID = %.*s\n", (int)sizeof(ssid.SSID),
+		  ssid.SSID));
 	ret = wldev_ioctl_set(dev, WLC_SET_SSID, &ssid, sizeof(wlc_ssid_t));
 	if (ret < 0) {
 		WL_ERR(("wl_android_set_ssid : WLC_SET_SSID Error:%d\n", ret));
@@ -13509,10 +13510,8 @@ int wl_android_init(void)
 #ifdef ENABLE_INSMOD_NO_FW_LOAD
 	dhd_download_fw_on_driverload = FALSE;
 #endif /* ENABLE_INSMOD_NO_FW_LOAD */
-	if (!iface_name[0]) {
-		bzero(iface_name, IFNAMSIZ);
-		bcm_strncpy_s(iface_name, IFNAMSIZ, "wlan", IFNAMSIZ);
-	}
+	if (!iface_name[0])
+		strscpy(iface_name, "wlan");
 
 #ifdef CUSTOMER_HW4_DEBUG
 	/* No Kernel Panic from ASSERT() on customer platform. */

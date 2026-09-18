@@ -181,7 +181,7 @@ typedef struct wl_action_frame_v2 {
 typedef struct ssid_info
 {
 	uint8		ssid_len;	/**< the length of SSID */
-	uint8		ssid[32];	/**< SSID string */
+	uint8		ssid[32] __nonstring;	/**< SSID string */
 } ssid_info_t;
 
 typedef struct wl_af_params_v1 {
@@ -816,7 +816,7 @@ typedef struct wl_cal_status_ver_s {
 
 typedef struct wlc_ssid {
 	uint32		SSID_len;
-	uint8		SSID[DOT11_MAX_SSID_LEN];
+	uint8		SSID[DOT11_MAX_SSID_LEN] __nonstring;
 } wlc_ssid_t;
 
 typedef struct wlc_ssid_ext {
@@ -825,7 +825,8 @@ typedef struct wlc_ssid_ext {
 	uint16     flags;
 	uint8      SSID_len;
 	int8       rssi_thresh;
-	uint8      SSID[DOT11_MAX_SSID_LEN];
+	uint8			ssid[DOT11_MAX_SSID_LEN] __nonstring; /* For FILS, to save ESSID */
+	uint8      SSID[DOT11_MAX_SSID_LEN] __nonstring;
 } wlc_ssid_ext_t;
 
 #define MAX_PREFERRED_AP_NUM     5
@@ -8254,7 +8255,7 @@ typedef struct wl_pfn_ext {
 	uint8 flags;
 	int8 rssi_thresh; /* RSSI threshold, track only if RSSI > threshold */
 	uint16 wpa_auth; /* Match the wpa auth type defined in wlioctl_defs.h */
-	uint8 ssid[DOT11_MAX_SSID_LEN];
+	uint8 ssid[DOT11_MAX_SSID_LEN] __nonstring;
 	uint8 ssid_len;
 	uint8 PAD;
 } wl_pfn_ext_t;
@@ -29668,7 +29669,7 @@ struct wl_seed_test_roam_add_targets_v1 {
 	uint8		mode_cap;	/* n_cap, he_cap, vht_cap, eht_cap */
 	uint8		SSID_len;
 	/* values can be short ssid or ssid, indicated in flags */
-	uint8		SSID[DOT11_MAX_SSID_LEN];
+	uint8		SSID[DOT11_MAX_SSID_LEN] __nonstring;
 	chanspec_t	chanspec;	/* chanspec for bss */
 	int16		RSSI;		/* receive signal strength (in dBm) */
 	uint16		capability;	/* capability filed in beacon */
