@@ -5321,6 +5321,7 @@ static int fts_interrupt_install(struct fts_ts_info *info)
 	if (error) {
 		dev_err(info->dev, "Request irq failed\n");
 		kfree(info->event_dispatch_table);
+		info->event_dispatch_table = NULL;
 	}
 
 	return error;
