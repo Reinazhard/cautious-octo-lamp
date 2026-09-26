@@ -2094,15 +2094,31 @@ static inline void _free_event(struct pl330_thread *thrd, int ev)
 	}
 }
 
-static void pl330_release_channel(struct pl330_thread *thrd)
+/*
+ * @pch is the channel that owns @thrd, or NULL when the caller holds no
+ * channel lock (DMAC teardown).  It is only used to drop pch->lock around
+ * the two callbacks below.
+ */
+static void pl330_release_channel(struct pl330_thread *thrd,
+				  struct dma_pl330_chan *pch,
+				  unsigned long *flags)
 {
 	if (!thrd || thrd->free)
 		return;
 
 	_stop(thrd);
 
+	if (flags)
+		spin_unlock(&thrd->dmac->lock);
+	/* dma_pl330_rqcb() takes pch->lock for each desc it still owns. */
+	if (pch && flags)
+		spin_unlock_irqrestore(&pch->lock, *flags);
 	dma_pl330_rqcb(thrd->req[1 - thrd->lstenq].desc, PL330_ERR_ABORT);
 	dma_pl330_rqcb(thrd->req[thrd->lstenq].desc, PL330_ERR_ABORT);
+	if (pch && flags)
+		spin_lock_irqsave(&pch->lock, *flags);
+	if (flags)
+		spin_lock(&thrd->dmac->lock);
 
 	_free_event(thrd, thrd->ev);
 	thrd->free = true;
@@ -2312,7 +2328,7 @@ static int dmac_free_threads(struct pl330_dmac *pl330)
 	/* Release Channel threads */
 	for (i = 0; i < pl330->pcfg.num_chan; i++) {
 		thrd = &pl330->channels[i];
-		pl330_release_channel(thrd);
+		pl330_release_channel(thrd, NULL, NULL);
 	}
 
 	/* Free memory */
@@ -2679,15 +2695,24 @@ static void pl330_free_chan_resources(struct dma_chan *chan)
 	tasklet_kill(&pch->task);
 
 	pm_runtime_get_sync(pch->dmac->ddma.dev);
-	spin_lock_irqsave(&pl330->lock, flags);
+	/*
+	 * pch->thread must only be cleared while pch->lock is held.  The
+	 * IRQ handler and the channel tasklet read pch->thread under
+	 * pch->lock.  pl330_release_channel() drops both pl330->lock and
+	 * pch->lock around the descriptor callbacks, which take pch->lock
+	 * themselves.
+	 */
+	spin_lock_irqsave(&pch->lock, flags);
+	spin_lock(&pl330->lock);
 
-	pl330_release_channel(pch->thread);
+	pl330_release_channel(pch->thread, pch, &flags);
 	pch->thread = NULL;
 
 	if (pch->cyclic)
 		list_splice_tail_init(&pch->work_list, &pch->dmac->desc_pool);
 
-	spin_unlock_irqrestore(&pl330->lock, flags);
+	spin_unlock(&pl330->lock);
+	spin_unlock_irqrestore(&pch->lock, flags);
 	pm_runtime_mark_last_busy(pch->dmac->ddma.dev);
 	pm_runtime_put_autosuspend(pch->dmac->ddma.dev);
 	pl330_unprep_slave_fifo(pch);
