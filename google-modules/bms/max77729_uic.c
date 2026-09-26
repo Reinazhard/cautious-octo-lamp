@@ -588,6 +588,11 @@ static struct gbms_storage_desc max77729_uic_storage_dsc = {
 	.write = max77729_uic_storage_write,
 };
 
+static void max77729_uic_put_usb_psy(void *psy)
+{
+	power_supply_put(psy);
+}
+
 static int max77729_uic_probe(struct i2c_client *client)
 {
 	struct max77729_uic_data *data;
@@ -609,6 +614,10 @@ static int max77729_uic_probe(struct i2c_client *client)
 		dev_err(&client->dev, "usb psy not up, retrying....\n");
 		return -EPROBE_DEFER;
 	}
+
+	ret = devm_add_action_or_reset(dev, max77729_uic_put_usb_psy, usb_psy);
+	if (ret)
+		return ret;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
