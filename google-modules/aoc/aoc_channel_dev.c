@@ -276,7 +276,10 @@ static int aocc_demux_kthread(void *data)
 static void sh_mem_doorbell_service_handler(struct aoc_service_dev *dev)
 {
 	struct aocc_device_entry *aocc_device =
-		(struct aocc_device_entry*) dev->prvdata;
+		(struct aocc_device_entry *)dev->prvdata;
+
+	if (!aocc_device)
+		return;
 	schedule_work(&(aocc_device->sh_mem_doorbell_work));
 }
 
@@ -394,6 +397,8 @@ static int create_character_device(struct aoc_service_dev *dev)
 	}
 	get_device(&dev->dev);
 	new_entry->service = dev;
+	INIT_WORK(&new_entry->sh_mem_doorbell_work,
+		  aocc_sh_mem_handle_doorbell);
 	aocc_next_minor++;
 	kref_init(&new_entry->refcount);
 	list_add(&new_entry->list, &aocc_devices_list);
@@ -416,8 +421,26 @@ static int destroy_character_device(struct aoc_service_dev *dev)
 	list_for_each_entry_safe(entry, tmp, &aocc_devices_list, list) {
 		if (entry->aocc_device->parent == &dev->dev) {
 			/* Disable shared memory transport doorbell. */
-			if (entry == sh_mem_doorbell_channel_device)
+			if (entry == sh_mem_doorbell_channel_device) {
+				/*
+				 * Order matters: aoc.c gates the handler on
+				 * service_dev->handler alone, and the handler
+				 * loads dev->prvdata, so clearing handler first
+				 * ensures a racing doorbell either never runs
+				 * or sees NULL prvdata. Test service_dev
+				 * because channel probe assigns channel_device
+				 * even when service_dev is NULL.
+				 */
 				sh_mem_doorbell_channel_device = NULL;
+				if (sh_mem_doorbell_service_dev) {
+					sh_mem_doorbell_service_dev->handler = NULL;
+					sh_mem_doorbell_service_dev->prvdata = NULL;
+				}
+				/*
+				 * Drain embedded work item before releasing entry.
+				 */
+				cancel_work_sync(&entry->sh_mem_doorbell_work);
+			}
 			entry->sh_mem_doorbell_available = false;
 
 			list_del_init(&entry->list);
@@ -779,8 +802,12 @@ static void aocc_sh_mem_doorbell_probe(struct aoc_service_dev *dev)
 	mutex_lock(&aocc_devices_lock);
 
 	/* Use the first channel device with the shared memory doorbell. */
-	sh_mem_doorbell_channel_device =
-		list_entry(aocc_devices_list.next, struct aocc_device_entry, list);
+	if (list_empty(&aocc_devices_list))
+		sh_mem_doorbell_channel_device = NULL;
+	else
+		sh_mem_doorbell_channel_device =
+			list_entry(aocc_devices_list.next,
+				   struct aocc_device_entry, list);
 
 	/*
 	 * If both a shared memory doorbell service device and a channel device
@@ -792,10 +819,6 @@ static void aocc_sh_mem_doorbell_probe(struct aoc_service_dev *dev)
 		sh_mem_doorbell_service_dev->handler =
 			sh_mem_doorbell_service_handler;
 		sh_mem_doorbell_service_dev->prvdata = sh_mem_doorbell_channel_device;
-
-		/* Initialize the shared memory transport doorbell work task. */
-		INIT_WORK(&(sh_mem_doorbell_channel_device->sh_mem_doorbell_work),
-			  aocc_sh_mem_handle_doorbell);
 
 		/*
 		 * Initialize the shared memory doorbell count and mark the
