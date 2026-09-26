@@ -2556,6 +2556,8 @@ offset_reading:
 	} else {
 		index = info->stm_fts_cmd_buff_len;
 	}
+	if ((size_t)index > count)
+		index = count;
 	dev_info(dev, "%s: remaining length: %lld, offset: %lld.\n", __func__,
 		info->stm_fts_cmd_buff_len, offset);
 
