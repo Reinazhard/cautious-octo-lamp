@@ -12549,7 +12549,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_priv_string_handler,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = brcm_drv_attr_policy,
-		.maxattr = BRCM_ATTR_DRIVER_MAX
+		.maxattr = BRCM_ATTR_DRIVER_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #ifdef BCM_PRIV_CMD_SUPPORT
@@ -12562,7 +12562,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_priv_bcm_handler,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = brcm_drv_attr_policy,
-		.maxattr = BRCM_ATTR_DRIVER_MAX
+		.maxattr = BRCM_ATTR_DRIVER_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* BCM_PRIV_CMD_SUPPORT */
@@ -12585,7 +12585,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_connect_params_handler,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = brcm_drv_attr_policy,
-		.maxattr = BRCM_ATTR_DRIVER_MAX
+		.maxattr = BRCM_ATTR_DRIVER_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -12597,7 +12597,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_start_ap_params_handler,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = brcm_drv_attr_policy,
-		.maxattr = BRCM_ATTR_DRIVER_MAX
+		.maxattr = BRCM_ATTR_DRIVER_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -12609,7 +12609,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_set_td_policy,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = brcm_drv_attr_policy,
-		.maxattr = BRCM_ATTR_DRIVER_MAX
+		.maxattr = BRCM_ATTR_DRIVER_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #ifdef GSCAN_SUPPORT
@@ -12680,7 +12680,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_gscan_get_channel_list,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = gscan_attr_policy,
-		.maxattr = GSCAN_ATTRIBUTE_MAX
+		.maxattr = GSCAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* GSCAN_SUPPORT || DHD_GET_VALID_CHANNELS */
@@ -12694,7 +12694,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_rtt_set_config,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = rtt_attr_policy,
-		.maxattr = RTT_ATTRIBUTE_MAX
+		.maxattr = RTT_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -12706,7 +12706,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_rtt_cancel_config,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = rtt_attr_policy,
-		.maxattr = RTT_ATTRIBUTE_MAX
+		.maxattr = RTT_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -12718,7 +12718,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_rtt_get_capability,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = rtt_attr_policy,
-		.maxattr = RTT_ATTRIBUTE_MAX
+		.maxattr = RTT_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -12730,7 +12730,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_rtt_get_responder_info,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = rtt_attr_policy,
-		.maxattr = RTT_ATTRIBUTE_MAX
+		.maxattr = RTT_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -12742,7 +12742,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_rtt_set_responder,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = rtt_attr_policy,
-		.maxattr = RTT_ATTRIBUTE_MAX
+		.maxattr = RTT_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -12754,7 +12754,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_rtt_cancel_responder,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = rtt_attr_policy,
-		.maxattr = RTT_ATTRIBUTE_MAX
+		.maxattr = RTT_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* RTT_SUPPORT */
@@ -12767,7 +12767,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_get_feature_set,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_wifi_attr_policy,
-		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX
+		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -12779,7 +12779,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_get_feature_set_matrix,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_wifi_attr_policy,
-		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX
+		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -12791,7 +12791,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_set_rand_mac_oui,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_wifi_attr_policy,
-		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX
+		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #ifdef CUSTOM_FORCE_NODFS_FLAG
@@ -12804,7 +12804,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_set_nodfs_flag,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_wifi_attr_policy,
-		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX
+		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 
 	},
@@ -12818,7 +12818,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_set_country,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_wifi_attr_policy,
-		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX
+		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #ifdef LINKSTAT_SUPPORT
@@ -12880,7 +12880,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_set_ssid_whitelist,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = gscan_attr_policy,
-		.maxattr = GSCAN_ATTRIBUTE_MAX
+		.maxattr = GSCAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 
 	},
@@ -12893,7 +12893,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_set_bssid_blacklist,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = gscan_attr_policy,
-		.maxattr = GSCAN_ATTRIBUTE_MAX
+		.maxattr = GSCAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* GSCAN_SUPPORT || ROAMEXP_SUPPORT */
@@ -12907,7 +12907,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_set_fw_roaming_state,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = gscan_attr_policy,
-		.maxattr = GSCAN_ATTRIBUTE_MAX
+		.maxattr = GSCAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -12928,7 +12928,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_dbg_get_version,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_dbg_policy,
-		.maxattr = DEBUG_ATTRIBUTE_MAX
+		.maxattr = DEBUG_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #ifdef DHD_LOG_DUMP
@@ -12941,7 +12941,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_dbg_file_dump,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = dump_buf_policy,
-		.maxattr = DUMP_BUF_ATTR_MAX
+		.maxattr = DUMP_BUF_ATTR_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* DHD_LOG_DUMP */
@@ -12964,7 +12964,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_dbg_get_mem_dump,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_dbg_policy,
-		.maxattr = DEBUG_ATTRIBUTE_MAX
+		.maxattr = DEBUG_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -12976,7 +12976,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_dbg_start_logging,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_dbg_policy,
-		.maxattr = DEBUG_ATTRIBUTE_MAX
+		.maxattr = DEBUG_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -12996,7 +12996,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_dbg_get_ring_status,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_dbg_policy,
-		.maxattr = DEBUG_ATTRIBUTE_MAX
+		.maxattr = DEBUG_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13008,7 +13008,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_dbg_get_ring_data,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_dbg_policy,
-		.maxattr = DEBUG_ATTRIBUTE_MAX
+		.maxattr = DEBUG_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 
 	},
@@ -13022,7 +13022,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_dbg_get_buf_ring_map,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_dbg_policy,
-		.maxattr = DEBUG_ATTRIBUTE_MAX
+		.maxattr = DEBUG_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* DHD_HAL_RING_DUMP */
@@ -13053,7 +13053,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_dbg_get_tx_pkt_fates,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_dbg_policy,
-		.maxattr = DEBUG_ATTRIBUTE_MAX
+		.maxattr = DEBUG_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13065,7 +13065,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_dbg_get_rx_pkt_fates,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_dbg_policy,
-		.maxattr = DEBUG_ATTRIBUTE_MAX
+		.maxattr = DEBUG_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* DBG_PKT_MON */
@@ -13079,7 +13079,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_start_mkeep_alive,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = mkeep_alive_attr_policy,
-		.maxattr = MKEEP_ALIVE_ATTRIBUTE_MAX
+		.maxattr = MKEEP_ALIVE_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13091,7 +13091,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_stop_mkeep_alive,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = mkeep_alive_attr_policy,
-		.maxattr = MKEEP_ALIVE_ATTRIBUTE_MAX
+		.maxattr = MKEEP_ALIVE_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* KEEP_ALIVE */
@@ -13105,7 +13105,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_nan_start_handler,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = nan_attr_policy,
-		.maxattr = NAN_ATTRIBUTE_MAX
+		.maxattr = NAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13117,7 +13117,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_nan_stop_handler,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = nan_attr_policy,
-		.maxattr = NAN_ATTRIBUTE_MAX
+		.maxattr = NAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13129,7 +13129,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_nan_config_handler,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = nan_attr_policy,
-		.maxattr = NAN_ATTRIBUTE_MAX
+		.maxattr = NAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13141,7 +13141,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_nan_req_publish,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = nan_attr_policy,
-		.maxattr = NAN_ATTRIBUTE_MAX
+		.maxattr = NAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13153,7 +13153,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_nan_req_subscribe,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = nan_attr_policy,
-		.maxattr = NAN_ATTRIBUTE_MAX
+		.maxattr = NAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13165,7 +13165,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_nan_cancel_publish,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = nan_attr_policy,
-		.maxattr = NAN_ATTRIBUTE_MAX
+		.maxattr = NAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13177,7 +13177,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_nan_cancel_subscribe,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = nan_attr_policy,
-		.maxattr = NAN_ATTRIBUTE_MAX
+		.maxattr = NAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13189,7 +13189,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_nan_transmit,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = nan_attr_policy,
-		.maxattr = NAN_ATTRIBUTE_MAX
+		.maxattr = NAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13210,7 +13210,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_nan_data_path_iface_create,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = nan_attr_policy,
-		.maxattr = NAN_ATTRIBUTE_MAX
+		.maxattr = NAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13222,7 +13222,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_nan_data_path_iface_delete,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = nan_attr_policy,
-		.maxattr = NAN_ATTRIBUTE_MAX
+		.maxattr = NAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13234,7 +13234,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_nan_data_path_request,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = nan_attr_policy,
-		.maxattr = NAN_ATTRIBUTE_MAX
+		.maxattr = NAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13246,7 +13246,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_nan_data_path_response,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = nan_attr_policy,
-		.maxattr = NAN_ATTRIBUTE_MAX
+		.maxattr = NAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13258,7 +13258,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_nan_data_path_end,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = nan_attr_policy,
-		.maxattr = NAN_ATTRIBUTE_MAX
+		.maxattr = NAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #ifdef WL_NAN_DISC_CACHE
@@ -13271,7 +13271,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_nan_data_path_sec_info,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = nan_attr_policy,
-		.maxattr = NAN_ATTRIBUTE_MAX
+		.maxattr = NAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* WL_NAN_DISC_CACHE */
@@ -13292,7 +13292,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_nan_enable_merge,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = nan_attr_policy,
-		.maxattr = NAN_ATTRIBUTE_MAX
+		.maxattr = NAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* WL_NAN */
@@ -13306,7 +13306,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_apf_get_capabilities,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = apf_atrribute_policy,
-		.maxattr = APF_ATTRIBUTE_MAX
+		.maxattr = APF_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13318,7 +13318,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_apf_set_filter,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = apf_atrribute_policy,
-		.maxattr = APF_ATTRIBUTE_MAX
+		.maxattr = APF_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13330,7 +13330,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_apf_read_filter_data,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = apf_atrribute_policy,
-		.maxattr = APF_ATTRIBUTE_MAX
+		.maxattr = APF_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* APF */
@@ -13344,7 +13344,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_configure_nd_offload,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_wifi_attr_policy,
-		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX
+		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* NDO_CONFIG_SUPPORT */
@@ -13358,7 +13358,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_set_rssi_monitor,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = rssi_monitor_attr_policy,
-		.maxattr = RSSI_MONITOR_ATTRIBUTE_MAX
+		.maxattr = RSSI_MONITOR_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* RSSI_MONITOR_SUPPORT */
@@ -13372,7 +13372,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_get_wake_reason_stats,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = wake_stat_attr_policy,
-		.maxattr = WAKE_STAT_ATTRIBUTE_MAX
+		.maxattr = WAKE_STAT_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* DHD_WAKE_STATUS */
@@ -13386,7 +13386,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_set_tcpack_sup_mode,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_wifi_attr_policy,
-		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX
+		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* DHDTCPACK_SUPPRESS */
@@ -13400,7 +13400,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_set_pmk,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = brcm_drv_attr_policy,
-		.maxattr = BRCM_ATTR_DRIVER_MAX
+		.maxattr = BRCM_ATTR_DRIVER_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 
 	},
@@ -13414,7 +13414,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_get_driver_feature,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = brcm_drv_attr_policy,
-		.maxattr = BRCM_ATTR_DRIVER_MAX
+		.maxattr = BRCM_ATTR_DRIVER_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 
 	},
@@ -13438,7 +13438,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_set_hal_started,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = hal_start_attr_policy,
-		.maxattr = SET_HAL_START_ATTRIBUTE_MAX
+		.maxattr = SET_HAL_START_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13458,7 +13458,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_set_hal_pid,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = hal_start_attr_policy,
-		.maxattr = SET_HAL_START_ATTRIBUTE_MAX
+		.maxattr = SET_HAL_START_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* WL_CFG80211 */
@@ -13472,7 +13472,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_latency_mode_config,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_wifi_attr_policy,
-		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX
+		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13484,7 +13484,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_latency_mode_config,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_wifi_attr_policy,
-		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX
+		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* WL_LATENCY_MODE */
@@ -13498,7 +13498,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_set_p2p_rand_mac,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = brcm_drv_attr_policy,
-		.maxattr = BRCM_ATTR_DRIVER_MAX
+		.maxattr = BRCM_ATTR_DRIVER_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* WL_P2P_RAND */
@@ -13512,7 +13512,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_thermal_mitigation,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_wifi_attr_policy,
-		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX
+		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* WL_THERMAL_MITIGATION */
@@ -13526,7 +13526,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_tx_power_scenario,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_wifi_attr_policy,
-		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX
+		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* WL_SAR_TX_POWER */
@@ -13540,7 +13540,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgscan_acs,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = acs_attr_policy,
-		.maxattr = BRCM_VENDOR_ATTR_ACS_LAST
+		.maxattr = BRCM_VENDOR_ATTR_ACS_LAST - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* WL_SOFTAP_ACS */
@@ -13554,7 +13554,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_custom_mapping_of_dscp,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = custom_setting_attr_policy,
-		.maxattr = CUSTOM_SETTING_ATTRIBUTE_MAX
+		.maxattr = CUSTOM_SETTING_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13566,7 +13566,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_custom_mapping_of_dscp_reset,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = custom_setting_attr_policy,
-		.maxattr = CUSTOM_SETTING_ATTRIBUTE_MAX
+		.maxattr = CUSTOM_SETTING_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* WL_CUSTOM_MAPPING_OF_DSCP */
@@ -13580,7 +13580,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_cellavoid_set_cell_channels,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = cellavoid_attr_policy,
-		.maxattr = CELLAVOID_ATTRIBUTE_MAX
+		.maxattr = CELLAVOID_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* WL_CELLULAR_CHAN_AVOID */
@@ -13594,7 +13594,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgdbg_tput_debug_get_cmd,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = tput_debug_dump_attr_policy,
-		.maxattr = TPUT_DEBUG_ATTRIBUTE_MAX
+		.maxattr = TPUT_DEBUG_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* TPUT_DEBUG_DUMP */
@@ -13607,7 +13607,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_multista_set_primary_connection,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = multista_attr_policy,
-		.maxattr = MULTISTA_ATTRIBUTE_MAX
+		.maxattr = MULTISTA_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13619,7 +13619,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_multista_set_use_case,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = multista_attr_policy,
-		.maxattr = MULTISTA_ATTRIBUTE_MAX
+		.maxattr = MULTISTA_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #if !defined(WL_TWT) && defined(WL_TWT_HAL_IF)
@@ -13632,7 +13632,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_twt_setup,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_twt_attr_policy,
-		.maxattr = ANDR_TWT_ATTR_MAX
+		.maxattr = ANDR_TWT_ATTR_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13644,7 +13644,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_twt_teardown,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_twt_attr_policy,
-		.maxattr = ANDR_TWT_ATTR_MAX
+		.maxattr = ANDR_TWT_ATTR_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13656,7 +13656,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_twt_info_frame,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_twt_attr_policy,
-		.maxattr = ANDR_TWT_ATTR_MAX
+		.maxattr = ANDR_TWT_ATTR_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13668,7 +13668,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_twt_cap,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_twt_attr_policy,
-		.maxattr = ANDR_TWT_ATTR_MAX
+		.maxattr = ANDR_TWT_ATTR_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13680,7 +13680,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_twt_get_stats,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_twt_attr_policy,
-		.maxattr = ANDR_TWT_ATTR_MAX
+		.maxattr = ANDR_TWT_ATTR_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13692,7 +13692,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_twt_clear_stats,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_twt_attr_policy,
-		.maxattr = ANDR_TWT_ATTR_MAX
+		.maxattr = ANDR_TWT_ATTR_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13704,7 +13704,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_twt_get_response,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_twt_attr_policy,
-		.maxattr = ANDR_TWT_ATTR_MAX
+		.maxattr = ANDR_TWT_ATTR_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* !WL_TWT && WL_TWT_HAL_IF */
@@ -13718,7 +13718,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_get_ota_current_info,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = ota_update_attr_policy,
-		.maxattr = OTA_UPDATE_ATTRIBUTE_MAX
+		.maxattr = OTA_UPDATE_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13730,7 +13730,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_ota_download,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = ota_update_attr_policy,
-		.maxattr = OTA_UPDATE_ATTRIBUTE_MAX
+		.maxattr = OTA_UPDATE_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* SUPPORT_OTA_UPDATE */
@@ -13743,7 +13743,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_set_dtim_config,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = andr_wifi_attr_policy,
-		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX
+		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #ifdef WL_USABLE_CHAN
@@ -13756,7 +13756,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_get_usable_channels,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = usable_chan_attr_policy,
-		.maxattr = USABLECHAN_ATTRIBUTE_MAX
+		.maxattr = USABLECHAN_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* WL_USABLE_CHAN */
@@ -13779,7 +13779,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_get_radio_combo_matrix,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = wifi_radio_combo_attr_policy,
-		.maxattr = ANDR_WIFI_ATTRIBUTE_RADIO_COMBO_MAX
+		.maxattr = ANDR_WIFI_ATTRIBUTE_RADIO_COMBO_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 	{
@@ -13791,7 +13791,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.doit = wl_cfgvendor_set_tx_power_policy_handler,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 		.policy = wifi_tx_power_limits_attr_policy,
-		.maxattr = TX_POWER_ATTRIBUTE_MAX
+		.maxattr = TX_POWER_ATTRIBUTE_MAX - 1
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 
