@@ -1213,12 +1213,18 @@ static bool task_is_unity_game(struct task_struct *p)
 	struct task_struct *t;
 	bool ret = false;
 
+	if ((p->flags & PF_KTHREAD) || !p->mm)
+		return false;
+
 	/* Filter for Android user applications (i.e., positive adj) */
 	if (p->signal->oom_score_adj >= 0) {
 		rcu_read_lock();
 		for_each_thread(p, t) {
-			/* Check for a UnityMain thread in the thread group */
-			if (!strcmp(t->comm, "UnityMain")) {
+			char comm[TASK_COMM_LEN];
+
+			/* Use get_task_comm to avoid torn reads during rename */
+			get_task_comm(comm, t);
+			if (!strcmp(comm, "UnityMain")) {
 				ret = true;
 				break;
 			}
@@ -1239,20 +1245,6 @@ long sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 	if (!p)
 		return -ESRCH;
 
-	/*
-	 * Unity-based games like to shoot themselves in the foot by setting a
-	 * nonsense CPU affinity, restricting the game to a narrow set of CPU
-	 * cores that it thinks are the "big" cores in a heterogeneous CPU. It
-	 * assumes that CPUs only have two performance domains (clusters), and
-	 * therefore royally mucks up games' CPU affinities on CPUs which have
-	 * more than two performance domains.
-	 *
-	 * Check if the target task is part of a Unity-based game and silently
-	 * ignore the setaffinity request so that it can't sabotage itself.
-	 */
-	if (task_is_unity_game(p))
-		return 0;
-
 	if (p->flags & PF_NO_SETAFFINITY)
 		return -EINVAL;
 
@@ -1265,6 +1257,20 @@ long sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 	retval = security_task_setscheduler(p);
 	if (retval)
 		return retval;
+
+	/*
+	 * Unity-based games like to shoot themselves in the foot by setting a
+	 * nonsense CPU affinity, restricting the game to a narrow set of CPU
+	 * cores that it thinks are the "big" cores in a heterogeneous CPU. It
+	 * assumes that CPUs only have two performance domains (clusters), and
+	 * therefore royally mucks up games' CPU affinities on CPUs which have
+	 * more than two performance domains.
+	 *
+	 * Only a task's own request is bypassed, after the permission checks
+	 * above, so the syscall cannot be used as a cross-UID Unity detector.
+	 */
+	if (p == current && task_is_unity_game(p))
+		return 0;
 
 	/*
 	 * With non-SMP configs, user_cpus_ptr/user_mask isn't used and
