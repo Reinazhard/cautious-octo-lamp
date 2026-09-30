@@ -1466,7 +1466,7 @@ impl Thread {
 
                     binder_debug!(
                         FailedTransaction,
-                        "transaction {} to {}:{} failed {:?}, code {} size {}-{}",
+                        "transaction {} to {}:{} failed {:?}, code {} size {}-{} line {}",
                         if info.is_reply {
                             "reply"
                         } else if info.is_oneway() {
@@ -1479,7 +1479,8 @@ impl Thread {
                         err,
                         info.code,
                         info.data_size,
-                        info.offsets_size
+                        info.offsets_size,
+                        err.line
                     );
                 }
             }
