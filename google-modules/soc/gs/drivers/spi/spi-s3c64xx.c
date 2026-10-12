@@ -198,10 +198,21 @@ spi_dbg_store(struct device *dev, struct device_attribute *attr,
 	      const char *buf, size_t count)
 {
 	struct spi_controller *master = dev_get_drvdata(dev);
-	struct s3c64xx_spi_driver_data *sdd = spi_controller_get_devdata(master);
-	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
+	struct s3c64xx_spi_driver_data *sdd;
+	struct s3c64xx_spi_info *sci;
 	struct s3c64xx_spi_info *check_sci;
 	int ret, input_cmd;
+
+	/*
+	 * The attribute is created on the platform device, which outlives
+	 * s3c64xx_spi_remove(), so a store can arrive with no driver attached.
+	 */
+	if (!master)
+		return -ENODEV;
+	sdd = spi_controller_get_devdata(master);
+	if (!sdd)
+		return -ENODEV;
+	sci = sdd->cntrlr_info;
 
 	ret = kstrtoint(buf, 10, &input_cmd);
 	if (ret)
@@ -1865,6 +1876,8 @@ static void s3c64xx_spi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *master = spi_controller_get(platform_get_drvdata(pdev));
 	struct s3c64xx_spi_driver_data *sdd = spi_controller_get_devdata(master);
+
+	device_remove_file(&pdev->dev, &dev_attr_spi_dbg);
 
 	list_del_init(&sdd->cntrlr_info->node);
 
