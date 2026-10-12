@@ -757,8 +757,12 @@ static int slg51002_i2c_probe(struct i2c_client *client)
 
 	slg51002->gpio_op_on_sw_test_mode = !(slg51002->chip_id == REVISION_AB);
 
-	return devm_mfd_add_devices(slg51002->dev, -1, slg51002_devs,
+	ret = devm_mfd_add_devices(slg51002->dev, -1, slg51002_devs,
 			ARRAY_SIZE(slg51002_devs), NULL, 0, NULL);
+	if (ret)
+		goto out;
+
+	return 0;
 
 out:
 	mutex_destroy(&slg51002->pwr_lock);
