@@ -943,8 +943,8 @@ static int g2d_probe(struct platform_device *pdev)
 
 	return 0;
 err_pm:
-	g2d_destroy_tasks(g2d_dev);
 err_task:
+	g2d_destroy_tasks(g2d_dev);
 	misc_deregister(&g2d_dev->misc[1]);
 err_misc:
 	misc_deregister(&g2d_dev->misc[0]);
