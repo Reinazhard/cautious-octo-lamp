@@ -609,26 +609,28 @@ EXPORT_SYMBOL_GPL(acpm_ipc_send_data_sync);
 #define arch_irq_stat() 0
 #endif
 
-static void acpm_alloc_irq_info(bool usage)
-{
-	kfree(irq_info);
-	if (usage)
-		irq_info = kcalloc(irq_get_nr_irqs(), sizeof(struct cpu_irq_info), GFP_KERNEL);
-	else
-		irq_info = NULL;
-}
-
 static void cpu_irq_info_dump(u32 retry)
 {
 	int i, cpu;
 	u64 sum = 0;
 	unsigned long flags;
+	struct cpu_irq_info *new_info = NULL;
+
+	/*
+	 * Allocate before taking the lock: acpm_debug->lock is a spinlock
+	 * taken with interrupts disabled, and kcalloc(GFP_KERNEL) can sleep.
+	 * GFP_ATOMIC is not a substitute, as irq_get_nr_irqs() * sizeof(*new_info) is
+	 * an order-2/3 allocation on this SoC.
+	 */
+	if (retry == 1)
+		new_info = kcalloc(irq_get_nr_irqs(), sizeof(*new_info), GFP_KERNEL);
 
 	spin_lock_irqsave(&acpm_debug->lock, flags);
 
-	if (retry == 1)
-		acpm_alloc_irq_info(true);
-	else if (retry == 5)
+	if (retry == 1) {
+		kfree(irq_info);
+		irq_info = new_info;
+	} else if (retry == 5)
 		pr_info("<Dump delta of irq counts>\n");
 
 	for_each_possible_cpu(cpu)
@@ -872,7 +874,8 @@ retry:
 		}
 		acpm_ktop_release();
 		spin_lock_irqsave(&acpm_debug->lock, flags);
-		acpm_alloc_irq_info(false);
+		kfree(irq_info);
+		irq_info = NULL;
 		spin_unlock_irqrestore(&acpm_debug->lock, flags);
 	}
 
