@@ -955,6 +955,13 @@ static void bigo_remove(struct platform_device *pdev)
 {
 	struct bigo_core *core = (struct bigo_core *)platform_get_drvdata(pdev);
 
+	/*
+	 * Unpublish first: bigo_open() starts a worker when the instance list
+	 * is empty, and a worker created after the stop below would outlive
+	 * core, which devres frees once remove() returns.
+	 */
+	deinit_chardev(core);
+
 	if (core->worker_thread) {
 		kthread_stop(core->worker_thread);
 		core->worker_thread = NULL;
@@ -964,7 +971,6 @@ static void bigo_remove(struct platform_device *pdev)
 	bigo_pt_client_unregister(core);
 	pm_runtime_disable(&pdev->dev);
 	bigo_of_dt_release(core);
-	deinit_chardev(core);
 	platform_set_drvdata(pdev, NULL);
 }
 
