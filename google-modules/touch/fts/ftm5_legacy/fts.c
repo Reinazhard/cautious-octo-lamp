@@ -63,6 +63,7 @@
 #include <video/display_timing.h>
 #include <samsung/exynos_drm_connector.h>
 #include <samsung/panel/panel-samsung-drv.h>
+#include <drm/drm_atomic_state_helper.h>
 
 #include "fts.h"
 #include "fts_lib/ftsCompensation.h"
@@ -5976,7 +5977,8 @@ static bool bridge_is_lp_mode(struct drm_connector *connector)
 	return false;
 }
 
-static void panel_bridge_enable(struct drm_bridge *bridge)
+static void panel_bridge_enable(struct drm_bridge *bridge,
+				struct drm_atomic_commit *commit)
 {
 	struct fts_ts_info *info =
 			container_of(bridge, struct fts_ts_info, panel_bridge);
@@ -5986,7 +5988,8 @@ static void panel_bridge_enable(struct drm_bridge *bridge)
 		fts_set_bus_ref(info, FTS_BUS_REF_SCREEN_ON, true);
 }
 
-static void panel_bridge_disable(struct drm_bridge *bridge)
+static void panel_bridge_disable(struct drm_bridge *bridge,
+				 struct drm_atomic_commit *commit)
 {
 	struct fts_ts_info *info =
 			container_of(bridge, struct fts_ts_info, panel_bridge);
@@ -6033,8 +6036,11 @@ static void panel_bridge_mode_set(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs panel_bridge_funcs = {
-	.enable = panel_bridge_enable,
-	.disable = panel_bridge_disable,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_enable = panel_bridge_enable,
+	.atomic_disable = panel_bridge_disable,
 	.mode_set = panel_bridge_mode_set,
 };
 
