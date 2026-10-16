@@ -2,6 +2,12 @@
 
 config GOOGLE_MODULES
 	def_bool y
+	# arch/arm64/Kconfig only selects this when GKI_HACKS_TO_FIX is set, and
+	# init/Kconfig.gki is no longer sourced, so nothing turns it on.  Without
+	# it struct device has no dma_ops and set_dma_ops() is an empty inline,
+	# which silently discards the dma_map_ops the vendor PCIe and S2MPU code
+	# installs.
+	select ARCH_HAS_DMA_OPS
 	select DRM_MIPI_DSI
 	select GPIOLIB_IRQCHIP
 	select REGMAP_IRQ
