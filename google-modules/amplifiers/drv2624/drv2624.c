@@ -47,8 +47,6 @@
 
 #include "drv2624.h"
 
-static struct drv2624_data *drv2624_plat_data;
-
 static bool drv2624_is_volatile_reg(struct device *dev, unsigned int reg);
 static void drv2624_lp_trigger_enable(struct drv2624_data *drv2624);
 static void drv2624_lp_trigger_disable(struct drv2624_data *drv2624);
@@ -1776,8 +1774,6 @@ static int drv2624_i2c_probe(struct i2c_client *client,
 		}
 		drv2624_disable_irq(drv2624);
 	}
-
-	drv2624_plat_data = drv2624;
 
 	err = haptics_init(drv2624);
 	if (err)
