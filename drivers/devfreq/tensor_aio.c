@@ -20,8 +20,8 @@
 #include <trace/hooks/cpuidle.h>
 #include <trace/hooks/sched.h>
 #include <sched.h>
-#include "governor.h"
 #include <linux/devfreq-governor.h>
+#include <linux/tensor_aio.h>
 #include <linux/platform_device.h>
 #include <linux/sched/topology.h>
 
@@ -668,6 +668,15 @@ static void pmu_get_stats(struct pmu_stat *stat)
  * pmu_put_cur_writer() always puts the writer's pmu_stat back into the newest
  * pmu_stat slot, since it always has the newest data.
  */
+static inline bool cmpxchg_double_local(struct pmu_stat **p1, struct pmu_stat **p2,
+					struct pmu_stat *o1, struct pmu_stat *o2,
+					struct pmu_stat *n1, struct pmu_stat *n2)
+{
+	u128 old = (u128)(uintptr_t)o1 | ((u128)(uintptr_t)o2 << 64);
+	u128 new = (u128)(uintptr_t)n1 | ((u128)(uintptr_t)n2 << 64);
+	return try_cmpxchg128_local((u128 *)p1, &old, new);
+}
+
 #define __PMU_CMPXCHG_DBL_LOOP(new1_expr, new2_expr) \
 	struct pmu_stat *old1, *old2, *new1, *new2;			\
 	do {								\
@@ -830,7 +839,7 @@ static void update_thermal_pressure(struct throt_data *t,
 		if (t->cap[i] < capped_freq)
 			capped_freq = t->cap[i];
 	}
-	arch_update_thermal_pressure(&t->domain->cpus, capped_freq);
+	arch_update_hw_pressure(&t->domain->cpus, capped_freq);
 }
 
 void tensor_aio_cpufreq_pressure(int cpu, unsigned int cap)
@@ -1359,8 +1368,7 @@ static void tensor_aio_idle_task_switch(bool entering)
 	raw_spin_unlock(&idle_task_lock);
 }
 
-static void tensor_aio_schedule(void *data, unsigned int sched_mode,
-				struct task_struct *prev_tsk,
+static void tensor_aio_schedule(void *data, struct task_struct *prev_tsk,
 				struct task_struct *next_tsk, struct rq *rq)
 {
 	/* Don't race with reboot */
@@ -1780,19 +1788,6 @@ static void memperfd_work(void)
 }
 
 static void memperfd_wait_for_kick(void)
-{
-	unsigned long prev_jiffies = jiffies;
-	DECLARE_SWAITQUEUE(wait);
-
-	while (1) {
-		prepare_to_swait_exclusive(&memperfd_waitq, &wait,
-					   TASK_IDLE | TASK_FREEZABLE);
-		if (atomic_long_read(&last_run_jiffies) != prev_jiffies)
-			break;
-		schedule();
-	}
-	finish_swait(&memperfd_waitq, &wait);
-}
 {
 	unsigned long prev_jiffies = jiffies;
 	DECLARE_SWAITQUEUE(wait);
