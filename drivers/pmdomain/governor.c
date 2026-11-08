@@ -370,7 +370,7 @@ static bool cpu_power_down_ok(struct dev_pm_domain *pd)
 		return true;
 
 	wakeup_constraint = cpu_wakeup_latency_qos_limit();
-	global_constraint = cpu_latency_qos_limit();
+	global_constraint = cpu_latency_qos_limit_global();
 	if (global_constraint > wakeup_constraint)
 		global_constraint = wakeup_constraint;
 

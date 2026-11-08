@@ -310,6 +310,12 @@ s32 cpu_latency_qos_limit(int cpu)
 	return READ_ONCE(cpu_latency_constraints.target_per_cpu[cpu]);
 }
 
+s32 cpu_latency_qos_limit_global(void)
+{
+	return READ_ONCE(cpu_latency_constraints.target_value);
+}
+EXPORT_SYMBOL_GPL(cpu_latency_qos_limit_global);
+
 /**
  * cpu_latency_qos_request_active - Check the given PM QoS request.
  * @req: PM QoS request to check.
