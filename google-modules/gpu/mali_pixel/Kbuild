@@ -17,10 +17,6 @@
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
 #
-
-# make $(src) as absolute path if it isn't already, by prefixing $(srctree)
-src:=$(if $(patsubst /%,,$(src)),$(srctree)/$(src),$(src))
-
 CONFIG_MALI_MEMORY_GROUP_MANAGER ?= m
 CONFIG_MALI_PRIORITY_CONTROL_MANAGER ?= m
 CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR ?= m
@@ -58,7 +54,7 @@ endif
 # Use our defines when compiling, and include mali platform module headers
 ccflags-y += \
     $(DEFINES) \
-    -I$(src)/../common/include
+    -I$(srctree)/google-modules/gpu/common/include
 
 # Add kernel module target if any of our config options is enabled
 ifneq ($(mali_pixel-objs),)
