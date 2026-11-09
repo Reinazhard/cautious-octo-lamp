@@ -4,6 +4,7 @@
 #
 
 # Needed for the trace points
+ccflags-y += -I$(srctree)/google-modules/trusty/include
 ccflags-y += -I$(srctree)/$(src)/
 
 obj-$(CONFIG_TRUSTY)		+= trusty-core.o
