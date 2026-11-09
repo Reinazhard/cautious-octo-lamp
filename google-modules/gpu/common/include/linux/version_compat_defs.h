@@ -98,6 +98,15 @@ static inline void kbase_timer_setup(struct timer_list *timer,
 #endif
 }
 
+#if (KERNEL_VERSION(6, 17, 0) <= LINUX_VERSION_CODE)
+#ifndef __SetPageMovable
+#define __SetPageMovable(p, op)	({(void)(p); (void)(op);})
+#endif
+#ifndef __ClearPageMovable
+#define __ClearPageMovable(p)	({(void)(p);})
+#endif
+#endif
+
 #ifndef WRITE_ONCE
 #ifdef ASSIGN_ONCE
 #define WRITE_ONCE(x, val) ASSIGN_ONCE(val, x)

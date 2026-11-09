@@ -7,7 +7,8 @@
 
 /* Mali core includes */
 #include <mali_kbase.h>
-#include <trace/events/power.h>
+
+#include <trace/events/clock.h>
 
 /* Pixel integration includes */
 #include "mali_kbase_config_platform.h"

@@ -364,11 +364,7 @@ KBASE_EXPORT_TEST_API(kbase_get_timeout_ms);
 
 u64 kbase_backend_get_cycle_cnt(struct kbase_device *kbdev)
 {
-	if (kbdev->pm.backend.l2_state != KBASE_L2_ON) {
-		return kbdev->last_cycle_count;
-	} else {
-		return kbase_reg_read64_coherent(kbdev, GPU_CONTROL_ENUM(CYCLE_COUNT));
-	}
+	return kbase_reg_read64_coherent(kbdev, GPU_CONTROL_ENUM(CYCLE_COUNT));
 }
 
 #if MALI_USE_CSF

@@ -53,6 +53,9 @@ static void __maybe_unused gpu_sysfs_term(struct kbase_device *kbdev) {}
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 int gpu_dvfs_kctx_init(struct kbase_context *kctx);
 void gpu_dvfs_kctx_term(struct kbase_context *kctx);
+#else
+static inline int __maybe_unused gpu_dvfs_kctx_init(struct kbase_context *kctx) { return 0; }
+static inline void __maybe_unused gpu_dvfs_kctx_term(struct kbase_context *kctx) {}
 #endif
 
 /* ITMON notifier */

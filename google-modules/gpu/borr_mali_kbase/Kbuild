@@ -101,6 +101,12 @@ ifeq ($(CONFIG_SOC_ZUMA),y)
 endif
 
 ccflags-y += -DCONFIG_GOOGLE_BCL
+ccflags-y += -DCONFIG_MALI_PIXEL_GPU_PM=1
+ccflags-y += -DCONFIG_MALI_MIDGARD_DVFS=1
+ccflags-y += -DCONFIG_MALI_DEVFREQ=1
+ccflags-y += -DCONFIG_MALI_PIXEL_GPU_QOS=1
+ccflags-y += -DCONFIG_MALI_PIXEL_GPU_THERMAL=1
+ccflags-y += -DCONFIG_MALI_PIXEL_GPU_SLC=1
 
 ifneq ($(CONFIG_MALI_KUTF), n)
     MALI_KERNEL_TEST_API ?= 1
