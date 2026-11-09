@@ -110,6 +110,9 @@ else
 endif
 
 KBUILD_CFLAGS += $(call cc-option,-mcpu=cortex-a76.cortex-a55+dotprod+crypto)
+ifdef asm-arch
+  KBUILD_CPPFLAGS += -DARM64_ASM_ARCH='"$(asm-arch)"'
+endif
 
 ifeq ($(CONFIG_SHADOW_CALL_STACK), y)
 KBUILD_CFLAGS	+= -ffixed-x18
