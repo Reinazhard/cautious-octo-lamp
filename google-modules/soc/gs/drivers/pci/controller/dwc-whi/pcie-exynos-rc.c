@@ -1931,20 +1931,20 @@ static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exyno
 	}
 
 	/* SSD & WIFI power control */
-	exynos_pcie->wlan_gpio = of_get_named_gpio(np, "pcie,wlan-gpio", 0);
-	if (exynos_pcie->wlan_gpio < 0) {
+	exynos_pcie->wlan_gpio = devm_gpiod_get_optional(dev, "pcie,wlan", GPIOD_ASIS);
+	if (IS_ERR_OR_NULL(exynos_pcie->wlan_gpio)) {
 		dev_err(dev, "wlan gpio is not defined -> don't use wifi through pcie#%d\n",
 			exynos_pcie->ch_num);
 	} else {
-		gpio_direction_output(exynos_pcie->wlan_gpio, 0);
+		gpiod_direction_output(exynos_pcie->wlan_gpio, 0);
 	}
 
-	exynos_pcie->ssd_gpio = of_get_named_gpio(np, "pcie,ssd-gpio", 0);
-	if (exynos_pcie->ssd_gpio < 0) {
+	exynos_pcie->ssd_gpio = devm_gpiod_get_optional(dev, "pcie,ssd", GPIOD_ASIS);
+	if (IS_ERR_OR_NULL(exynos_pcie->ssd_gpio)) {
 		dev_err(dev, "ssd gpio is not defined -> don't use ssd through pcie#%d\n",
 			exynos_pcie->ch_num);
 	} else {
-		gpio_direction_output(exynos_pcie->ssd_gpio, 0);
+		gpiod_direction_output(exynos_pcie->ssd_gpio, 0);
 	}
 
 	return 0;
@@ -1954,8 +1954,6 @@ static int exynos_pcie_rc_get_pin_state(struct platform_device *pdev,
 					struct exynos_pcie *exynos_pcie)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	int ret;
 
 	exynos_pcie->perst_gpio = devm_gpiod_get_index(dev, NULL, 0, GPIOD_OUT_LOW);
 	if (IS_ERR(exynos_pcie->perst_gpio)) {

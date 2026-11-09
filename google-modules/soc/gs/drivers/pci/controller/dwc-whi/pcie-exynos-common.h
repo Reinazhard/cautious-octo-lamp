@@ -319,8 +319,8 @@ struct exynos_pcie {
 	struct notifier_block	itmon_nb;
 	struct notifier_block   panic_nb;
 
-	int wlan_gpio;
-	int ssd_gpio;
+	struct gpio_desc *wlan_gpio;
+	struct gpio_desc *ssd_gpio;
 	u32 pmu_offset;
 	u32 linkup_offset;
 	/* evt0 : 0, evt1: 1 .. */
