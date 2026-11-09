@@ -4,6 +4,7 @@ obj-$(CONFIG_ABROLHOS)		+= abrolhos.o
 ccflags-y			+= -DCONFIG_ABROLHOS=1
 
 ccflags-y	+= -I$(ROOT_DIR)/private/google-modules/power/mitigation -DCONFIG_GOOGLE_BCL
+ccflags-y	+= -I$(srctree)/google-modules/soc/gs/include
 
 edgetpu-objs	:= edgetpu-mailbox.o edgetpu-mapping.o edgetpu-dmabuf.o edgetpu-async.o edgetpu-iremap-pool.o edgetpu-sw-watchdog.o edgetpu-firmware.o edgetpu-firmware-util.o edgetpu-domain-pool.o
 
@@ -17,4 +18,4 @@ abrolhos-y	:= abrolhos-device.o abrolhos-device-group.o abrolhos-fs.o abrolhos-c
 
 # This -I is for the trace file include. It was removed from ccflags-y to avoid
 # including the header stubs.
-CFLAGS_abrolhos-fs.o := -I$(srctree)/$(src)/include
+CFLAGS_abrolhos-fs.o := -I$(src)/include
