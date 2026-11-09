@@ -120,7 +120,7 @@ int pca9468_usbpd_setup(struct pca9468_charger *pca9468)
 		node = pca9468_find_config(pca9468->dev->of_node);
 		if (!node)
 			return -ENODEV;
-		tcpm_psy = pps_get_tcpm_psy(node, 2);
+		tcpm_psy = pps_get_tcpm_psy(of_fwnode_handle(node), 2);
 		if (IS_ERR(tcpm_psy))
 			return PTR_ERR(tcpm_psy);
 		if (!tcpm_psy) {

@@ -1915,7 +1915,7 @@ static void max77779_wcin_charge_disable_work(struct work_struct *work)
 #if IS_ENABLED(CONFIG_GPIOLIB)
 static int max77779_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
-	return GPIOF_DIR_OUT;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int max77779_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -1923,7 +1923,7 @@ static int max77779_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return 0;
 }
 
-static void max77779_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int max77779_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct max77779_chgr_data *data = gpiochip_get_data(chip);
 	int ret = 0;
@@ -1943,6 +1943,7 @@ static void max77779_gpio_set(struct gpio_chip *chip, unsigned int offset, int v
 
 	if (ret < 0)
 		dev_warn(data->dev, "GPIO%d: value=%d ret:%d\n", offset, value, ret);
+	return ret;
 }
 
 static void max77779_gpio_init(struct max77779_chgr_data *data)
@@ -3674,8 +3675,8 @@ static int max77779_chg_irq_setup(struct max77779_chgr_data *data)
 	data->disable_internal_irq_handler =
 		of_property_read_bool(dev->of_node, "max77779,disable-internal-irq-handler");
 
-	data->domain = irq_domain_add_linear(dev->of_node, MAX77779_CHG_NUM_IRQS,
-					     &irq_domain_simple_ops, data);
+	data->domain = irq_domain_create_linear(dev_fwnode(dev), MAX77779_CHG_NUM_IRQS,
+						&irq_domain_simple_ops, data);
 	if (!data->domain) {
 		dev_err(data->dev, "Unable to get irq domain\n");
 		return -ENODEV;
@@ -3834,10 +3835,10 @@ int max77779_charger_init(struct max77779_chgr_data *data)
 #if IS_ENABLED(CONFIG_GPIOLIB)
 	max77779_gpio_init(data);
 	data->gpio.parent = dev;
-	data->gpio.of_node = of_find_node_by_name(dev->of_node,
-							    data->gpio.label);
-	if (!data->gpio.of_node)
+	struct device_node *dn = of_find_node_by_name(dev->of_node, data->gpio.label);
+	if (!dn)
 		dev_warn(dev, "Failed to find %s DT node\n", data->gpio.label);
+	data->gpio.fwnode = of_fwnode_handle(dn);
 
 	ret = devm_gpiochip_add_data(dev, &data->gpio, data);
 	dev_dbg(dev, "%d GPIOs registered ret: %d\n", data->gpio.ngpio, ret);

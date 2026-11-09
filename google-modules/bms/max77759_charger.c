@@ -1791,7 +1791,7 @@ static void max77759_wcin_charge_disable_work(struct work_struct *work)
 #if IS_ENABLED(CONFIG_GPIOLIB)
 static int max77759_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
-	return GPIOF_DIR_OUT;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int max77759_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -1799,7 +1799,7 @@ static int max77759_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return 0;
 }
 
-static void max77759_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int max77759_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct max77759_chgr_data *data = gpiochip_get_data(chip);
 	int ret = 0;
@@ -1819,6 +1819,7 @@ static void max77759_gpio_set(struct gpio_chip *chip, unsigned int offset, int v
 		dev_err(data->dev, "GPIO %d: value=%d ret:%d\n", offset, value, ret);
 	else
 		dev_dbg(data->dev, "GPIO %d: value=%d ret:%d\n", offset, value, ret);
+	return ret;
 }
 
 static void max77759_gpio_init(struct max77759_chgr_data *data)
@@ -3268,8 +3269,7 @@ done_relax:
 
 #define MAX77759_FCCM_UPPERBD_VOL 4600
 #define MAX77759_FCCM_LOWERBD_VOL 3600
-static int max77759_charger_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int max77759_charger_probe(struct i2c_client *client)
 {
 	struct power_supply_config chgr_psy_cfg = { 0 };
 	struct device *dev = &client->dev;
@@ -3430,10 +3430,10 @@ static int max77759_charger_probe(struct i2c_client *client,
 #if IS_ENABLED(CONFIG_GPIOLIB)
 	max77759_gpio_init(data);
 	data->gpio.parent = &client->dev;
-	data->gpio.of_node = of_find_node_by_name(client->dev.of_node,
-							    data->gpio.label);
-	if (!data->gpio.of_node)
+	struct device_node *dn = of_find_node_by_name(client->dev.of_node, data->gpio.label);
+	if (!dn)
 		dev_err(&client->dev, "Failed to find %s DT node\n", data->gpio.label);
+	data->gpio.fwnode = of_fwnode_handle(dn);
 
 	ret = devm_gpiochip_add_data(&client->dev, &data->gpio, data);
 	dev_info(&client->dev, "%d GPIOs registered ret: %d\n", data->gpio.ngpio, ret);

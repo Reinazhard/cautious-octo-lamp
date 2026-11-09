@@ -125,7 +125,7 @@ int ln8411_usbpd_setup(struct ln8411_charger *ln8411)
 		node = ln8411_find_config(ln8411->dev->of_node);
 		if (!node)
 			return -ENODEV;
-		tcpm_psy = pps_get_tcpm_psy(node, 2);
+		tcpm_psy = pps_get_tcpm_psy(of_fwnode_handle(node), 2);
 		if (IS_ERR(tcpm_psy))
 			return PTR_ERR(tcpm_psy);
 		if (!tcpm_psy) {

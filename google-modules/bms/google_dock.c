@@ -225,17 +225,13 @@ static void google_dock_vote_defaults(struct dock_drv *dock)
 	gvotable_cast_int_vote(dock->dc_icl_votable, DOCK_AICL_VOTER, 0, false);
 }
 
-static enum alarmtimer_restart google_dock_icl_ramp_alarm_cb(struct alarm
-							     *alarm,
-							     ktime_t now)
+static void google_dock_icl_ramp_alarm_cb(struct alarm *alarm, ktime_t now)
 {
 	struct dock_drv *dock = container_of(alarm, struct dock_drv,
 					     icl_ramp_alarm);
 
 	/* Alarm is in atomic context, schedule work to complete the task */
 	schedule_delayed_work(&dock->icl_ramp_work, msecs_to_jiffies(100));
-
-	return ALARMTIMER_NORESTART;
 }
 
 static void google_dock_icl_ramp_work(struct work_struct *work)

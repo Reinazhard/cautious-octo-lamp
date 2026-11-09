@@ -6619,8 +6619,7 @@ static int max1720x_init_fg_capture(struct max1720x_chip *chip)
 	return 0;
 }
 
-static int max1720x_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int max1720x_probe(struct i2c_client *client)
 {
 	struct max1720x_chip *chip;
 	struct device *dev = &client->dev;

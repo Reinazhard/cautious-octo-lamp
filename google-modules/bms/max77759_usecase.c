@@ -1393,7 +1393,7 @@ static void gs101_setup_default_usecase(struct max77759_usecase_data *uc_data)
 bool gs101_setup_usecases(struct max77759_usecase_data *uc_data,
 			  struct device_node *node)
 {
-	enum of_gpio_flags flags = 0;
+	
 
 	if (!node) {
 		gs101_setup_default_usecase(uc_data);
@@ -1409,12 +1409,8 @@ bool gs101_setup_usecases(struct max77759_usecase_data *uc_data,
 		uc_data->ext_bst_ctl = of_get_named_gpio(node, "max77759,extbst-ctl", 0);
 
 	/* for enabling charging over pogo */
-	if (uc_data->pogo_ovp_en == -EPROBE_DEFER) {
-		uc_data->pogo_ovp_en = of_get_named_gpio_flags(node, "max77759,pogo-ovp-en", 0,
-							       &flags);
-		if (uc_data->pogo_ovp_en >= 0)
-			uc_data->pogo_ovp_en_act_low = (flags & OF_GPIO_ACTIVE_LOW) ? 1 : 0;
-	}
+	if (uc_data->pogo_ovp_en == -EPROBE_DEFER)
+		uc_data->pogo_ovp_en = of_get_named_gpio(node, "max77759,pogo-ovp-en", 0);
 	if (uc_data->pogo_vout_en == -EPROBE_DEFER) {
 		uc_data->pogo_vout_en = of_get_named_gpio(node, "max77759,pogo-vout-sw-en", 0);
 
