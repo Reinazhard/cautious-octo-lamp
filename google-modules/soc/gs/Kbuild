@@ -2,7 +2,10 @@
 
 subdir-ccflags-y += \
 		-I$(srctree)/$(src)/include \
+		-I$(srctree)/google-modules/soc/gs/include \
 		-I$(srctree)/$(src)/include/uapi \
+		-I$(srctree)/google-modules/trusty/include \
+		-I$(srctree)/google-modules/bms \
 
 obj-y += drivers/phy/
 
