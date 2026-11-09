@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 
-ccflags-y += -I$(srctree)/$(src)/../cal_common
+ccflags-y += -I$(srctree)/google-modules/display/samsung/cal_common
+ccflags-y += -I$(srctree)/google-modules/display/samsung/include/uapi
+ccflags-y += -I$(srctree)/google-modules/display/samsung
+ccflags-y += -I$(srctree)/google-modules/display/common/include
 include $(srctree)/google-modules/soc/gs/Makefile.include
 
 obj-$(CONFIG_DRM_PANEL_GOOGLE_COMMON)		+= panel-common.o

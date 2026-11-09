@@ -762,8 +762,7 @@ int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_commit *state
 	 * cleanup. We want them to overlap, hence need system_unbound_wq to
 	 * make sure work items don't artificially stall on each another.
 	 */
-
-	drm_atomic_state_get(state);
+	drm_atomic_commit_get(state);
 	if (!nonblock)
 		commit_tail(state);
 	else
@@ -1047,7 +1046,6 @@ static struct drm_driver exynos_drm_driver = {
 	.fops			   = &exynos_drm_driver_fops,
 	.name			   = DRIVER_NAME,
 	.desc			   = DRIVER_DESC,
-	.date			   = DRIVER_DATE,
 	.major			   = DRIVER_MAJOR,
 	.minor			   = DRIVER_MINOR,
 };

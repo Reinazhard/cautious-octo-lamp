@@ -9,9 +9,11 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/debugfs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/fb.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
@@ -276,8 +278,7 @@ static int exynos_panel_parse_gpios(struct exynos_panel *ctx)
 	if (IS_ERR(ctx->vddd_gpio))
 		ctx->vddd_gpio = NULL;
 
-	ctx->ready_signal.gpio = of_get_named_gpio_flags(dev->of_node, "rdy-gpios", 0,
-							 &ctx->ready_signal.gpio_flags);
+	ctx->ready_signal.gpio = of_get_named_gpio(dev->of_node, "rdy-gpios", 0);
 
 	dev_dbg(ctx->dev, "%s -\n", __func__);
 	return 0;
@@ -566,7 +567,7 @@ static int exynos_panel_wait_ready(struct exynos_panel *ctx)
 	enable_irq(ctx->ready_signal.irq);
 
 	/* expected ready pin active value */
-	rdy_active_val = (ctx->ready_signal.gpio_flags & OF_GPIO_ACTIVE_LOW) == 0;
+	rdy_active_val = of_property_read_bool(ctx->dev->of_node, "rdy-active-high");
 	timeout_ms = (ctx->desc && ctx->desc->rdy_timeout_ms) ? ctx->desc->rdy_timeout_ms :
 								PANEL_READY_TIMEOUT_MS;
 
@@ -908,9 +909,9 @@ static int exynos_panel_register_irqs(struct exynos_panel *ctx)
 		irq = ret;
 		irq_set_status_flags(irq, IRQ_DISABLE_UNLAZY);
 		ret = devm_request_irq(ctx->dev, irq, panel_rdy_irq_handler,
-				       (ctx->ready_signal.gpio_flags & OF_GPIO_ACTIVE_LOW ?
-						IRQF_TRIGGER_FALLING :
-						IRQF_TRIGGER_RISING),
+				       (of_property_read_bool(ctx->dev->of_node, "rdy-active-high") ?
+						IRQF_TRIGGER_RISING :
+						IRQF_TRIGGER_FALLING),
 				       pdev->name, ctx);
 		if (ret) {
 			dev_err(ctx->dev, "Request rdy irq number(%d) failed: %d\n", irq, ret);
@@ -920,7 +921,7 @@ static int exynos_panel_register_irqs(struct exynos_panel *ctx)
 
 		ctx->ready_signal.irq = irq;
 		dev_info(ctx->dev, "Request rdy irq number(%d) okay (%sING_TRIGGER)\n", irq,
-			 (ctx->ready_signal.gpio_flags & OF_GPIO_ACTIVE_LOW ? "FALL" : "RIS"));
+			 (of_property_read_bool(ctx->dev->of_node, "rdy-active-high") ? "RIS" : "FALL"));
 	} else {
 		/* Panel doesn't have the ready pin */
 		ctx->ready_signal.irq = -ENOENT;
@@ -4119,7 +4120,7 @@ static void exynos_panel_node_attach(struct exynos_drm_connector *exynos_connect
 }
 
 static int exynos_panel_bridge_attach(struct drm_bridge *bridge,
-				      enum drm_bridge_attach_flags flags)
+				      struct drm_encoder *encoder, enum drm_bridge_attach_flags flags)
 {
 	struct drm_device *dev = bridge->dev;
 	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
@@ -4163,7 +4164,7 @@ static void exynos_panel_bridge_detach(struct drm_bridge *bridge)
 }
 
 static void exynos_panel_bridge_enable(struct drm_bridge *bridge,
-				       struct drm_bridge_state *old_bridge_state)
+				       struct drm_atomic_commit *state)
 {
 	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
 	struct dsim_device *dsim = host_to_dsi(to_mipi_dsi_device(ctx->dev)->host);
@@ -4401,7 +4402,7 @@ static int exynos_panel_bridge_atomic_check(struct drm_bridge *bridge,
 }
 
 static void exynos_panel_bridge_pre_enable(struct drm_bridge *bridge,
-					   struct drm_bridge_state *old_bridge_state)
+					   struct drm_atomic_commit *state)
 {
 	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
 
@@ -4416,7 +4417,7 @@ static void exynos_panel_bridge_pre_enable(struct drm_bridge *bridge,
 }
 
 static void exynos_panel_bridge_disable(struct drm_bridge *bridge,
-					struct drm_bridge_state *old_bridge_state)
+					struct drm_atomic_commit *state)
 {
 	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
 	const struct drm_connector_state *conn_state = ctx->exynos_connector.base.state;
@@ -4480,7 +4481,7 @@ static void exynos_panel_bridge_disable(struct drm_bridge *bridge,
 }
 
 static void exynos_panel_bridge_post_disable(struct drm_bridge *bridge,
-					     struct drm_bridge_state *old_bridge_state)
+					     struct drm_atomic_commit *state)
 {
 	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
 
@@ -5314,7 +5315,6 @@ static const struct drm_bridge_funcs exynos_panel_bridge_funcs = {
 	.atomic_post_disable = exynos_panel_bridge_post_disable,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
 	.mode_set = exynos_panel_bridge_mode_set,
 };
 

@@ -18,6 +18,7 @@
 #include <linux/dma/dma-pl330.h>
 #include <linux/extcon-provider.h>
 #include <linux/sysfs.h>
+#include <linux/vmalloc.h>
 
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
@@ -180,14 +181,19 @@ out:
 	return vaddr;
 }
 
-static int __init dp_ado_rmem_setup(struct reserved_mem *rmem)
+static int __init dp_ado_rmem_setup(unsigned long node,
+				    struct reserved_mem *rmem)
 {
 	pr_info("%s: base=%pa, size=%pa\n", __func__, &rmem->base, &rmem->size);
 	dp_ado_rmem = rmem;
 	return 0;
 }
 
-RESERVEDMEM_OF_DECLARE(dp_ado_rmem, "exynos,dp_ado_rmem", dp_ado_rmem_setup);
+static const struct reserved_mem_ops dp_ado_rmem_ops = {
+	.node_init = dp_ado_rmem_setup,
+};
+
+RESERVEDMEM_OF_DECLARE(dp_ado_rmem, "exynos,dp_ado_rmem", &dp_ado_rmem_ops);
 
 #if !IS_ENABLED(CONFIG_SWITCH) && !IS_ENABLED(CONFIG_EXTCON)
 #error "need to select SWITCH or EXTCON"
@@ -384,7 +390,7 @@ static int dma_hw_params(struct snd_soc_component *component,
 	int burst_len;
 	struct samsung_dma_req req;
 	struct samsung_dma_config config;
-	struct snd_soc_dai *dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct dp_audio_pdata *pdata;
 	struct device *dev = component->dev;
 	int dai_id = remap_dai_id(dev, dai->id);
@@ -853,7 +859,7 @@ static int dma_new(struct snd_soc_component *component, struct snd_soc_pcm_runti
 static int dp_ado_hw_params_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct device *dev = cmpnt->dev;
 	struct dp_audio_pdata *pdata = dev_get_drvdata(dev);
 	struct soc_mixer_control *mc =
@@ -911,7 +917,7 @@ static const struct snd_soc_component_driver dp_dma_cmpnt_drv = {
 	.controls		= dp_ado_controls,
 	.num_controls		= ARRAY_SIZE(dp_ado_controls),
 	.pcm_new		= dma_new,
-	.pcm_destruct		= dma_free_dma_buffers,
+	.pcm_free		= dma_free_dma_buffers,
 	.open			= dma_open,
 	.close			= dma_close,
 	.ioctl			= dma_ioctl,

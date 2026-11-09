@@ -15,6 +15,9 @@
 #include <linux/of_gpio.h>
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#include <linux/hex.h>
+#include <linux/fb.h>
 #include <linux/version.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_probe_helper.h>
@@ -1502,7 +1505,7 @@ int gs_panel_allocate_color_data(struct gs_panel *ctx, enum color_data_type opti
 	} else if (option > COLOR_DATA_TYPE_MAX) {
 		mutex_lock(&ctx->mode_lock);
 		ctx->color_data.size = 0;
-		ctx->color_data.ready = FALSE;
+		ctx->color_data.ready = false;
 		kfree(ctx->color_data.data);
 		ctx->color_data.data = NULL;
 		mutex_unlock(&ctx->mode_lock);

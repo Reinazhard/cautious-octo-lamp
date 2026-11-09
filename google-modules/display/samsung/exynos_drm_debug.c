@@ -11,6 +11,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/vmalloc.h>
 #include <linux/console.h>
 #include <linux/debugfs.h>
 #include <linux/moduleparam.h>

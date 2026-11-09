@@ -628,7 +628,7 @@ static int _decon_handover_check(struct exynos_drm_crtc *exynos_crtc,
 	bool found_handover_dpp = false;
 
 	if (exynos_crtc_state->planes_updated) {
-		drm_info(decon, "%s: planes updated on commit, skipping handover\n", __func__);
+		drm_info(decon->drm_dev, "%s: planes updated on commit, skipping handover\n", __func__);
 		return 0;
 	}
 
@@ -663,12 +663,12 @@ static int _decon_handover_check(struct exynos_drm_crtc *exynos_crtc,
 	decon_debug(decon, "%s: final win_mask=0x%lx\n", __func__, win_mask);
 
 	if (!win_mask) {
-		drm_warn(decon, "%s: handover memory defined, but no windows attached\n", __func__);
+		drm_warn(decon->drm_dev, "%s: handover memory defined, but no windows attached\n", __func__);
 		return -ENOENT;
 	}
 
 	if (!found_handover_dpp) {
-		drm_warn(decon, "%s: handover memory defined, but cannot find handover dpp\n",
+		drm_warn(decon->drm_dev, "%s: handover memory defined, but cannot find handover dpp\n",
 				__func__);
 		return -EBUSY;
 	}
@@ -1075,7 +1075,7 @@ static void decon_wait_earliest_process_time(
 		}
 		DPU_ATRACE_BEGIN("wait for earliest present time (vsync:%d, delay %dus)", te_freq,
 				 delay_until_process);
-		usleep_idle_range(delay_until_process, delay_until_process + 10);
+		usleep_range(delay_until_process, delay_until_process + 10);
 		DPU_ATRACE_END("wait for earliest process time");
 
 		if (ktime_to_us(ktime_sub(expected_present_time, ktime_get())) <
@@ -1893,9 +1893,11 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.wait_for_flip_done = decon_wait_for_flip_done,
 };
 
-static int dpu_sysmmu_fault_handler(struct iommu_fault *fault, void *data)
+static int dpu_sysmmu_fault_handler(struct iommu_domain *domain,
+				    struct device *dev, unsigned long iova,
+				    int flags, void *token)
 {
-	struct decon_device *decon = data;
+	struct decon_device *decon = token;
 
 	if (!decon || !decon_is_effectively_active(decon))
 		return 0;
@@ -1946,6 +1948,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct exynos_drm_private *priv = drm_to_exynos_dev(drm_dev);
 	struct drm_plane *default_plane;
+	struct iommu_domain *domain;
 	int i;
 	int ret;
 	char symlink_name_buffer[7];
@@ -2033,7 +2036,7 @@ static void decon_unbind(struct device *dev, struct device *master,
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 	itmon_notifier_chain_unregister(&decon->itmon_nb);
 #endif
-	iommu_unregister_device_fault_handler(dev);
+	
 
 	decon_debug(decon, "%s -\n", __func__);
 }
@@ -2146,8 +2149,6 @@ static irqreturn_t decon_fs_irq_handler(int irq, void *dev_data)
 static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 {
 	struct device_node *dpp_np = NULL;
-	struct property *prop;
-	const __be32 *cur;
 	u32 val;
 	int ret = 0, i, count;
 	int dpp_id;
@@ -2410,7 +2411,7 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 	if (dpp_np)
 		of_node_put(dpp_np);
 
-	of_property_for_each_u32(np, "connector", prop, cur, val)
+	of_property_for_each_u32(np, "connector", val)
 		decon->con_type |= val;
 
 	return 0;

@@ -7,11 +7,15 @@ subdir-ccflags-y += -I$(srctree)/$(src)/../common/include
 subdir-ccflags-y += -I$(srctree)/$(src)/include/uapi
 subdir-ccflags-y += -I$(ROOT_DIR)/private/google-modules/bms
 
-ccflags-y += -I$(srctree)/$(src)/cal_common
+ccflags-y += -I$(srctree)/google-modules/display/samsung/cal_common
+ccflags-y += -I$(srctree)/google-modules/display/samsung/include/uapi
+ccflags-y += -I$(srctree)/google-modules/display/common/include
+ccflags-y += -I$(srctree)/google-modules/soc/gs/include
+ccflags-y += -I$(srctree)/google-modules/aoc/alsa
 ccflags-$(CONFIG_SOC_ZUMA) += -DCONFIG_DRM_LEGACY=1
 
 ifneq ($(filter y, $(CONFIG_SOC_GS101) $(CONFIG_SOC_GS201)),)
-ccflags-y += -I$(srctree)/$(src)/cal_9845
+ccflags-y += -I$(srctree)/google-modules/display/samsung/cal_9845
 exynos-drm-y += cal_9845/decon_reg.o
 exynos-drm-y += cal_9845/dsim_reg.o
 exynos-drm-y += cal_9845/dpp_reg.o

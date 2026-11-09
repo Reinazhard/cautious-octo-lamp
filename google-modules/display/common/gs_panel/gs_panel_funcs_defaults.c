@@ -9,6 +9,7 @@
 #include <drm/drm_modes.h>
 
 #include <linux/delay.h>
+#include <linux/hex.h>
 
 #include <linux/delay.h>
 
