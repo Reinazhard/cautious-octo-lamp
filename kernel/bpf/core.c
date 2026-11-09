@@ -3200,7 +3200,7 @@ static const struct bpf_func_proto bpf_trace_printk_dummy_proto = {
 	.gpl_only	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_MEM,
-	.arg2_type	= ARG_CONST_SIZE,
+	.arg2_type	= ARG_MEM_SIZE,
 };
 
 const struct bpf_func_proto * __weak bpf_get_trace_printk_proto(void)
