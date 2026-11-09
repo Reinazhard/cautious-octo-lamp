@@ -3,6 +3,8 @@
 # Makefile for Cirrus Logic haptic driver.
 #
 
+ccflags-y += -I$(src)/include -I$(srctree)/google-modules/soc/gs/include
+
 cl_dsp-core-objs := cl_dsp.o cl_dsp-debugfs.o
 cs40l26-core-objs := cs40l26.o cs40l26-tables.o cs40l26-sysfs.o cs40l26-debugfs.o
 snd-soc-cs40l26-objs := cs40l26-codec.o

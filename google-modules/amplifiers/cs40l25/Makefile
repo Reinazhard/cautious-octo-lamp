@@ -1,4 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
+
+ccflags-y += -I$(src)/include
+
 #
 # Makefile for misc devices that really don't fit anywhere else.
 #
@@ -13,8 +16,7 @@ M ?= $(shell pwd)
 CUSTOM_INCLUDE ?= -I$(srctree)/$(src)/include/
 
 KBUILD_OPTIONS += CONFIG_HAPTICS_CS40L2X=m \
-		  CONFIG_SND_SOC_CS40L2X=m \
-		  ccflags-y='$(CUSTOM_INCLUDE)'
+		  CONFIG_SND_SOC_CS40L2X=m
 
 modules modules_install clean compile_commands.json:
 	$(MAKE) -C $(KERNEL_SRC) M=$(M) $(KBUILD_OPTIONS) W=1 $(@)

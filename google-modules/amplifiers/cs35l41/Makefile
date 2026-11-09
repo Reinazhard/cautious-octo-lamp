@@ -1,4 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
+
+ccflags-y += -I$(src)/include -I$(srctree)/google-modules/amplifiers/snd_soc_wm_adsp
+
 snd-soc-cs35l41-objs := cs35l41.o cs35l41-tables.o
 snd-soc-cs35l41-spi-objs := cs35l41-spi.o
 snd-soc-cs35l41-i2c-objs := cs35l41-i2c.o
