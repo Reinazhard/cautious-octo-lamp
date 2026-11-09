@@ -550,6 +550,14 @@ int pmic_write(int pmic, struct bcl_device *bcl_dev, u8 reg, u8 value);
 int pmic_read(int pmic, struct bcl_device *bcl_dev, u8 reg, u8 *value);
 int meter_write(int pmic, struct bcl_device *bcl_dev, u8 reg, u8 value);
 int meter_read(int pmic, struct bcl_device *bcl_dev, u8 reg, u8 *value);
+void update_irq_end_times(struct bcl_device *bcl_dev, int id);
+void update_irq_start_times(struct bcl_device *bcl_dev, int id);
+void pwrwarn_update_start_time(struct bcl_device *bcl_dev,
+			       int id, struct irq_duration_stats *bins,
+			       bool *pwr_warn_triggered,
+			       enum CONCURRENT_PWRWARN_IRQ bin_ind);
+void pwrwarn_update_end_time(struct bcl_device *bcl_dev, int id, struct irq_duration_stats *bins, enum CONCURRENT_PWRWARN_IRQ bin_ind);
+void trace_bcl_zone_stats(struct bcl_zone *zone, int value);
 u64 settings_to_current(struct bcl_device *bcl_dev, int pmic, int idx, u32 setting);
 void google_bcl_qos_update(struct bcl_zone *triggered_zone, bool throttle);
 int google_bcl_setup_qos(struct bcl_device *bcl_dev);
