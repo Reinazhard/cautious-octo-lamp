@@ -17,24 +17,6 @@
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
 #
-
-# make $(src) as absolute path if it is not already, by prefixing $(srctree) or $(srcroot)
-# depending on Kernel Version (use srctree for < 6.13). This is to prevent any build issue
-# due to wrong path.
-ifeq ($(shell expr $(VERSION) \>= 6), 1)
-    ifeq ($(VERSION), 6)
-        ifeq ($(shell expr $(PATCHLEVEL) \< 13), 1)
-            src:=$(if $(patsubst /%,,$(src)),$(srctree)/$(src),$(src))
-        else
-            src:=$(if $(patsubst /%,,$(src)),$(realpath $(srcroot))/$(src),$(src))
-        endif
-    else
-        src:=$(if $(patsubst /%,,$(src)),$(realpath $(srcroot))/$(src),$(src))
-    endif
-else
-    src:=$(if $(patsubst /%,,$(src)),$(srctree)/$(src),$(src))
-endif
-
 #
 # Prevent misuse when Kernel configurations are not present by default
 # in out-of-tree builds
