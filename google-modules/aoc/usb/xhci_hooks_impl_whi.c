@@ -313,7 +313,7 @@ free_data:
 
 static int usb_audio_offload_setup(struct xhci_hcd *xhci)
 {
-	if (!xhci->dcbaa->dma) {
+	if (!xhci->dcbaa.dma) {
 		xhci_err(xhci, "dma is null!\n");
 		return -ENOMEM;
 	}
