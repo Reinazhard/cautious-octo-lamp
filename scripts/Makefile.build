@@ -66,7 +66,7 @@ ifneq ($(old-kbuild-options),$(KBUILD_OPTIONS))
 # Reprocess the current directory with KBUILD_OPTIONS passed to make. This
 # Makefile is thus processed twice. Make sure to preserve the original values of
 # need-builtin and need-modorder for the next make invocation.
-subdir-ym := $(src)
+subdir-ym := $(obj)
 ifeq ($(need-builtin),1)
 subdir-builtin := $(subdir-ym)/built-in.a
 endif
