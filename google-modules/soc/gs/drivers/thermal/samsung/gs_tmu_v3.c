@@ -1056,7 +1056,7 @@ static void gs_tmu_control(struct platform_device *pdev, bool on)
 
 static int gs_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct gs_tmu_data *data = tz->devdata;
+	struct gs_tmu_data *data = thermal_zone_device_priv(tz);
 #if IS_ENABLED(CONFIG_EXYNOS_MCINFO)
 	unsigned int mcinfo_count;
 	unsigned int mcinfo_result[4] = {0, 0, 0, 0};
@@ -1145,7 +1145,7 @@ static int gs_get_temp(struct thermal_zone_device *tz, int *temp)
 static int gs_get_trend(struct thermal_zone_device *tz, int trip,
 			enum thermal_trend *trend)
 {
-	struct gs_tmu_data *data = tz->devdata;
+	struct gs_tmu_data *data = thermal_zone_device_priv(tz);
 	int trip_temp, ret = 0;
 
 	if (!tz)
@@ -1170,7 +1170,7 @@ static int gs_get_trend(struct thermal_zone_device *tz, int trip,
 static int gs_tmu_set_trip_temp(struct thermal_zone_device *tz, int trip,
 				int temp)
 {
-	struct gs_tmu_data *data = tz->devdata;
+	struct gs_tmu_data *data = thermal_zone_device_priv(tz);
 	enum thermal_trip_type type;
 	int i, trip_temp, ret = 0;
 	unsigned char threshold[8] = {0, };
@@ -1226,7 +1226,7 @@ static int gs_tmu_set_trip_temp(struct thermal_zone_device *tz, int trip,
 #if IS_ENABLED(CONFIG_THERMAL_EMULATION)
 static int gs_tmu_set_emulation(struct thermal_zone_device *tz, int temp)
 {
-	struct gs_tmu_data *data = tz->devdata;
+	struct gs_tmu_data *data = thermal_zone_device_priv(tz);
 	int ret = -EINVAL;
 	unsigned char emul_temp;
 
