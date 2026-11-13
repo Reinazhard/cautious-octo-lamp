@@ -1142,6 +1142,20 @@ static int gs_get_temp(struct thermal_zone_device *tz, int *temp)
 	return 0;
 }
 
+/*
+ * Differs from the core thermal_zone_get_trip() method as it does not hold the
+ * thermal zone lock when getting the trip point, and returns a constant
+ * pointer instead of copying the trip values.
+ */
+static const struct thermal_trip *
+gs_thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id)
+{
+	if (!tz || trip_id < 0 || trip_id >= tz->num_trips)
+		return ERR_PTR(-EINVAL);
+
+	return &tz->trips[trip_id].trip;
+}
+
 static int gs_get_trend(struct thermal_zone_device *tz, int trip,
 			enum thermal_trend *trend)
 {
