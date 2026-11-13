@@ -1000,30 +1000,20 @@ static int gs_tmu_initialize(struct platform_device *pdev)
 	mutex_lock(&data->lock);
 
 	for (i = (tz->num_trips - 1); i >= 0; i--) {
-		ret = tz->ops.get_trip_type(tz, i, &type);
-		if (ret) {
-			dev_err(&pdev->dev, "Failed to get trip type(%d)\n", i);
-			goto out;
-		}
+		const struct thermal_trip *trip = gs_thermal_zone_get_trip(tz, i);
 
-		ret = tz->ops.get_trip_temp(tz, i, &temp);
-		if (ret) {
-			dev_err(&pdev->dev, "Failed to get trip temp(%d)\n", i);
+		if (IS_ERR(trip))
 			goto out;
-		}
+
+		type = trip->type;
+		temp = trip->temperature;
 
 		threshold[i] = (unsigned char)(temp / MCELSIUS);
 		if (type == THERMAL_TRIP_PASSIVE)
 			continue;
 		inten |= (1 << i);
 
-		ret = tz->ops.get_trip_hyst(tz, i, &temp);
-		if (ret) {
-			dev_err(&pdev->dev, "Failed to get trip hyst(%d)\n", i);
-			goto out;
-		}
-
-		hysteresis[i] = (unsigned char)(temp / MCELSIUS);
+		hysteresis[i] = (unsigned char)(trip->hysteresis / MCELSIUS);
 	}
 
 	ret = gs_tmu_tz_config_init(pdev);
