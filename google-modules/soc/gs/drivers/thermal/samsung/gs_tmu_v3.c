@@ -1248,13 +1248,12 @@ static void get_control_trips(struct gs_tmu_data *data)
 		enum thermal_trip_type type;
 		int ret;
 
-		ret = tz->ops.get_trip_type(tz, i, &type);
-		if (ret) {
-			dev_warn(&tz->device,
-				 "Failed to get trip point %d type: %d\n", i,
-				 ret);
+		const struct thermal_trip *trip = gs_thermal_zone_get_trip(tz, i);
+
+		if (IS_ERR(trip))
 			continue;
-		}
+
+		type = trip->type;
 
 		if (type == THERMAL_TRIP_PASSIVE) {
 			if (!found_first_passive) {
@@ -1453,9 +1452,10 @@ static void gs_pi_thermal(struct gs_tmu_data *data)
 
 	mutex_lock(&data->lock);
 
-	ret = tz->ops.get_trip_temp(tz, data->trip_switch_on,
-				     &switch_on_temp);
-	if (!ret && tz->temperature < switch_on_temp) {
+	const struct thermal_trip *sw_trip =
+		gs_thermal_zone_get_trip(tz, data->trip_switch_on);
+
+	if (!IS_ERR(sw_trip) && tz->temperature < sw_trip->temperature) {
 		reset_pi_params(data);
 		allow_maximum_power(data);
 		params->switched_on = false;
@@ -1464,15 +1464,13 @@ static void gs_pi_thermal(struct gs_tmu_data *data)
 
 	params->switched_on = true;
 
-	ret = tz->ops.get_trip_temp(tz, data->trip_control_temp,
-				     &control_temp);
-	if (ret) {
-		pr_warn("Failed to get the maximum desired temperature: %d\n",
-			ret);
-		goto polling;
-	}
+	const struct thermal_trip *ct_trip =
+		gs_thermal_zone_get_trip(tz, data->trip_control_temp);
 
-	ret = gs_pi_controller(data, control_temp);
+	if (IS_ERR(ct_trip))
+		goto polling;
+
+	ret = gs_pi_controller(data, ct_trip->temperature);
 
 	if (ret) {
 		pr_debug("Failed to calculate pi controller: %d\n",
@@ -2563,13 +2561,12 @@ static ssize_t offset_enabled_store(struct device *dev,
 		if (data->junction_offset[i] == 0)
 			continue;
 
-		ret = tz->ops.get_trip_temp(tz, i, &trip_temp);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"Failed to get trip_temp_%d on %s\n",
-				i, tz->type);
+		const struct thermal_trip *trip = gs_thermal_zone_get_trip(tz, i);
+
+		if (IS_ERR(trip))
 			goto unlock;
-		}
+
+		trip_temp = trip->temperature;
 
 		if (data->is_offset_enabled) {
 			new_trip_temp = trip_temp + data->junction_offset[i];
