@@ -2575,7 +2575,8 @@ static ssize_t offset_enabled_store(struct device *dev,
 		}
 		dev_dbg(&pdev->dev, "trip_temp_%d change from %d to %d\n",
 			i, trip_temp, new_trip_temp);
-		ret = tz->ops.set_trip_temp(tz, i, new_trip_temp);
+		ret = tz->ops.set_trip_temp(tz, gs_thermal_zone_get_trip(tz, i),
+				      new_trip_temp);
 
 		// 6.1 moved set_trip_temp to sysfs, this is to address b/315931658
 		if (tz->trips)
@@ -5165,7 +5166,8 @@ static int gs_tmu_parse_ect(struct gs_tmu_data *data)
 			temperature = function->range_list[i].lower_bound_temperature;
 			freq = function->range_list[i].max_frequency;
 
-			tz->ops.set_trip_temp(tz, i, temperature  * MCELSIUS);
+			tz->ops.set_trip_temp(tz, gs_thermal_zone_get_trip(tz, i),
+					      temperature  * MCELSIUS);
 
 			pr_info("Parsed From ECT : [%d] Temperature : %d, frequency : %u\n",
 				i, temperature, freq);
@@ -5228,7 +5230,8 @@ static int gs_tmu_parse_ect(struct gs_tmu_data *data)
 		for (i = 0; i < pidtm_block->num_of_temperature; ++i) {
 			temperature = pidtm_block->temperature_list[i];
 
-			tz->ops.set_trip_temp(tz, i, temperature  * MCELSIUS);
+			tz->ops.set_trip_temp(tz, gs_thermal_zone_get_trip(tz, i),
+					      temperature  * MCELSIUS);
 
 			pr_info("Parsed From ECT : [%d] Temperature : %d\n", i, temperature);
 		}
@@ -5305,7 +5308,8 @@ static int gs_tmu_parse_ect(struct gs_tmu_data *data)
 		if (value != -1) {
 			pr_info("Parse from ECT limited_threshold: %d\n", value);
 			limited_threshold = value * MCELSIUS;
-			tz->ops.set_trip_temp(tz, 3, temperature  * MCELSIUS);
+			tz->ops.set_trip_temp(tz, gs_thermal_zone_get_trip(tz, 3),
+				      temperature  * MCELSIUS);
 			data->limited_threshold = value;
 		}
 
