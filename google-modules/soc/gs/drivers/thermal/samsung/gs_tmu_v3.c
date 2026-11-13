@@ -5699,7 +5699,7 @@ static int gs_tmu_probe(struct platform_device *pdev)
 	/* Register a cooling device to fetch the Tj throttling request. */
 	scnprintf(cdev_buf, THERMAL_NAME_LENGTH, "%s-tj", data->tmu_name);
 	devm_thermal_of_cooling_device_register(
-			&pdev->dev, pdev->dev.of_node, cdev_buf, data,
+			&pdev->dev, 0, cdev_buf, data,
 			&tmu_tj_cooling_ops);
 
 	for_each_cpu(cpu, &data->mapped_cpus)
