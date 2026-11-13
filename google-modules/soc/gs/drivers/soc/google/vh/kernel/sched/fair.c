@@ -12,7 +12,7 @@
 #include <kernel/sched/sched.h>
 #include <kernel/sched/pelt.h>
 #include <linux/moduleparam.h>
-#include <trace/events/power.h>
+#include <trace/events/clock.h>
 #include <trace/hooks/systrace.h>
 #include <uapi/linux/sched/types.h>
 

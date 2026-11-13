@@ -20,7 +20,7 @@
 #include <linux/device.h>
 #include <linux/sched/clock.h>
 #include <linux/sched/cputime.h>
-#include <trace/events/power.h>
+#include <trace/events/clock.h>
 #include <trace/events/irq.h>
 #include <trace/hooks/suspend.h>
 #include <trace/hooks/sched.h>

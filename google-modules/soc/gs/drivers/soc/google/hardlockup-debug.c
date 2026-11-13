@@ -24,6 +24,7 @@
 #include <linux/sched/task.h>
 #include <trace/hooks/cpuidle.h>
 #include <trace/events/power.h>
+#include <trace/events/clock.h>
 
 #include <asm/memory.h>
 #include <asm/bug.h>

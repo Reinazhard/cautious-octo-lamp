@@ -22,6 +22,7 @@
 #include "debug-snapshot-local.h"
 
 #include <trace/events/power.h>
+#include <trace/events/clock.h>
 #include <trace/events/sched.h>
 #include <trace/events/workqueue.h>
 

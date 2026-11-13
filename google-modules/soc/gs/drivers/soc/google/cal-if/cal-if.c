@@ -15,7 +15,7 @@
 #endif
 
 #include <soc/google/pwrcal-env.h>
-#include <trace/events/power.h>
+#include <trace/events/clock.h>
 
 
 #include "pwrcal-rae.h"
