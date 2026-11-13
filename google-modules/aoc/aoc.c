@@ -1699,8 +1699,8 @@ void trigger_aoc_ssr(bool ap_triggered_reset, char *reset_reason) {
 		} else {
 			configure_crash_interrupts(prvdata, false);
 			if (ap_triggered_reset) {
-				strlcpy(prvdata->ap_reset_reason, reset_reason,
-					AP_RESET_REASON_LENGTH);
+				strscpy(prvdata->ap_reset_reason, reset_reason,
+					sizeof(prvdata->ap_reset_reason));
 				prvdata->ap_triggered_reset = true;
 			}
 			schedule_work(&prvdata->watchdog_work);
