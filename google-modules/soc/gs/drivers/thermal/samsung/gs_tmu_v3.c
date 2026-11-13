@@ -1146,18 +1146,17 @@ gs_thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id)
 	return &tz->trips[trip_id].trip;
 }
 
-static int gs_get_trend(struct thermal_zone_device *tz, int trip,
+static int gs_get_trend(struct thermal_zone_device *tz,
+			const struct thermal_trip *trip,
 			enum thermal_trend *trend)
 {
 	struct gs_tmu_data *data = thermal_zone_device_priv(tz);
-	int trip_temp, ret = 0;
+	int trip_temp;
 
-	if (!tz)
-		return ret;
+	if (!tz || !trip)
+		return 0;
 
-	ret = tz->ops.get_trip_temp(tz, trip, &trip_temp);
-	if (ret < 0)
-		return ret;
+	trip_temp = trip->temperature;
 
 	if (data->use_pi_thermal) {
 		*trend = THERMAL_TREND_STABLE;
