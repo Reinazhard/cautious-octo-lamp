@@ -1170,60 +1170,37 @@ static int gs_get_trend(struct thermal_zone_device *tz,
 	return 0;
 }
 
-static int gs_tmu_set_trip_temp(struct thermal_zone_device *tz, int trip,
-				int temp)
+static int gs_tmu_set_trip_temp(struct thermal_zone_device *tz,
+				const struct thermal_trip *trip, int temp)
 {
 	struct gs_tmu_data *data = thermal_zone_device_priv(tz);
-	enum thermal_trip_type type;
-	int i, trip_temp, ret = 0;
+	int i;
 	unsigned char threshold[8] = {0, };
+	const struct thermal_trip *tmp;
 
-	ret = tz->ops.get_trip_type(tz, trip, &type);
-	if (ret) {
-		pr_err("Failed to get trip type(%d)\n", trip);
-		return ret;
+	if (trip->type == THERMAL_TRIP_PASSIVE)
+		return 0;
+
+	/* Rebuild all thresholds, replacing the target trip's temperature. */
+	for (i = 0; i < tz->num_trips; i++) {
+		tmp = gs_thermal_zone_get_trip(tz, i);
+		if (IS_ERR(tmp))
+			continue;
+		threshold[i] = (unsigned char)((tmp == trip ? temp
+						: tmp->temperature) / MCELSIUS);
 	}
 
-	for (i = (tz->num_trips - 1); i >= 0; i--) {
-		ret = tz->ops.get_trip_type(tz, i, &type);
-		if (ret) {
-			pr_err("Failed to get trip type(%d)\n", i);
-			return ret;
-		}
-
-
-		ret = tz->ops.get_trip_temp(tz, i, &trip_temp);
-		if (ret) {
-			pr_err("Failed to get trip temp(%d)\n", i);
-			return ret;
-		}
-		if (i == trip)
-			threshold[trip] = (unsigned char)(temp / MCELSIUS);
-		else
-			threshold[i] = (unsigned char)(trip_temp / MCELSIUS);
-	}
 	mutex_lock(&data->lock);
 	if (data->enabled) {
-		bool acpm_trip_ctrl_available = true;
-
-		if (exynos_acpm_tmu_tz_trip_control(data->id, false)) {
-			/* backwards compatibility with older bootloader */
-			exynos_acpm_tmu_tz_control(data->id, false);
-			acpm_trip_ctrl_available = false;
-		}
-
+		exynos_acpm_tmu_tz_control(data->id, false);
 		exynos_acpm_tmu_set_threshold(data->id, threshold);
-
-		if (acpm_trip_ctrl_available)
-			exynos_acpm_tmu_tz_trip_control(data->id, true);
-		else
-			exynos_acpm_tmu_tz_control(data->id, true);
+		exynos_acpm_tmu_tz_control(data->id, true);
 	} else {
 		exynos_acpm_tmu_set_threshold(data->id, threshold);
 	}
 	mutex_unlock(&data->lock);
 
-	return ret;
+	return 0;
 }
 
 #if IS_ENABLED(CONFIG_THERMAL_EMULATION)
