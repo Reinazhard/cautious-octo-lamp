@@ -581,13 +581,13 @@ static inline bool is_console_enabled(void)
 	return exynos_uart_console_enabled();
 }
 void decon_enable_te_irq(struct decon_device *decon, bool enable);
+void decon_enable_tout_irq(struct decon_device *decon, bool enable);
 #ifdef CONFIG_DEBUG_FS
 bool decon_dump_ignore(enum dpu_event_condition condition);
 void decon_dump(struct decon_device *decon, struct drm_printer *p);
 void decon_dump_locked(const struct decon_device *decon, struct drm_printer *p);
 void decon_dump_all(struct decon_device *decon,
 		enum dpu_event_condition cond, bool async_buf_dump);
-void decon_enable_tout_irq(struct decon_device *decon, bool enable);
 void decon_dump_event_condition(const struct decon_device *decon,
 		enum dpu_event_condition condition);
 int dpu_init_debug(struct decon_device *decon);
