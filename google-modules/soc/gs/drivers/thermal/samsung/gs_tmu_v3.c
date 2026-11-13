@@ -987,6 +987,20 @@ static void gs_report_trigger(struct gs_tmu_data *p)
 	thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 }
 
+/*
+ * Differs from the core thermal_zone_get_trip() method as it does not hold the
+ * thermal zone lock when getting the trip point, and returns a constant
+ * pointer instead of copying the trip values.
+ */
+static const struct thermal_trip *
+gs_thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id)
+{
+	if (!tz || trip_id < 0 || trip_id >= tz->num_trips)
+		return ERR_PTR(-EINVAL);
+
+	return &tz->trips[trip_id].trip;
+}
+
 static int gs_tmu_initialize(struct platform_device *pdev)
 {
 	struct gs_tmu_data *data = platform_get_drvdata(pdev);
@@ -1132,20 +1146,6 @@ static int gs_get_temp(struct thermal_zone_device *tz, int *temp)
 	return 0;
 }
 
-/*
- * Differs from the core thermal_zone_get_trip() method as it does not hold the
- * thermal zone lock when getting the trip point, and returns a constant
- * pointer instead of copying the trip values.
- */
-static const struct thermal_trip *
-gs_thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id)
-{
-	if (!tz || trip_id < 0 || trip_id >= tz->num_trips)
-		return ERR_PTR(-EINVAL);
-
-	return &tz->trips[trip_id].trip;
-}
-
 static int gs_get_trend(struct thermal_zone_device *tz,
 			const struct thermal_trip *trip,
 			enum thermal_trend *trend)
@@ -1246,8 +1246,6 @@ static void get_control_trips(struct gs_tmu_data *data)
 
 	for (i = 0; i < tz->num_trips; i++) {
 		enum thermal_trip_type type;
-		int ret;
-
 		const struct thermal_trip *trip = gs_thermal_zone_get_trip(tz, i);
 
 		if (IS_ERR(trip))
@@ -1292,14 +1290,13 @@ static void allow_maximum_power(struct gs_tmu_data *data)
 {
 	struct thermal_instance *instance;
 	struct thermal_zone_device *tz = data->tzd;
-	int control_temp = data->trip_control_temp;
 
 	mutex_unlock(&data->lock);
 	mutex_lock(&tz->lock);
 	const struct thermal_trip_desc *td =
-		&tz->trips[data->pi_param->trip_control_temp];
+		&tz->trips[data->trip_control_temp];
 	list_for_each_entry(instance, &td->thermal_instances, trip_node) {
-		if (		    (!cdev_is_power_actor(instance->cdev)))
+		if (!cdev_is_power_actor(instance->cdev))
 			continue;
 		if (data->hardlimit_enable && data->is_hardlimited)
 			instance->target = data->max_cdev;
@@ -1387,10 +1384,9 @@ static int gs_pi_controller(struct gs_tmu_data *data, int control_temp)
 	mutex_unlock(&data->lock);
 	mutex_lock(&tz->lock);
 	const struct thermal_trip_desc *td =
-		&tz->trips[data->pi_param->trip_control_temp];
+		&tz->trips[data->trip_control_temp];
 	list_for_each_entry(instance, &td->thermal_instances, trip_node) {
-		if (instance->trip == data->trip_control_temp &&
-		    cdev_is_power_actor(instance->cdev)) {
+		if (cdev_is_power_actor(instance->cdev)) {
 			found_actor = true;
 			cdev = instance->cdev;
 			break;
@@ -1436,7 +1432,7 @@ static void gs_pi_thermal(struct gs_tmu_data *data)
 	struct thermal_zone_device *tz = data->tzd;
 	struct gs_pi_param *params = data->pi_param;
 	int ret = 0;
-	int switch_on_temp, control_temp, delay;
+	int delay;
 
 	if (atomic_read(&gs_tmu_in_suspend))
 		return;
@@ -1773,7 +1769,7 @@ static void gs_throttle_hard_limit(struct kthread_work *work)
 
 	mutex_lock(&tz->lock);
 	const struct thermal_trip_desc *td =
-		&tz->trips[data->pi_param->trip_control_temp];
+		&tz->trips[data->trip_control_temp];
 	list_for_each_entry(instance, &td->thermal_instances, trip_node) {
 		if (!strncmp(data->tmu_name, tz->type, THERMAL_NAME_LENGTH)) {
 			cdev = instance->cdev;
@@ -2584,8 +2580,7 @@ static ssize_t offset_enabled_store(struct device *dev,
 				      new_trip_temp);
 
 		// 6.1 moved set_trip_temp to sysfs, this is to address b/315931658
-		if (tz->trips)
-			tz->trips[i].temperature = new_trip_temp;
+		tz->trips[i].trip.temperature = new_trip_temp;
 		if (ret) {
 			dev_err(&pdev->dev,
 				"Failed to set trip_temp_%d on %s\n",
@@ -3059,10 +3054,9 @@ static int param_update_acpm_pi_table_set(const char *val, const struct kernel_p
 			bool found_actor = false;
 
 	const struct thermal_trip_desc *td =
-		&tz->trips[data->pi_param->trip_control_temp];
+		&tz->trips[data->trip_control_temp];
 			list_for_each_entry (instance, &td->thermal_instances, trip_node) {
-				if (instance->trip == data->trip_control_temp &&
-				    cdev_is_power_actor(instance->cdev)) {
+				if (cdev_is_power_actor(instance->cdev)) {
 					found_actor = true;
 					cdev = instance->cdev;
 					break;
@@ -3503,10 +3497,9 @@ acpm_pi_table_show(struct device *dev, struct device_attribute *devattr,
 	params = data->pi_param;
 
 	const struct thermal_trip_desc *td =
-		&tz->trips[data->pi_param->trip_control_temp];
+		&tz->trips[data->trip_control_temp];
 	list_for_each_entry (instance, &td->thermal_instances, trip_node) {
-		if (instance->trip == data->trip_control_temp &&
-		    cdev_is_power_actor(instance->cdev)) {
+		if (cdev_is_power_actor(instance->cdev)) {
 			found_actor = true;
 			cdev = instance->cdev;
 			break;
@@ -3550,10 +3543,10 @@ acpm_pi_table_store(struct device *dev, struct device_attribute *devattr,
 
 	tz = data->tzd;
 	params = data->pi_param;
+	const struct thermal_trip_desc *td = &tz->trips[data->trip_control_temp];
 
 	list_for_each_entry (instance, &td->thermal_instances, trip_node) {
-		if (instance->trip == data->trip_control_temp &&
-		    cdev_is_power_actor(instance->cdev)) {
+		if (cdev_is_power_actor(instance->cdev)) {
 			found_actor = true;
 			cdev = instance->cdev;
 			break;
