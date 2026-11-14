@@ -41,6 +41,8 @@ struct deferred_freelist_item {
 	struct list_head list;
 };
 
+extern struct task_struct *freelist_task;
+
 /**
  * deferred_free - call to add item to the deferred free list
  *

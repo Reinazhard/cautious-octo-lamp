@@ -24,7 +24,9 @@
 #include <linux/of.h>
 #include <soc/google/meminfo.h>
 
-#include <heaps/page_pool.h>
+
+#include "../deferred-free-helper.h"
+#include "../page_pool.h"
 
 #include "samsung-dma-heap.h"
 
