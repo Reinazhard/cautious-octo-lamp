@@ -25,7 +25,7 @@
 #include "ufs-pixel-crypto.h"
 #include "ufs-pixel-fips.h"
 
-static int exynos_ufs_swkeys_register_fips_self_test(void);
+static int exynos_ufs_swkeys_register_fips_self_test(struct ufs_hba *hba);
 
 enum fmp_crypto_algo_mode {
 	FMP_BYPASS_MODE = 0,
@@ -84,7 +84,7 @@ int exynos_ufs_crypto_init_sw_keys_mode(struct ufs_hba *hba)
 		return 0;
 	}
 
-	ret = exynos_ufs_swkeys_register_fips_self_test();
+	ret = exynos_ufs_swkeys_register_fips_self_test(hba);
 	if (ret)
 		return ret;
 
@@ -95,12 +95,12 @@ int exynos_ufs_crypto_init_sw_keys_mode(struct ufs_hba *hba)
 	hba->quirks |= (UFSHCD_QUIRK_CUSTOM_CRYPTO_PROFILE |
 			UFSHCD_QUIRK_BROKEN_CRYPTO_ENABLE |
 			UFSHCD_QUIRK_KEYS_IN_PRDT);
-	ufshcd_set_sg_entry_size(hba, sizeof(struct pixel_ufs_prdt_entry));
+	ufshcd_set_sg_entry_size(hba, sizeof(struct fmp_sg_entry));
 
 	/* Advertise crypto capabilities to the block layer. */
 	devm_blk_crypto_profile_init(hba->dev, &hba->crypto_profile, 0);
 	hba->crypto_profile.max_dun_bytes_supported = AES_BLOCK_SIZE;
-	hba->crypto_profile.key_types_supported = BLK_CRYPTO_KEY_TYPE_STANDARD;
+	hba->crypto_profile.key_types_supported = BLK_CRYPTO_KEY_TYPE_RAW;
 	hba->crypto_profile.dev = hba->dev;
 	hba->crypto_profile.modes_supported[BLK_ENCRYPTION_MODE_AES_256_XTS] =
 		FMP_DATA_UNIT_SIZE;
@@ -114,10 +114,15 @@ static void exynos_ufs_swkeys_fips_self_test(void *data, struct ufs_hba *hba)
 		panic("FMP self test failed");
 }
 
-static int exynos_ufs_swkeys_register_fips_self_test(void)
+static int exynos_ufs_swkeys_register_fips_self_test(struct ufs_hba *hba)
 {
-	return register_trace_android_rvh_ufs_complete_init(
-		exynos_ufs_swkeys_fips_self_test, NULL);
+	/*
+	 * The android_rvh_ufs_complete_init vendor hook was removed upstream
+	 * with no in-tree replacement. Run the FIPS-140 self test directly at
+	 * crypto init instead, preserving the original verification behavior.
+	 */
+	exynos_ufs_swkeys_fips_self_test(NULL, hba);
+	return 0;
 }
 #else
 static inline __be32 fmp_key_word(const u8 *key, int j)
@@ -128,9 +133,10 @@ static inline __be32 fmp_key_word(const u8 *key, int j)
 
 /* Configure inline encryption (or decryption) on requests that require it. */
 static void exynos_ufs_swkeys_fill_prdt(void *unused, struct ufs_hba *hba,
-					struct ufshcd_lrb *lrbp,
+					struct scsi_cmnd *cmd,
 					unsigned int segments, int *err)
 {
+	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
 	const struct bio_crypt_ctx *bc;
 	const u8 *enckey, *twkey;
 	u64 dun_lo, dun_hi;
@@ -142,12 +148,12 @@ static void exynos_ufs_swkeys_fill_prdt(void *unused, struct ufs_hba *hba,
 	 * ("FAS") is already 0 (FMP_BYPASS_MODE) by default, as it's in the
 	 * same word as ufshcd_sg_entry::size which was already initialized.
 	 */
-	bc = scsi_cmd_to_rq(lrbp->cmd)->crypt_ctx;
+	bc = scsi_cmd_to_rq(cmd)->crypt_ctx;
 	BUILD_BUG_ON(FMP_BYPASS_MODE != 0);
 	if (!bc)
 		return;
 
-	enckey = bc->bc_key->raw;
+	enckey = bc->bc_key->bytes;
 	twkey = enckey + AES_KEYSIZE_256;
 	dun_lo = bc->bc_dun[0];
 	dun_hi = bc->bc_dun[1];
@@ -197,7 +203,7 @@ static void exynos_ufs_swkeys_fill_prdt(void *unused, struct ufs_hba *hba,
 	}
 }
 
-static int exynos_ufs_swkeys_register_fips_self_test(void)
+static int exynos_ufs_swkeys_register_fips_self_test(struct ufs_hba *hba)
 {
 	/*
 	 * The fips module will register internal fill_prdt implementation.
