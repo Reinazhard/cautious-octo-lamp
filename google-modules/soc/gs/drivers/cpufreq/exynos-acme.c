@@ -275,7 +275,7 @@ static void apply_thermal_pressure(struct exynos_cpufreq_domain *domain,
 	if (domain->capped_freq[thermal_actor] != capped_freq) {
 		domain->capped_freq[thermal_actor] = capped_freq;
 		arch_capped_freq = min(domain->capped_freq[TJ], domain->capped_freq[TSKIN]);
-		arch_update_thermal_pressure(maskp, arch_capped_freq);
+		arch_update_hw_pressure(maskp, arch_capped_freq);
 		changed = true;
 	}
 	spin_unlock(&domain->thermal_update_lock);
