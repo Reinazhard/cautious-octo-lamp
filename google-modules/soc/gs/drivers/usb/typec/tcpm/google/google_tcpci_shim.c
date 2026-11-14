@@ -315,7 +315,8 @@ static int google_tcpci_shim_enable_auto_vbus_discharge(struct tcpc_dev *dev, bo
 static int google_tcpci_shim_set_auto_vbus_discharge_threshold(struct tcpc_dev *dev,
 							       enum typec_pwr_opmode mode,
 							       bool pps_active,
-							       u32 requested_vbus_voltage_mv)
+							       u32 requested_vbus_voltage_mv,
+					       u32 pps_apdo_min_voltage)
 {
 	struct google_shim_tcpci *tcpci = tcpc_to_tcpci(dev);
 	unsigned int pwr_ctrl, threshold = 0;
@@ -688,7 +689,7 @@ irqreturn_t google_tcpci_shim_irq(struct google_shim_tcpci *tcpci)
 		/* Read complete, clear RX status alert bit */
 		google_tcpci_shim_write16(tcpci, TCPC_ALERT, TCPC_ALERT_RX_STATUS);
 
-		tcpm_pd_receive(tcpci->port, &msg);
+		tcpm_pd_receive(tcpci->port, &msg, TCPC_TX_SOP);
 	}
 
 	if (tcpci->data->vbus_vsafe0v && (status & TCPC_ALERT_EXTENDED_STATUS)) {
@@ -807,8 +808,7 @@ void google_tcpci_shim_unregister_port(struct google_shim_tcpci *tcpci)
 }
 EXPORT_SYMBOL_GPL(google_tcpci_shim_unregister_port);
 
-static int google_tcpci_shim_probe(struct i2c_client *client,
-				   const struct i2c_device_id *i2c_id)
+static int google_tcpci_shim_probe(struct i2c_client *client)
 {
 	struct google_shim_tcpci_chip *chip;
 	int err;
