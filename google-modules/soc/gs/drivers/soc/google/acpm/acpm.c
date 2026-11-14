@@ -351,10 +351,7 @@ static int acpm_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int acpm_remove(struct platform_device *pdev)
-{
-	return 0;
-}
+
 
 static const struct of_device_id acpm_ipc_match[] = {
 	{ .compatible = "google,gs-acpm-ipc" },
@@ -364,7 +361,6 @@ MODULE_DEVICE_TABLE(of, acpm_ipc_match);
 
 static struct platform_driver samsung_acpm_ipc_driver = {
 	.probe	= acpm_ipc_probe,
-	.remove	= acpm_ipc_remove,
 	.driver	= {
 		.name = "gs-acpm-ipc",
 		.owner	= THIS_MODULE,
@@ -380,7 +376,6 @@ MODULE_DEVICE_TABLE(of, acpm_match);
 
 static struct platform_driver samsung_acpm_driver = {
 	.probe	= acpm_probe,
-	.remove	= acpm_remove,
 	.shutdown = acpm_shutdown,
 	.driver	= {
 		.name = "gs-acpm",
