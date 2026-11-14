@@ -26,6 +26,7 @@
 #include <typedefs.h>
 #include <bcmendian.h>
 #include <linuxver.h>
+#include <linux/sched/clock.h>
 #include <bcmdefs.h>
 
 #if defined(__ARM_ARCH_7A__) && !defined(DHD_USE_COHERENT_MEM_FOR_RING)
