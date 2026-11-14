@@ -6,7 +6,6 @@
 #include <linux/of.h>
 #include <linux/percpu.h>
 #include <linux/time.h>
-#include <linux/sched/debug.h>
 #include <linux/spinlock.h>
 #include <linux/smc.h>
 #include <linux/smp.h>
@@ -20,27 +19,19 @@
 #include <linux/device.h>
 #include <linux/interval_tree.h>
 #include <linux/pm.h>
-#include <linux/oom.h>
-#include <linux/sysrq.h>
 
 #include <linux/suspend.h>
 #include <linux/sched/task.h>
 #include <trace/hooks/cpuidle.h>
 #include <trace/events/power.h>
 
-#include <asm/debug-monitors.h>
-#include <asm/ptrace.h>
 #include <asm/memory.h>
-#include <asm/cacheflush.h>
 #include <asm/bug.h>
-#include <asm/stacktrace.h>
 
 #include <soc/google/debug-snapshot.h>
 #if IS_ENABLED(CONFIG_GS_ACPM)
 #include <soc/google/acpm_ipc_ctrl.h>
 #endif
-#include <soc/google/exynos-debug.h>
-#include <soc/google/meminfo.h>
 
 #define HARDLOCKUP_DEBUG_EL1_FIQ_MAGIC		(0xDEADBEEF)
 #define HARDLOCKUP_DEBUG_EL1_SGI_MAGIC		(HARDLOCKUP_DEBUG_EL1_FIQ_MAGIC + 1)
@@ -58,7 +49,6 @@
 
 #define MAX_PRINT_DELAY_MS		(1800U)
 
-extern void dump_tasks(struct oom_control *oc);
 
 unsigned int hardlockup_debug_cpu_resume_insts[] = {
 	0x100000a2, //    adr     x2, 14 <__fiq_pending>
@@ -87,12 +77,9 @@ static struct rb_root_cached pm_dev_rbroot = RB_ROOT_CACHED;
 static struct hardlockup_param_type *hardlockup_param;
 static dma_addr_t hardlockup_param_paddr;
 
-static raw_spinlock_t hardlockup_seq_lock;
-static raw_spinlock_t hardlockup_log_lock;
 static int watchdog_fiq;
 static int allcorelockup_detected;
 static unsigned long hardlockup_core_mask;
-static unsigned long hardlockup_core_handled_mask;
 
 static struct task_struct *pm_suspend_task;
 static DEFINE_SPINLOCK(pm_trace_lock);
@@ -128,20 +115,6 @@ struct pm_dev_priv {
 	int event;
 };
 
-static const char *pm_event_str(int event)
-{
-	switch (event) {
-	case PM_EVENT_SUSPEND: return "suspend";
-	case PM_EVENT_RESUME: return "resume";
-	case PM_EVENT_FREEZE: return "freeze";
-	case PM_EVENT_QUIESCE: return "quiesce";
-	case PM_EVENT_HIBERNATE: return "hibernate";
-	case PM_EVENT_THAW: return "thaw";
-	case PM_EVENT_RESTORE: return "restore";
-	case PM_EVENT_RECOVER: return "recover";
-	default: return "unknown";
-	}
-}
 
 
 static void pm_dev_start(void *data, struct device *dev, const char *pm_ops, int event)
@@ -179,31 +152,6 @@ static void pm_dev_end(void *data, struct device *dev, int error)
 	spin_unlock_irqrestore(&pm_trace_lock, flags);
 }
 
-static void hardlockup_debug_disable_fiq(void)
-{
-	asm volatile (__stringify(msr	daifset, #0x1));
-}
-
-static void hardlockup_debug_spin_func(void)
-{
-	do {
-		wfi();
-	} while(1);
-}
-
-static inline int hardlockup_debug_try_lock_timeout(raw_spinlock_t *lock,
-								long timeout)
-{
-	int ret;
-
-	do {
-		ret = raw_spin_trylock(lock);
-		if (!ret)
-			udelay(1);
-	} while(!ret && (timeout--) > 0);
-
-	return ret;
-}
 
 static bool is_valid_hardlockup_magic(int val)
 {
@@ -222,160 +170,7 @@ static void vh_bug_on_wdt_fiq_pending(void *data, int state, struct cpuidle_devi
 		hardlockup_debug_bug_func();
 }
 
-static unsigned long hardlockup_debug_get_locked_cpu_mask(void)
-{
-	unsigned long mask = 0;
-	unsigned int val;
-	int cpu;
 
-	for_each_online_cpu(cpu) {
-		val = dbg_snapshot_get_hardlockup_magic(cpu);
-		if (is_valid_hardlockup_magic(val))
-			mask |= (1 << cpu);
-	}
-
-	return mask;
-}
-
-static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned long esr)
-{
-	static atomic_t show_mem_once = ATOMIC_INIT(1);
-	static atomic_t print_schedstat_once = ATOMIC_INIT(1);
-	static atomic_t dump_tasks_once = ATOMIC_INIT(1);
-
-	int cpu = raw_smp_processor_id();
-	unsigned int val;
-	unsigned long flags;
-	int ret;
-
-	hardlockup_debug_disable_fiq();
-
-	ret = hardlockup_debug_try_lock_timeout(&hardlockup_seq_lock,
-						500 * USEC_PER_MSEC);
-	if (ret && !hardlockup_core_mask) {
-		if (watchdog_fiq && !allcorelockup_detected) {
-			/* 1st WDT FIQ trigger */
-			val = dbg_snapshot_get_hardlockup_magic(cpu);
-			if (is_valid_hardlockup_magic(val)) {
-				allcorelockup_detected = 1;
-				hardlockup_core_mask =
-					hardlockup_debug_get_locked_cpu_mask();
-			} else {
-				pr_emerg("%s: invalid magic from "
-					"el3 fiq handler: 0x%08x\n", __func__,
-					val);
-				raw_spin_unlock(&hardlockup_seq_lock);
-				/* To avoid log interleaves with log from other
-				 * cores, delay 200 ms for each core to finish
-				 * this call back function.
-				 */
-				mdelay(min(200 * num_online_cpus(), MAX_PRINT_DELAY_MS));
-				return DBG_HOOK_ERROR;
-			}
-		}
-	}
-	if (ret)
-		raw_spin_unlock(&hardlockup_seq_lock);
-	else
-		pr_emerg("%s: fail to get seq lock\n", __func__);
-
-	/* We expect this bug executed on only lockup core */
-	if (hardlockup_core_mask & BIT(cpu)) {
-		unsigned long last_pc;
-
-		/* Replace real pc value even if it is invalid */
-		last_pc = dbg_snapshot_get_last_pc(cpu);
-		if (get_pending_fiq_cpu_id() != cpu)
-			regs->pc = last_pc;
-
-		ret = hardlockup_debug_try_lock_timeout(&hardlockup_log_lock,
-							5 * USEC_PER_SEC);
-		if (!ret)
-			pr_emerg("%s: fail to get log lock\n", __func__);
-
-		pr_emerg("%s - Debugging Information for Hardlockup core(%d) -"
-			" locked CPUs mask (0x%lx)\n",
-			allcorelockup_detected ? "WDT expired" : "Core", cpu,
-			hardlockup_core_mask);
-
-		dump_backtrace(regs, NULL, KERN_DEFAULT);
-		dbg_snapshot_save_context(regs, false);
-
-		if (atomic_cmpxchg(&show_mem_once, 1, 0)) {
-			handle_sysrq('m');
-			dump_pixel_meminfo();
-		}
-
-		if (atomic_cmpxchg(&dump_tasks_once, 1, 0)) {
-                        /* dummy struct to fulfill dump_tasks interface */
-			struct oom_control oc = { 0 };
-			dump_tasks(&oc);
-		}
-
-		if (atomic_cmpxchg(&print_schedstat_once, 1, 0)) {
-			s3c2410wdt_print_schedstat(KERN_EMERG);
-		}
-
-		spin_lock_irqsave(&pm_trace_lock, flags);
-		if (pm_suspend_task) {
-			static char pm_dev_namebuf[512] = {0};
-			struct pm_dev_priv *priv;
-			struct interval_tree_node *node, *next;
-
-			pr_emerg("pm_suspend_task '%s' %d hung (state=%u)",
-					pm_suspend_task->comm, pm_suspend_task->pid,
-					pm_suspend_task->__state);
-			sched_show_task(pm_suspend_task);
-
-			if (!interval_tree_iter_first(&pm_dev_rbroot, 0, -1UL))
-				panic("PM suspend timeout");
-
-			pr_emerg("PM suspend timeout at following devices:\n");
-			foreach_pm_dev(node, next, priv) {
-				if (pm_dev_namebuf[0])
-					strlcat(pm_dev_namebuf, ",", sizeof(pm_dev_namebuf));
-				strlcat(pm_dev_namebuf, dev_driver_string(priv->dev),
-						sizeof(pm_dev_namebuf));
-				pr_emerg("  - %s %s, parent: %s, %s[%s]\n",
-						dev_name(priv->dev),
-						dev_driver_string(priv->dev),
-						priv->parent ? dev_name(priv->parent) : "none",
-						priv->pm_ops, pm_event_str(priv->event));
-			}
-			panic("PM suspend timeout at %s", pm_dev_namebuf);
-		}
-		spin_unlock_irqrestore(&pm_trace_lock, flags);
-
-		hardlockup_core_handled_mask |= (1 << cpu);
-
-		if (ret)
-			raw_spin_unlock(&hardlockup_log_lock);
-
-		if (hardlockup_debug_get_locked_cpu_mask() == hardlockup_core_handled_mask) {
-			/*
-			 * Tell debugcore that AP has finished performing
-			 * cache flush.
-			 */
-			dbg_snapshot_set_core_cflush_stat(0x1);
-#if IS_ENABLED(CONFIG_GS_ACPM)
-			exynos_acpm_reboot();
-#endif
-		}
-
-		/* If cpu is locked, wait for WDT reset without executing
-		 * code anymore.
-		 */
-		hardlockup_debug_spin_func();
-	}
-
-	pr_emerg("%s: Unintended fiq handling\n", __func__);
-	return DBG_HOOK_ERROR;
-}
-
-static struct break_hook hardlockup_debug_break_hook = {
-	.fn = hardlockup_debug_bug_handler,
-	.imm = BUG_BRK_IMM_HARDLOCKUP,
-};
 
 static int hardlockup_debug_panic_handler(struct notifier_block *nb,
 					  unsigned long l, void *buf)
@@ -521,13 +316,9 @@ static int hardlockup_debugger_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	raw_spin_lock_init(&hardlockup_seq_lock);
-	raw_spin_lock_init(&hardlockup_log_lock);
-
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &hardlockup_debug_panic_nb);
 
-	register_kernel_break_hook(&hardlockup_debug_break_hook);
 
 	register_pm_notifier(&hardlockup_debugger_pm_nb);
 
