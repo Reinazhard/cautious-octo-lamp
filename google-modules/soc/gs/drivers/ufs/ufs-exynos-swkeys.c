@@ -12,17 +12,18 @@
  * (also called the traditional FMP mode or legacy FMP mode).
  */
 
-#include <asm/unaligned.h>
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
+#include <linux/unaligned.h>
+#include <trace/hooks/ufshcd.h>
+
 #include <linux/soc/samsung/exynos-smc.h>
+
 #include <core/ufshcd-crypto.h>
+
 #include "ufs-exynos-gs.h"
 #include "ufs-pixel-crypto.h"
 #include "ufs-pixel-fips.h"
-
-#undef CREATE_TRACE_POINTS
-#include <trace/hooks/ufshcd.h>
 
 static int exynos_ufs_swkeys_register_fips_self_test(void);
 
@@ -91,10 +92,10 @@ int exynos_ufs_crypto_init_sw_keys_mode(struct ufs_hba *hba)
 	hba->caps |= UFSHCD_CAP_CRYPTO;
 
 	/* Advertise crypto quirks to ufshcd-core. */
-	hba->android_quirks |= UFSHCD_ANDROID_QUIRK_CUSTOM_CRYPTO_PROFILE |
-		               UFSHCD_ANDROID_QUIRK_BROKEN_CRYPTO_ENABLE |
-		               UFSHCD_ANDROID_QUIRK_KEYS_IN_PRDT;
-	hba->sg_entry_size = sizeof(struct fmp_sg_entry);
+	hba->quirks |= (UFSHCD_QUIRK_CUSTOM_CRYPTO_PROFILE |
+			UFSHCD_QUIRK_BROKEN_CRYPTO_ENABLE |
+			UFSHCD_QUIRK_KEYS_IN_PRDT);
+	ufshcd_set_sg_entry_size(hba, sizeof(struct pixel_ufs_prdt_entry));
 
 	/* Advertise crypto capabilities to the block layer. */
 	devm_blk_crypto_profile_init(hba->dev, &hba->crypto_profile, 0);
