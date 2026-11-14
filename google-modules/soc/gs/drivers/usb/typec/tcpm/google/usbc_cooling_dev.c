@@ -368,8 +368,8 @@ static void usb_cdev_work(struct work_struct *work)
 	}
 
 resched:
-	alarm_start_relative(&usb_cdev_info->unplug_alarm,
-			     ms_to_ktime(usb_cdev_info->cooling_device_polling_interval_ms));
+	alarm_start_timer(&usb_cdev_info->unplug_alarm,
+			  ms_to_ktime(usb_cdev_info->cooling_device_polling_interval_ms), true);
 free_event:
 	pm_relax(usb_cdev_info->dev);
 	devm_kfree(usb_cdev_info->dev, event);
@@ -479,14 +479,12 @@ static int usb_set_cur_state(struct thermal_cooling_device *cooling_dev, unsigne
 	return 0;
 }
 
-static enum alarmtimer_restart unplug_alarm_handler(struct alarm *alarm, ktime_t time)
+static void unplug_alarm_handler(struct alarm *alarm, ktime_t time)
 {
 	struct usb_port_cooling_dev_info *usb_cdev_info =
 		container_of(alarm, struct usb_port_cooling_dev_info, unplug_alarm);
 
 	usb_cdev_changed(usb_cdev_info);
-
-	return ALARMTIMER_NORESTART;
 }
 
 static const struct thermal_cooling_device_ops usb_cdev_ops = {
@@ -562,7 +560,7 @@ static int usb_cdev_probe(struct platform_device *pdev)
 
 	/* Register cooling device */
 	usb_cdev_info->cooling_dev =
-		thermal_of_cooling_device_register(dev_of_node(usb_cdev_info->dev), "usbc-port",
+		thermal_of_cooling_device_register(dev_of_node(usb_cdev_info->dev), 0, "usbc-port",
 						   usb_cdev_info, &usb_cdev_ops);
 
 	if (IS_ERR(usb_cdev_info->cooling_dev)) {
