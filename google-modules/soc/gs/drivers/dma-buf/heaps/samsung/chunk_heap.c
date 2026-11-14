@@ -23,8 +23,6 @@
 
 #include "samsung-dma-heap.h"
 
-#define GFP_CHUNK_HEAP_NORETRY_NOWARN (__GFP_NORETRY | __GFP_NOWARN)
-
 struct chunk_heap {
 	struct cma *cma;
 };
@@ -44,7 +42,7 @@ static int chunk_heap_buffer_allocate(struct cma *cma, unsigned int need_count,
 	unsigned int i, alloc_count = 0;
 	unsigned int alloc_order = max_t(unsigned int, pageblock_order, chunk_order);
 	unsigned int nr_chunks_per_alloc = 1 << (alloc_order - chunk_order);
-	gfp_t gfp_flags = GFP_KERNEL | GFP_CHUNK_HEAP_NORETRY_NOWARN;
+	bool no_warn = true;
 
 	while (alloc_count < need_count) {
 		struct page *page;
@@ -54,14 +52,14 @@ static int chunk_heap_buffer_allocate(struct cma *cma, unsigned int need_count,
 			nr_chunks_per_alloc >>= 1;
 		}
 
-		page = __cma_alloc(cma, 1 << alloc_order, alloc_order, gfp_flags);
+		page = cma_alloc(cma, 1 << alloc_order, alloc_order, no_warn);
 		if (!page) {
-			/* Try without GFP_NORETRY first */
-			if (gfp_flags & __GFP_NORETRY) {
-				gfp_flags &= ~GFP_CHUNK_HEAP_NORETRY_NOWARN;
-			/* Try half alloc_order to allocate from splited block second */
+			if (no_warn) {
+				/* Retry with allocation warnings enabled */
+				no_warn = false;
 			} else {
-				gfp_flags |= GFP_CHUNK_HEAP_NORETRY_NOWARN;
+				/* Suppress warnings and try a smaller allocation */
+				no_warn = true;
 				alloc_order--;
 				nr_chunks_per_alloc >>= 1;
 
