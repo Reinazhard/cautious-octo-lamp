@@ -22,6 +22,7 @@
 #include <linux/suspend.h>
 #include <linux/platform_device.h>
 #include <linux/tensor_aio.h>
+#include <linux/sched/topology.h>
 
 #include <soc/google/cal-if.h>
 #include <soc/google/ect_parser.h>
