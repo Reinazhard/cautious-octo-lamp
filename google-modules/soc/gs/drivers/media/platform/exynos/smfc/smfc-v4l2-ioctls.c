@@ -481,18 +481,14 @@ err:
 	return hdlr->error;
 }
 
-static int smfc_v4l2_querycap(struct file *filp, void *fh, struct v4l2_capability *cap)
+static int smfc_v4l2_querycap(struct file *filp, void *priv, struct v4l2_capability *cap)
 {
-	struct smfc_dev *smfc = v4l2_fh_to_smfc_ctx(fh)->smfc;
+	struct smfc_dev *smfc = v4l2_file_to_smfc_ctx(filp)->smfc;
 
-	strncpy(cap->driver, MODULE_NAME, sizeof(cap->driver));
-	strncpy(cap->bus_info, dev_name(smfc->dev), sizeof(cap->bus_info));
+	strscpy(cap->driver, MODULE_NAME);
+	strscpy(cap->bus_info, dev_name(smfc->dev));
 	scnprintf(cap->card, sizeof(cap->card), "Still MFC %02x.%02x.%04x",
 		  (smfc->hwver >> 24) & 0xFF, (smfc->hwver >> 16) & 0xFF, smfc->hwver & 0xFFFF);
-
-	cap->driver[sizeof(cap->driver) - 1] = '\0';
-	cap->card[sizeof(cap->card) - 1] = '\0';
-	cap->bus_info[sizeof(cap->bus_info) - 1] = '\0';
 
 	cap->device_caps = smfc->devdata->device_caps;
 	cap->device_caps |= V4L2_CAP_EXYNOS_JPEG_DMABUF_OFFSET;
@@ -500,7 +496,7 @@ static int smfc_v4l2_querycap(struct file *filp, void *fh, struct v4l2_capabilit
 	return 0;
 }
 
-static int smfc_v4l2_enum_fmt(struct file *filp, void *fh, struct v4l2_fmtdesc *f)
+static int smfc_v4l2_enum_fmt(struct file *filp, void *priv, struct v4l2_fmtdesc *f)
 {
 	const struct smfc_image_format *fmt;
 
@@ -931,19 +927,19 @@ static int smfc_v4l2_s_selection(struct file *filp, void *priv, struct v4l2_sele
 	return ret;
 }
 
-static int v4l2_smfc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
+static int v4l2_smfc_qbuf(struct file *filp, void *priv, struct v4l2_buffer *buf)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file->private_data);
+	struct smfc_ctx *ctx = v4l2_file_to_smfc_ctx(filp);
 	struct vb2_queue *vq;
 	unsigned int index;
 
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, buf->type);
 
-	if (vq->num_buffers > SMFC_MAX_PLANES) {
+	if (vb2_get_num_buffers(vq) > SMFC_MAX_PLANES) {
 		return -EINVAL;
 	}
 
-	for (index = 0; index < vq->num_buffers; index++) {
+	for (index = 0; index < vb2_get_num_buffers(vq); index++) {
 		struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vq->bufs[index]);
 		struct v4l2_m2m_buffer *mbuf = container_of(vbuf, typeof(*mbuf), vb);
 		struct vb2_smfc_buffer *sbuf = container_of(mbuf, typeof(*sbuf), mb);
