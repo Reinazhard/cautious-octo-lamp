@@ -508,8 +508,7 @@ static int smfc_v4l2_enum_fmt(struct file *filp, void *fh, struct v4l2_fmtdesc *
 		return -EINVAL;
 
 	fmt = &smfc_image_formats[f->index];
-	strncpy(f->description, fmt->description, sizeof(f->description));
-	f->description[sizeof(f->description) - 1] = '\0';
+	strscpy(f->description, fmt->description);
 	f->pixelformat = fmt->v4l2_pixfmt;
 	if (fmt->bpp_buf[0] == 0)
 		f->flags = V4L2_FMT_FLAG_COMPRESSED;
@@ -517,10 +516,10 @@ static int smfc_v4l2_enum_fmt(struct file *filp, void *fh, struct v4l2_fmtdesc *
 	return 0;
 }
 
-static int smfc_v4l2_g_fmt_mplane(struct file *filp, void *fh,
+static int smfc_v4l2_g_fmt_mplane(struct file *filp, void *priv,
 				  struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_file_to_smfc_ctx(filp);
 
 	f->fmt.pix_mp.width = ctx->width;
 	f->fmt.pix_mp.height = ctx->height;
@@ -550,9 +549,9 @@ static int smfc_v4l2_g_fmt_mplane(struct file *filp, void *fh,
 	return 0;
 }
 
-static int smfc_v4l2_g_fmt(struct file *filp, void *fh, struct v4l2_format *f)
+static int smfc_v4l2_g_fmt(struct file *filp, void *priv, struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_file_to_smfc_ctx(filp);
 
 	f->fmt.pix.width = ctx->width;
 	f->fmt.pix.height = ctx->height;
@@ -728,9 +727,9 @@ static bool smfc_v4l2_init_fmt_mplane(const struct smfc_ctx *ctx,
 	return true;
 }
 
-static int smfc_v4l2_try_fmt_mplane(struct file *filp, void *fh, struct v4l2_format *f)
+static int smfc_v4l2_try_fmt_mplane(struct file *filp, void *priv, struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_file_to_smfc_ctx(filp);
 	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
 								    f->fmt.pix_mp.pixelformat);
 
@@ -775,9 +774,9 @@ static __u32 v4l2_to_multiplane_type(__u32 type)
 	return V4L2_TYPE_IS_MULTIPLANAR(type) ? type : type + 8;
 }
 
-static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *fh, struct v4l2_format *f)
+static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *priv, struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_file_to_smfc_ctx(filp);
 	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
 								    f->fmt.pix_mp.pixelformat);
 	int ret = smfc_v4l2_prepare_s_fmt(ctx, smfc_fmt, f->type);
@@ -854,18 +853,18 @@ static bool smfc_v4l2_init_fmt(const struct smfc_ctx *ctx,
 	return true;
 }
 
-static int smfc_v4l2_try_fmt(struct file *filp, void *fh, struct v4l2_format *f)
+static int smfc_v4l2_try_fmt(struct file *filp, void *priv, struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_file_to_smfc_ctx(filp);
 	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
 								    f->fmt.pix.pixelformat);
 
 	return smfc_v4l2_init_fmt(ctx, smfc_fmt, f->type, &f->fmt.pix) ? 0 : -EINVAL;
 }
 
-static int smfc_v4l2_s_fmt(struct file *filp, void *fh, struct v4l2_format *f)
+static int smfc_v4l2_s_fmt(struct file *filp, void *priv, struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_file_to_smfc_ctx(filp);
 	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
 								    f->fmt.pix.pixelformat);
 	int ret = smfc_v4l2_prepare_s_fmt(ctx, smfc_fmt, f->type);
@@ -895,9 +894,9 @@ static int smfc_v4l2_s_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 	return 0;
 }
 
-static int smfc_v4l2_s_selection(struct file *file, void *fh, struct v4l2_selection *s)
+static int smfc_v4l2_s_selection(struct file *filp, void *priv, struct v4l2_selection *s)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_file_to_smfc_ctx(filp);
 	unsigned int i;
 	int ret = 0;
 
