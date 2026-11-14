@@ -158,9 +158,10 @@ void pixel_ufs_crypto_resume(struct ufs_hba *hba)
 
 /* Configure inline encryption (or decryption) on requests that require it. */
 static void pixel_ufs_crypto_fill_prdt(void *unused, struct ufs_hba *hba,
-				       struct ufshcd_lrb *lrbp,
+				       struct scsi_cmnd *cmd,
 				       unsigned int segments, int *err)
 {
+	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
 	struct pixel_ufs_prdt_entry *prdt =
 		(struct pixel_ufs_prdt_entry *)lrbp->ucd_prdt_ptr;
 	unsigned int i;
@@ -235,10 +236,15 @@ static void pixel_ufs_ise_self_test(void *data, struct ufs_hba *hba)
 		panic("SMC_CMD_FMP_USE_OTP_KEY(1) failed");
 }
 
-static int pixel_ufs_register_fips_self_test(void)
+static int pixel_ufs_register_fips_self_test(struct ufs_hba *hba)
 {
-	return register_trace_android_rvh_ufs_complete_init(
-		pixel_ufs_ise_self_test, NULL);
+	/*
+	 * The android_rvh_ufs_complete_init vendor hook was removed upstream
+	 * with no in-tree replacement. Run the FIPS-140 self test directly at
+	 * crypto init instead, preserving the original verification behavior.
+	 */
+	pixel_ufs_ise_self_test(NULL, hba);
+	return 0;
 }
 
 static int exynos_crypto_init(struct ufs_hba *hba)
@@ -247,7 +253,7 @@ static int exynos_crypto_init(struct ufs_hba *hba)
 	bool register_fips_module;
 
 	/* Override the PRDT entry size to include the extra crypto fields. */
-	hba->sg_entry_size = sizeof(struct pixel_ufs_prdt_entry);
+	ufshcd_set_sg_entry_size(hba, sizeof(struct pixel_ufs_prdt_entry));
 
 	err = pixel_ufs_crypto_configure_hw(hba);
 	if (err)
@@ -265,7 +271,7 @@ static int exynos_crypto_init(struct ufs_hba *hba)
 
 	/* The FIPS 140 module will register internal fill prdt function. */
 	if (register_fips_module) {
-		err = pixel_ufs_register_fips_self_test();
+		err = pixel_ufs_register_fips_self_test(hba);
 	} else {
 		err = pixel_ufs_register_fill_prdt();
 	}
