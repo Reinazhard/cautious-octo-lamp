@@ -36,7 +36,7 @@
 
 #include <linux/gsa/gsa_kdn.h>
 
-#include <drivers/ufs/core/ufshcd-crypto.h>
+#include <core/ufshcd-crypto.h>
 
 #include "ufs-pixel-crypto.h"
 #include "ufs-pixel-fips.h"
@@ -149,7 +149,7 @@ static int pixel_ufs_keyslot_program(struct blk_crypto_profile *profile,
 	 */
 	ufshcd_block_io(hba);
 
-	err = gsa_kdn_program_key(ufs->gsa_dev, slot, key->raw, key->size);
+	err = gsa_kdn_program_key(ufs->gsa_dev, slot, key->bytes, key->size);
 	if (err)
 		dev_err(ufs->dev, "kdn: failed to program key; err=%d\n", err);
 
