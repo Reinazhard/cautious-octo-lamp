@@ -65,7 +65,7 @@ static struct mfc_fmt *__mfc_dec_find_format(struct mfc_ctx *ctx,
 	return fmt;
 }
 
-static struct v4l2_queryctrl *__mfc_dec_get_ctrl(int id)
+static struct v4l2_query_ext_ctrl *__mfc_dec_get_ctrl(int id)
 {
 	unsigned long i;
 
@@ -77,9 +77,9 @@ static struct v4l2_queryctrl *__mfc_dec_get_ctrl(int id)
 }
 
 /* Check whether a ctrl value if correct */
-static int __mfc_dec_check_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
+static int __maybe_unused __mfc_dec_check_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 {
-	struct v4l2_queryctrl *c;
+	struct v4l2_query_ext_ctrl *c;
 
 	c = __mfc_dec_get_ctrl(ctrl->id);
 	if (!c) {
@@ -1128,11 +1128,11 @@ static int mfc_dec_streamoff(struct file *file, void *priv,
 }
 
 /* Query a ctrl */
-static int mfc_dec_queryctrl(struct file *file, void *priv,
-			    struct v4l2_queryctrl *qc)
+static int mfc_dec_query_ext_ctrl(struct file *file, void *priv,
+				  struct v4l2_query_ext_ctrl *qc)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	struct v4l2_queryctrl *c;
+	struct v4l2_query_ext_ctrl *c;
 
 	c = __mfc_dec_get_ctrl(qc->id);
 	if (!c) {
@@ -1141,6 +1141,8 @@ static int mfc_dec_queryctrl(struct file *file, void *priv,
 	}
 
 	*qc = *c;
+	qc->elems = 1;
+	qc->elem_size = 4;
 	return 0;
 }
 
@@ -1326,7 +1328,7 @@ static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 }
 
 /* Get a ctrl */
-static int mfc_dec_g_ctrl(struct file *file, void *priv,
+static int __maybe_unused mfc_dec_g_ctrl(struct file *file, void *priv,
 			struct v4l2_control *ctrl)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
