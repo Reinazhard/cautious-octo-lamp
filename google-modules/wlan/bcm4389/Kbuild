@@ -28,6 +28,10 @@ ifeq ($(KERNEL_SRC),)
  else
   BCMDHD_ROOT=$(srctree)/$(src)
  endif
+else
+ # In-tree build exports KERNEL_SRC (google-modules/Makefile); derive the
+ # module root so include paths and the CONFIG_ARCH_ scan stay scoped.
+ BCMDHD_ROOT=$(src)
 endif
 
 # For pixel build, unset SOC related configs which are defined in DHD
@@ -828,8 +832,6 @@ ifeq ($(DRIVER_TYPE),y)
   DHDCFLAGS += -DBCM_USE_PLATFORM_STRLCPY
 endif
 
-DHDCFLAGS += -DBCM_USE_PLATFORM_STRLCPY
-
 ifeq ($(DRIVER_TYPE),m)
   DHDCFLAGS += -DBCMDHD_MODULAR
 endif
@@ -979,7 +981,7 @@ endif
 
 bcmdhd$(BCM_WLAN_CHIP_SUFFIX)-objs := $(DHDOFILES)
 obj-$(DRIVER_TYPE)   += bcmdhd$(BCM_WLAN_CHIP_SUFFIX).o
-ccflags-y := $(KBUILD_CFLAGS)
+ccflags-y := $(KBUILD_CFLAGS) -Wno-missing-prototypes
 ccflags-y += $(DHDCFLAGS)
 
 # For supporting DDK in Pixel build
