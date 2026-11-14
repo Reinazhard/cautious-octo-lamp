@@ -222,6 +222,7 @@ static bool hooks_installed;
 
 struct dp_notification_event {
 	struct max77759_plat *chip;
+	struct device_node *dp;
 	unsigned long mode;
 	struct kthread_work dp_notification_work;
 };
@@ -732,7 +733,7 @@ static void ovp_operation(struct max77759_plat *chip, int operation);
 #ifdef CONFIG_GPIOLIB
 static int ext_bst_en_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
-	return GPIOF_DIR_OUT;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int ext_bst_en_gpio_get(struct gpio_chip *gpio, unsigned int offset)
@@ -783,6 +784,7 @@ static void ext_bst_en_gpio_set(struct gpio_chip *gpio, unsigned int offset, int
 static int ext_bst_en_gpio_init(struct max77759_plat *chip)
 {
 	int ret;
+	struct device_node *dp;
 
 	/* Setup GPIO controller */
 	chip->gpio.owner = THIS_MODULE;
@@ -794,10 +796,11 @@ static int ext_bst_en_gpio_init(struct max77759_plat *chip)
 	chip->gpio.base = -1;
 	chip->gpio.ngpio = 1;
 	chip->gpio.can_sleep = true;
-	chip->gpio.of_node = of_find_node_by_name(chip->dev->of_node, chip->gpio.label);
-
-	if (!chip->gpio.of_node)
+	/* balance of_node_put() in of_find_node_by_name() */
+	dp = of_find_node_by_name(chip->dev->of_node, chip->gpio.label);
+	if (!dp)
 		dev_err(chip->dev, "Failed to find %s DT node\n", chip->gpio.label);
+	chip->gpio.fwnode = of_fwnode_handle(dp);
 
 	ret = devm_gpiochip_add_data(chip->dev, &chip->gpio, chip);
 	if (ret)
@@ -1011,7 +1014,7 @@ static int process_rx(struct max77759_plat *chip, u16 status)
 			return -EIO;
 	}
 
-	tcpm_pd_receive(chip->port, &msg);
+	tcpm_pd_receive(chip->port, &msg, TCPC_TX_SOP);
 
 	ret = post_process_pd_message(chip, msg);
 	if (ret < 0)
@@ -1805,8 +1808,8 @@ static void floating_cable_sink_detected_handler_locked(struct max77759_plat *ch
 	    "floating_cable_or_sink_detected count: %d", chip->floating_cable_or_sink_detected);
 	if (chip->floating_cable_or_sink_detected >= FLOATING_CABLE_OR_SINK_INSTANCE_THRESHOLD) {
 		max777x9_disable_auto_ultra_low_power_mode(chip, true);
-		alarm_start_relative(&chip->reenable_auto_ultra_low_power_mode_alarm,
-				     ms_to_ktime(AUTO_ULTRA_LOW_POWER_MODE_REENABLE_MS));
+		alarm_start_timer(&chip->reenable_auto_ultra_low_power_mode_alarm,
+				     ms_to_ktime(AUTO_ULTRA_LOW_POWER_MODE_REENABLE_MS), true);
 	}
 }
 
@@ -2827,7 +2830,7 @@ static int max77759_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 	return 0;
 }
 
-static void max77759_store_partner_src_caps(void *unused,
+static void max77759_store_partner_src_caps(void *unused, struct tcpm_port *port,
 					    unsigned int *nr_source_caps,
 					    u32 (*source_caps)[])
 {
@@ -3110,30 +3113,6 @@ static void max77759_tcpm_log(void *unused, const char *log, bool *bypass)
 	*bypass = true;
 }
 
-static void max77759_modify_src_caps(void *unused, unsigned int *nr_src_pdo,
-				     u32 (*src_pdo)[], bool *modified)
-{
-	spin_lock(&g_caps_lock);
-
-	if (port_src_pdo_updated) {
-		spin_unlock(&g_caps_lock);
-		return;
-	}
-
-	if (limit_src_cap_enable) {
-		(*src_pdo)[0] &= ~(PDO_CURR_MASK << PDO_FIXED_CURR_SHIFT);
-		(*src_pdo)[0] |= PDO_FIXED_CURR(SRC_CURRENT_LIMIT_MA);
-		*nr_src_pdo = 1;
-	} else {
-		(*src_pdo)[0] |= PDO_FIXED_CURR(orig_src_current);
-		*nr_src_pdo = nr_orig_src_pdo;
-	}
-
-	port_src_pdo_updated = true;
-	*modified = true;
-
-	spin_unlock(&g_caps_lock);
-}
 
 static int max77759_register_vendor_hooks(struct i2c_client *client)
 {
@@ -3165,15 +3144,6 @@ static int max77759_register_vendor_hooks(struct i2c_client *client)
 		return ret;
 	}
 
-	port_src_pdo_updated = true;
-	ret = register_trace_android_vh_typec_tcpm_modify_src_caps(max77759_modify_src_caps, NULL);
-	if (ret) {
-		dev_err(&client->dev,
-			"register_trace_android_vh_typec_tcpm_modify_src_caps failed ret:%d\n",
-			ret);
-		return ret;
-	}
-
 	hooks_installed = true;
 
 	return ret;
@@ -3188,7 +3158,7 @@ static void reenable_auto_ultra_low_power_mode_work_item(struct kthread_work *wo
 	max777x9_disable_auto_ultra_low_power_mode(chip, false);
 }
 
-static enum alarmtimer_restart reenable_auto_ultra_low_power_mode_alarm_handler(struct alarm *alarm,
+static void reenable_auto_ultra_low_power_mode_alarm_handler(struct alarm *alarm,
 										ktime_t time)
 {
 	struct max77759_plat *chip = container_of(alarm, struct max77759_plat,
@@ -3198,13 +3168,10 @@ static enum alarmtimer_restart reenable_auto_ultra_low_power_mode_alarm_handler(
 	if (max777x9_is_contaminant_detected(chip)) {
 		LOG(LOG_LVL_DEBUG, chip->log,
 			      "Skipping enable_auto_ultra_low_power_mode. Dry detection in progress");
-		goto exit;
+		return;
 	}
 	kthread_queue_work(chip->wq, &chip->reenable_auto_ultra_low_power_mode_work);
 	pm_wakeup_event(chip->dev, PD_ACTIVITY_TIMEOUT_MS);
-
-exit:
-	return ALARMTIMER_NORESTART;
 }
 
 static void max_tcpci_check_contaminant(struct google_shim_tcpci *tcpci,
@@ -3472,15 +3439,13 @@ static void aicl_check_alarm_work_item(struct kthread_work *work)
 		update_compliance_warnings(chip, COMPLIANCE_WARNING_INPUT_POWER_LIMITED, true);
 }
 
-static enum alarmtimer_restart aicl_check_alarm_handler(struct alarm *alarm, ktime_t time)
+static void aicl_check_alarm_handler(struct alarm *alarm, ktime_t time)
 {
 	struct max77759_plat *chip = container_of(alarm, struct max77759_plat, aicl_check_alarm);
 
 	LOG(LOG_LVL_DEBUG, chip->log, "timer fired: %s", __func__);
 	kthread_queue_work(chip->wq, &chip->aicl_check_alarm_work);
 	pm_wakeup_event(chip->dev, AICL_CHECK_MS);
-
-	return ALARMTIMER_NORESTART;
 }
 
 static int max77759_aicl_active_cb(struct gvotable_election *el, const char *reason, void *value)
@@ -3492,7 +3457,7 @@ static int max77759_aicl_active_cb(struct gvotable_election *el, const char *rea
 
 	if (is_aicl_limited(chip)) {
 		/* Recheck after AICL_CHECK_MS */
-		alarm_start_relative(&chip->aicl_check_alarm, ms_to_ktime(AICL_CHECK_MS));
+		alarm_start_timer(&chip->aicl_check_alarm, ms_to_ktime(AICL_CHECK_MS), true);
 	} else {
 		alarm_cancel(&chip->aicl_check_alarm);
 		kthread_cancel_work_sync(&chip->aicl_check_alarm_work);
@@ -3512,7 +3477,6 @@ static int max77759_probe(struct i2c_client *client,
 	u16 device_id;
 	u32 ovp_handle, regulator_handle;
 	const char *ovp_status;
-	enum of_gpio_flags flags;
 	u32 first_src_pdo = 0;
 	const char *ws_name_prefix = "cc_toggle-";
 	ssize_t ws_name_len;
@@ -3557,32 +3521,33 @@ static int max77759_probe(struct i2c_client *client,
 
 	chip->in_switch_gpio = -EINVAL;
 	if (of_property_read_bool(dn, "ovp-present")) {
-		chip->in_switch_gpio = of_get_named_gpio_flags(dn, "in-switch-gpio", 0, &flags);
+		chip->in_switch_gpio = of_get_named_gpio(dn, "in-switch-gpio", 0);
 		if (chip->in_switch_gpio < 0) {
 			dev_err(&client->dev, "in-switch-gpio not found\n");
 			return -EPROBE_DEFER;
 		}
-		chip->in_switch_gpio_active_high = (flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
+		chip->in_switch_gpio_active_high =
+			gpiod_is_active_low(gpio_to_desc(chip->in_switch_gpio)) ? 0 : 1;
 	} else if (!of_property_read_u32(dn, "max20339,ovp", &ovp_handle)) {
 		ovp_dn = of_find_node_by_phandle(ovp_handle);
 		if (!IS_ERR_OR_NULL(ovp_dn) &&
 		    !of_property_read_string(ovp_dn, "status", &ovp_status) &&
 		    strncmp(ovp_status, "disabled", strlen("disabled"))) {
-			chip->in_switch_gpio = of_get_named_gpio_flags(dn, "in-switch-gpio", 0,
-								       &flags);
+			chip->in_switch_gpio = of_get_named_gpio(dn, "in-switch-gpio", 0);
 			if (chip->in_switch_gpio < 0) {
 				dev_err(&client->dev, "in-switch-gpio not found\n");
 				return -EPROBE_DEFER;
 			}
-			chip->in_switch_gpio_active_high = (flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
+			chip->in_switch_gpio_active_high =
+			gpiod_is_active_low(gpio_to_desc(chip->in_switch_gpio)) ? 0 : 1;
 		}
 	}
 
-	chip->sbu_mux_en_gpio = of_get_named_gpio_flags(dn, "sbu-mux-en-gpio", 0, &flags);
+	chip->sbu_mux_en_gpio = of_get_named_gpio(dn, "sbu-mux-en-gpio", 0);
 	if (chip->sbu_mux_en_gpio < 0) {
 		dev_err(&client->dev, "sbu-mux-en-gpio not found\n");
 	}
-	chip->sbu_mux_sel_gpio = of_get_named_gpio_flags(dn, "sbu-mux-sel-gpio", 0, &flags);
+	chip->sbu_mux_sel_gpio = of_get_named_gpio(dn, "sbu-mux-sel-gpio", 0);
 	if (chip->sbu_mux_sel_gpio < 0) {
 		dev_err(&client->dev, "sbu-mux-sel-gpio not found\n");
 	}
