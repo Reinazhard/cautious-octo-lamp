@@ -841,7 +841,7 @@ static void exynos_serial_start_tx_pio(struct exynos_uart_port *ourport)
 }
 
 static int exynos_serial_start_tx_dma(struct exynos_uart_port *ourport,
-+				      unsigned int count, unsigned int tail)
+				      unsigned int count, unsigned int tail)
 {
 	struct exynos_uart_dma *dma = ourport->dma;
 
@@ -2564,7 +2564,7 @@ bool exynos_uart_console_enabled(void)
 
 	list_for_each_entry(ourport, &drvdata_list, node) {
 		port = &ourport->port;
-		if (uart_console_enabled(port))
+		if (uart_console_registered(port))
 			return true;
 	}
 	return false;
