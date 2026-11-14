@@ -458,7 +458,7 @@ static int exynos_cpufreq_verify(struct cpufreq_policy_data *new_policy)
 				 domain->min_freq_qos,
 				 domain->max_freq_qos);
 
-	ret = cpufreq_frequency_table_verify(new_policy, domain->freq_table);
+	ret = cpufreq_frequency_table_verify(new_policy);
 	if (!ret)
 		apply_thermal_pressure(domain, new_policy->max, TSKIN);
 
