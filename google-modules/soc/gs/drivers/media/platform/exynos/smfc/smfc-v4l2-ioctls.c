@@ -746,7 +746,7 @@ static int smfc_v4l2_prepare_s_fmt(struct smfc_ctx *ctx,
 	struct vb2_queue *othervq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, othertype);
 	u32 flags;
 
-	if (thisvq->num_buffers > 0) {
+	if (vb2_is_busy(thisvq)) {
 		dev_err(ctx->smfc->dev, "S_FMT after REQBUFS is not allowed\n");
 		return -EBUSY;
 	}
@@ -754,7 +754,7 @@ static int smfc_v4l2_prepare_s_fmt(struct smfc_ctx *ctx,
 	flags = smfc_config_ctxflag(ctx, SMFC_CTX_COMPRESS,
 				    is_jpeg(smfc_fmt) != V4L2_TYPE_IS_OUTPUT(type));
 
-	if (othervq->num_buffers > 0) { /* REQBUFSed on other vq */
+	if (vb2_is_busy(othervq)) { /* REQBUFSed on other vq */
 		if ((flags & SMFC_CTX_COMPRESS) != (ctx->flags & SMFC_CTX_COMPRESS)) {
 			dev_err(ctx->smfc->dev, "Changing mode is prohibited after reqbufs\n");
 			ctx->flags = flags;
@@ -954,7 +954,7 @@ static int v4l2_smfc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf
 			sbuf->offset[index] = 0;
 	}
 
-	return v4l2_m2m_qbuf(file, ctx->fh.m2m_ctx, buf);
+	return v4l2_m2m_qbuf(filp, ctx->fh.m2m_ctx, buf);
 }
 
 const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
