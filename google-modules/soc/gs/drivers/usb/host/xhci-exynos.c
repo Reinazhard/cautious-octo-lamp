@@ -15,7 +15,6 @@
 #include <host/xhci.h> /* $(srctree)/drivers/usb/host/xhci.h */
 #include <host/xhci-mvebu.h> /* $(srctree)/drivers/usb/host/xhci-mvebu.h */
 #include <host/xhci-plat.h> /* $(srctree)/drivers/usb/host/xhci-plat.h */
-#include <host/xhci-rcar.h> /* $(srctree)/drivers/usb/host/xhci-rcar.h */
 
 #include <linux/acpi.h>
 #include <linux/clk.h>
@@ -1078,7 +1077,7 @@ static int __maybe_unused xhci_exynos_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = xhci_resume(xhci, 0);
+	ret = xhci_resume(xhci, false, false);
 	if (ret) {
 		dev_err(xhci_exynos->dev, "%s: xhci resume failed, ret = %d\n", __func__, ret);
 		return ret;
