@@ -5,7 +5,10 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/mod_devicetable.h>
+#include <linux/of_address.h>
+#include <linux/platform_device.h>
+
 #include <linux/pm_runtime.h>
 #include <soc/google/exynos-pd_hsi0.h>
 
