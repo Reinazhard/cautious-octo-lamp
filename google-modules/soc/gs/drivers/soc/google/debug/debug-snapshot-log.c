@@ -202,7 +202,7 @@ void dbg_snapshot_get_freq_name(char (*freq_names)[DSS_FREQ_MAX_NAME_SIZE])
 	int i;
 
 	for (i = 0; i < dss_freq_size; i++)
-		strlcpy(freq_names[i], dss_freq_name[i], DSS_FREQ_MAX_NAME_SIZE);
+		strscpy(freq_names[i], dss_freq_name[i], DSS_FREQ_MAX_NAME_SIZE);
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_get_freq_name);
 
@@ -876,7 +876,7 @@ void dbg_snapshot_start_log(void)
 				__func__, dss_freq_size, ARRAY_SIZE(dss_freq_name));
 			break;
 		}
-		strlcpy(dss_freq_name[i], str, sizeof(dss_freq_name[i]));
+		strscpy(dss_freq_name[i], str, sizeof(dss_freq_name[i]));
 		++i;
 	}
 

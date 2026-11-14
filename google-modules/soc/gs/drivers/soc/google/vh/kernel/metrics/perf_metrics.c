@@ -131,8 +131,8 @@ static void update_min_latency(struct task_struct *prev, struct task_struct *nex
 	if (!in_arr){
 		rt_runnable = &trr->rt_runnable[trr->min_idx];
 		rt_runnable->latency = latency;
-		strlcpy(rt_runnable->comm, next->comm, TASK_COMM_LEN);
-		strlcpy(rt_runnable->prev_comm, prev->comm, TASK_COMM_LEN);
+		strscpy(rt_runnable->comm, next->comm, TASK_COMM_LEN);
+		strscpy(rt_runnable->prev_comm, prev->comm, TASK_COMM_LEN);
 		rt_runnable->pid = next->pid;
 	}
 
@@ -723,8 +723,8 @@ static ssize_t long_runnable_metrics_show(struct kobject *kobj,
 
 		for (i = 0; i < RT_RUNNABLE_ARR_SIZE; i++) {
 			long_rt_runnable = trr.rt_runnable[i];
-			strlcpy(sorted_trr[i].comm, long_rt_runnable.comm, TASK_COMM_LEN);
-			strlcpy(sorted_trr[i].prev_comm, long_rt_runnable.prev_comm,
+			strscpy(sorted_trr[i].comm, long_rt_runnable.comm, TASK_COMM_LEN);
+			strscpy(sorted_trr[i].prev_comm, long_rt_runnable.prev_comm,
 				TASK_COMM_LEN);
 			sorted_trr[i].latency = long_rt_runnable.latency;
 		}
