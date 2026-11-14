@@ -280,7 +280,7 @@ int dw3000_nfcc_coex_cancel_watchdog(struct dw3000 *dw)
 
 	trace_dw3000_nfcc_coex_cancel_watchdog(dw);
 	/* Is watchdog timer running? */
-	if (!del_timer(&nfcc_coex->watchdog_timer))
+	if (!timer_delete(&nfcc_coex->watchdog_timer))
 		return -ENOENT;
 	return 0;
 }
