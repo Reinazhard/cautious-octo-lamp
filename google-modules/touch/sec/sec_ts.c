@@ -14,6 +14,7 @@ struct sec_ts_data *tsp_info;
 
 #include "sec_ts.h"
 #include <samsung/exynos_drm_connector.h>
+#include <drm/drm_atomic_state_helper.h>
 
 #if IS_ENABLED(CONFIG_GS_DRM_PANEL_UNIFIED)
 #include <gs_drm/gs_drm_connector.h>
@@ -3868,7 +3869,7 @@ static int sec_ts_parse_dt(struct spi_device *client)
 
 	pdata->irq_gpio = of_get_named_gpio(np, "sec,irq_gpio", 0);
 	if (gpio_is_valid(pdata->irq_gpio)) {
-		ret = gpio_request_one(pdata->irq_gpio, GPIOF_DIR_IN,
+		ret = gpio_request_one(pdata->irq_gpio, GPIOF_IN,
 				       "sec,tsp_int");
 		if (ret) {
 			input_err(true, &client->dev,
@@ -6203,7 +6204,8 @@ static bool bridge_is_lp_mode(struct drm_connector *connector)
 	return false;
 }
 
-static void panel_bridge_enable(struct drm_bridge *bridge)
+static void panel_bridge_enable(struct drm_bridge *bridge,
+				struct drm_atomic_commit *commit)
 {
 	struct sec_ts_data *ts =
 		container_of(bridge, struct sec_ts_data, panel_bridge);
@@ -6213,7 +6215,8 @@ static void panel_bridge_enable(struct drm_bridge *bridge)
 		sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SCREEN_ON, true);
 }
 
-static void panel_bridge_disable(struct drm_bridge *bridge)
+static void panel_bridge_disable(struct drm_bridge *bridge,
+				 struct drm_atomic_commit *commit)
 {
 	struct sec_ts_data *ts =
 		container_of(bridge, struct sec_ts_data, panel_bridge);
@@ -6255,8 +6258,11 @@ static void panel_bridge_mode_set(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs panel_bridge_funcs = {
-	.enable = panel_bridge_enable,
-	.disable = panel_bridge_disable,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_enable = panel_bridge_enable,
+	.atomic_disable = panel_bridge_disable,
 	.mode_set = panel_bridge_mode_set,
 };
 
