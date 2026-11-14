@@ -21,6 +21,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
+#include <linux/vmalloc.h>
 
 #include "mfc_common.h"
 

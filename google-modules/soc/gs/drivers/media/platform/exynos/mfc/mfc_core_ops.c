@@ -39,6 +39,7 @@
 #include "mfc_utils.h"
 #include "mfc_queue.h"
 #include "mfc_mem.h"
+#include <linux/vmalloc.h>
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 static int __mfc_core_prot_firmware(struct mfc_core *core, struct mfc_ctx *ctx)
