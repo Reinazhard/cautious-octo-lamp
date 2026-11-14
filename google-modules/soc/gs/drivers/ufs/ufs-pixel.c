@@ -11,6 +11,8 @@
 #include <trace/hooks/ufshcd.h>
 #include <ufs/ufs.h>
 #include <ufs/ufshcd.h>
+#include <ufs_trace_types.h>
+#include <ufshcd-priv.h>
 
 #include <misc/sbbm.h>
 
@@ -167,6 +169,7 @@ static enum pixel_slowio_optype pixel_ufs_get_slowio_optype(u8 opcode)
 }
 
 static void pixel_ufs_log_slowio(struct ufs_hba *hba,
+		struct scsi_cmnd *cmd,
 		struct ufshcd_lrb *lrbp, s64 iotime_us)
 {
 	struct pixel_ufs *ufs = to_pixel_ufs(hba);
@@ -181,8 +184,8 @@ static void pixel_ufs_log_slowio(struct ufs_hba *hba,
 	if (likely(iotime_us < ufs->slowio_min_us))
 		return;
 
-	if (lrbp->cmd) {
-		opcode = (u8)(*lrbp->cmd->cmnd);
+	if (ufshcd_is_scsi_cmd(cmd)) {
+		opcode = cmd->cmnd[0];
 		optype = pixel_ufs_get_slowio_optype(opcode);
 		if (optype < PIXEL_SLOWIO_OP_MAX) {
 			if (iotime_us < ufs->slowio[optype][PIXEL_SLOWIO_US])
@@ -192,7 +195,7 @@ static void pixel_ufs_log_slowio(struct ufs_hba *hba,
 		if (optype == PIXEL_SLOWIO_READ ||
 			optype == PIXEL_SLOWIO_WRITE ||
 			optype == PIXEL_SLOWIO_UNMAP) {
-			struct request *rq = scsi_cmd_to_rq(lrbp->cmd);
+			struct request *rq = scsi_cmd_to_rq(cmd);
 			if (rq && rq->bio) {
 				sector = blk_rq_pos(rq);
 				affected_bytes = blk_rq_bytes(rq);
@@ -207,15 +210,15 @@ static void pixel_ufs_log_slowio(struct ufs_hba *hba,
 }
 
 /* classify request type on statistics by scsi command opcode*/
-static int pixel_ufs_get_cmd_type(struct ufshcd_lrb *lrbp,
+static int pixel_ufs_get_cmd_type(struct scsi_cmnd *cmd,
 				  enum req_type_stats *cmd_type)
 {
 	u8 scsi_op_code;
 
-	if (!lrbp->cmd)
+	if (!ufshcd_is_scsi_cmd(cmd))
 		return -EINVAL;
 
-	scsi_op_code = (u8)(*lrbp->cmd->cmnd);
+	scsi_op_code = cmd->cmnd[0];
 	switch (scsi_op_code) {
 	case READ_10:
 	case READ_16:
@@ -343,7 +346,8 @@ static inline void record_ufs_stats(struct ufs_hba *hba)
 	}
 }
 
-static void pixel_ufs_update_req_stats(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+static void pixel_ufs_update_req_stats(struct ufs_hba *hba,
+		struct scsi_cmnd *cmd, struct ufshcd_lrb *lrbp)
 {
 	struct pixel_ufs *ufs = to_pixel_ufs(hba);
 	struct pixel_req_stats *rst;
@@ -352,9 +356,9 @@ static void pixel_ufs_update_req_stats(struct ufs_hba *hba, struct ufshcd_lrb *l
 		lrbp->issue_time_stamp);
 
 	/* Log for slow I/O */
-	pixel_ufs_log_slowio(hba, lrbp, delta);
+	pixel_ufs_log_slowio(hba, cmd, lrbp, delta);
 
-	if (pixel_ufs_get_cmd_type(lrbp, &cmd_type))
+	if (pixel_ufs_get_cmd_type(cmd, &cmd_type))
 		return;
 
 	/* Update request statistic if need */
@@ -419,22 +423,23 @@ static inline void __update_io_stats(struct ufs_hba *hba,
 }
 
 static void pixel_ufs_update_io_stats(struct ufs_hba *hba,
+		struct scsi_cmnd *cmd,
 		struct ufshcd_lrb *lrbp, bool is_start)
 {
 	u32 affected_bytes;
 	bool is_write;
 	enum req_type_stats cmd_type;
 
-	if (pixel_ufs_get_cmd_type(lrbp, &cmd_type))
+	if (pixel_ufs_get_cmd_type(cmd, &cmd_type))
 		return;
 
 	if (cmd_type != REQ_TYPE_READ && cmd_type != REQ_TYPE_WRITE)
 		return;
 
-	affected_bytes = blk_rq_bytes(scsi_cmd_to_rq(lrbp->cmd));
+	affected_bytes = blk_rq_bytes(scsi_cmd_to_rq(cmd));
 
 	/* Upload I/O amount on statistic */
-	is_write = op_is_write(req_op(scsi_cmd_to_rq(lrbp->cmd)));
+	is_write = op_is_write(req_op(scsi_cmd_to_rq(cmd)));
 	__update_io_stats(hba, is_write, affected_bytes, is_start);
 
 	record_ufs_stats(hba);
@@ -627,6 +632,7 @@ static void pixel_ufs_trace_fdeviceinit(struct ufs_hba *hba,
 }
 
 static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
+		struct scsi_cmnd *cmd,
 		struct ufshcd_lrb *lrbp, bool is_start)
 {
 	u8 lun = 0, opcode = 0, idn = 0, tag = 0, group_id = 0;
@@ -635,18 +641,18 @@ static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
 	int affected_bytes = 0;
 
 	lun = lrbp->lun;
-	tag = lrbp->task_tag;
+	tag = scsi_cmd_to_rq(cmd)->tag;
 
-	if (lrbp->cmd) {
+	if (ufshcd_is_scsi_cmd(cmd)) {
 		event = (is_start) ? EVENT_SCSI_SEND : EVENT_SCSI_COMPL;
-		opcode = lrbp->cmd->cmnd[0];
-		sector = blk_rq_pos(scsi_cmd_to_rq(lrbp->cmd));
+		opcode = cmd->cmnd[0];
+		sector = blk_rq_pos(scsi_cmd_to_rq(cmd));
 
-		affected_bytes = blk_rq_bytes(scsi_cmd_to_rq(lrbp->cmd));
+		affected_bytes = blk_rq_bytes(scsi_cmd_to_rq(cmd));
 		if (opcode == WRITE_10 || opcode == READ_10)
-			group_id = lrbp->cmd->cmnd[6] & 0x3f;
+			group_id = cmd->cmnd[6] & 0x3f;
 		else if (opcode == WRITE_16 || opcode == READ_16)
-			group_id = lrbp->cmd->cmnd[14] & 0x3f;
+			group_id = cmd->cmnd[14] & 0x3f;
 	} else {
 		if (hba->dev_cmd.type == DEV_CMD_TYPE_NOP)
 			event = (is_start) ? EVENT_NOP_OUT : EVENT_NOP_IN;
@@ -719,24 +725,29 @@ static void pixel_ufs_check_int_errors(void *data, struct ufs_hba *hba,
 }
 
 static void pixel_ufs_send_command(void *data, struct ufs_hba *hba,
-					struct ufshcd_lrb *lrbp)
+					struct scsi_cmnd *cmd)
 {
-	pixel_ufs_update_io_stats(hba, lrbp, true);
-	pixel_ufs_trace_upiu_cmd(hba, lrbp, true);
+	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
+
+	pixel_ufs_update_io_stats(hba, cmd, lrbp, true);
+	pixel_ufs_trace_upiu_cmd(hba, cmd, lrbp, true);
 }
 
 static void pixel_ufs_compl_command(void *data, struct ufs_hba *hba,
-					struct ufshcd_lrb *lrbp)
+					struct scsi_cmnd *cmd)
 {
-	pixel_ufs_update_io_stats(hba, lrbp, false);
-	pixel_ufs_update_req_stats(hba, lrbp);
-	pixel_ufs_trace_upiu_cmd(hba, lrbp, false);
+	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
+
+	pixel_ufs_update_io_stats(hba, cmd, lrbp, false);
+	pixel_ufs_update_req_stats(hba, cmd, lrbp);
+	pixel_ufs_trace_upiu_cmd(hba, cmd, lrbp, false);
 }
 
 static void pixel_ufs_prepare_command(void *data, struct ufs_hba *hba,
-			struct request *rq, struct ufshcd_lrb *lrbp, int *err)
+			struct scsi_cmnd *cmd, int *err)
 {
 	struct pixel_ufs *ufs = to_pixel_ufs(hba);
+	struct request *rq = scsi_cmd_to_rq(cmd);
 	u8 opcode;
 
 	*err = 0;
@@ -761,11 +772,11 @@ static void pixel_ufs_prepare_command(void *data, struct ufs_hba *hba,
 	if (hba->dev_info.wspecversion <= 0x300)
 		return;
 
-	opcode = (u8)(*lrbp->cmd->cmnd);
+	opcode = cmd->cmnd[0];
 	if (opcode == WRITE_10)
-		lrbp->cmd->cmnd[6] = 0x11;
+		cmd->cmnd[6] = 0x11;
 	else if (opcode == WRITE_16)
-		lrbp->cmd->cmnd[14] = 0x11;
+		cmd->cmnd[14] = 0x11;
 	ufs->need_wb_flush = true;
 }
 
