@@ -220,7 +220,12 @@ static int dma_buf_fs_init_context(struct fs_context *fc)
 }
 
 static struct file_system_type dma_buf_fs_type = {
-	.name = "dmabuf",
+	/*
+	 * Name the pseudo-filesystem 'anon_inodefs' so that early-boot dmabuf
+	 * filesystems match Android SEPolicy (genfscon anon_inodefs) and avoid
+	 * unlabeled:s0 denials on RenderEngine and SurfaceFlinger.
+	 */
+	.name = "anon_inodefs",
 	.init_fs_context = dma_buf_fs_init_context,
 	.kill_sb = kill_anon_super,
 };
