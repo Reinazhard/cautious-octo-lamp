@@ -150,6 +150,26 @@ union nb_lock_type {
 	raw_spinlock_t raw_spinlock;
 };
 
+static void nb_raw_spin_lock(union nb_lock_type *lock)
+{
+	raw_spin_lock(&lock->raw_spinlock);
+}
+
+static void nb_raw_spin_unlock(union nb_lock_type *lock)
+{
+	raw_spin_unlock(&lock->raw_spinlock);
+}
+
+static void nb_rt_mutex_lock(union nb_lock_type *lock)
+{
+	rt_mutex_lock(&lock->rt_mutex);
+}
+
+static void nb_rt_mutex_unlock(union nb_lock_type *lock)
+{
+	rt_mutex_unlock(&lock->rt_mutex);
+}
+
 struct exynos_devfreq_data {
 	struct exynos_pm_qos_request min_req;
 	struct exynos_pm_qos_request umin_req;
@@ -158,8 +178,8 @@ struct exynos_devfreq_data {
 	struct devfreq *df;
 	struct notifier_block min_nb;
 	struct notifier_block max_nb;
-	void (*nb_lock_fn)(void *);
-	void (*nb_unlock_fn)(void *);
+	void (*nb_lock_fn)(union nb_lock_type *);
+	void (*nb_unlock_fn)(union nb_lock_type *);
 	union nb_lock_type min_nb_lock;
 	union nb_lock_type max_nb_lock;
 	union nb_lock_type nb_lock;
@@ -2182,14 +2202,14 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 		raw_spin_lock_init(&data->min_nb_lock.raw_spinlock);
 		raw_spin_lock_init(&data->max_nb_lock.raw_spinlock);
 		raw_spin_lock_init(&data->nb_lock.raw_spinlock);
-		data->nb_lock_fn = (void *)_raw_spin_lock;
-		data->nb_unlock_fn = (void *)_raw_spin_unlock;
+		data->nb_lock_fn = nb_raw_spin_lock;
+		data->nb_unlock_fn = nb_raw_spin_unlock;
 	} else {
 		rt_mutex_init(&data->min_nb_lock.rt_mutex);
 		rt_mutex_init(&data->max_nb_lock.rt_mutex);
 		rt_mutex_init(&data->nb_lock.rt_mutex);
-		data->nb_lock_fn = (void *)rt_mutex_lock;
-		data->nb_unlock_fn = (void *)rt_mutex_unlock;
+		data->nb_lock_fn = nb_rt_mutex_lock;
+		data->nb_unlock_fn = nb_rt_mutex_unlock;
 	}
 	platform_set_drvdata(pdev, data);
 
