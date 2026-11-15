@@ -23,6 +23,8 @@
 		interrupts = <GIC_SPI IRQ_PCIE_GEN4A_0_HSI1 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "msi";
 		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &gic 0 IRQ_PCIE_GEN4A_0_HSI1 0x4>;
 		samsung,syscon-phandle = <&pmu_system_controller>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pcie0_clkreq &pcie0_perst>;
