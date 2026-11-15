@@ -529,7 +529,11 @@ drm_bridge_atomic_duplicate_priv_state(struct drm_private_obj *obj)
 	struct drm_bridge *bridge = drm_priv_to_bridge(obj);
 	struct drm_bridge_state *state;
 
-	state = bridge->funcs->atomic_duplicate_state(bridge);
+	if (bridge->funcs->atomic_duplicate_state)
+		state = bridge->funcs->atomic_duplicate_state(bridge);
+	else
+		state = drm_atomic_helper_bridge_duplicate_state(bridge);
+
 	return state ? &state->base : NULL;
 }
 
@@ -540,7 +544,10 @@ drm_bridge_atomic_destroy_priv_state(struct drm_private_obj *obj,
 	struct drm_bridge_state *state = drm_priv_to_bridge_state(s);
 	struct drm_bridge *bridge = drm_priv_to_bridge(obj);
 
-	bridge->funcs->atomic_destroy_state(bridge, state);
+	if (bridge->funcs->atomic_destroy_state)
+		bridge->funcs->atomic_destroy_state(bridge, state);
+	else
+		drm_atomic_helper_bridge_destroy_state(bridge, state);
 }
 
 static struct drm_private_state *
@@ -549,7 +556,11 @@ drm_bridge_atomic_create_priv_state(struct drm_private_obj *obj)
 	struct drm_bridge *bridge = drm_priv_to_bridge(obj);
 	struct drm_bridge_state *state;
 
-	state = bridge->funcs->atomic_create_state(bridge);
+	if (bridge->funcs->atomic_create_state)
+		state = bridge->funcs->atomic_create_state(bridge);
+	else
+		state = drm_atomic_helper_bridge_create_state(bridge);
+
 	if (IS_ERR(state))
 		return ERR_CAST(state);
 
