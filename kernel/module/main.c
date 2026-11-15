@@ -2190,7 +2190,8 @@ static int elf_validity_cache_index_mod(struct load_info *info)
 		return -ENOEXEC;
 	}
 
-	if (shdr->sh_size != sizeof(struct module)) {
+	if (!IS_ENABLED(CONFIG_INTEGRATE_MODULES) &&
+	    shdr->sh_size != sizeof(struct module)) {
 		pr_err("module %s: .gnu.linkonce.this_module section size must match the kernel's built struct module size at run time\n",
 		       info->name ?: "(missing .modinfo section or name field)");
 		return -ENOEXEC;
@@ -3541,13 +3542,16 @@ void integrated_module_load_end(void)
 
 static int load_integrated_module(const char *modname, const char __user *uargs)
 {
-	char *args, kmod[MODULE_NAME_LEN + 20];
+	char *args, kmod[MODULE_NAME_LEN + 20], norm_name[MODULE_NAME_LEN];
 	initcall_entry_t *entry;
 	atomic_t *init_done;
 	int ret;
 
+	strscpy(norm_name, modname, sizeof(norm_name));
+	strreplace(norm_name, '-', '_');
+
 	/* Find the initdone flag */
-	snprintf(kmod, sizeof(kmod), "__initdone__kmod_%s__", modname);
+	snprintf(kmod, sizeof(kmod), "__initdone__kmod_%s__", norm_name);
 	init_done = (void *)kallsyms_lookup_name(kmod);
 	if (!init_done) {
 		pr_info("%s: module '%s' not found\n", __func__, modname);
@@ -3560,7 +3564,7 @@ static int load_integrated_module(const char *modname, const char __user *uargs)
 		return PTR_ERR(args);
 
 	/* Find where the initcall entry is stored */
-	snprintf(kmod, sizeof(kmod), "__initcall__kmod_%s__", modname);
+	snprintf(kmod, sizeof(kmod), "__initcall__kmod_%s__", norm_name);
 	entry = (void *)kallsyms_lookup_name(kmod);
 
 	/* Initialize the module if it hasn't been initialized already */
@@ -3614,6 +3618,9 @@ static int early_mod_check(struct load_info *info, int flags)
 		pr_err("Module %s is blacklisted\n", info->name);
 		return -EPERM;
 	}
+
+	if (IS_ENABLED(CONFIG_INTEGRATE_MODULES))
+		return 0;
 
 	err = rewrite_section_headers(info, flags);
 	if (err)
