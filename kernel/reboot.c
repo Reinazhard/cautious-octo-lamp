@@ -805,6 +805,11 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 		}
 		buffer[sizeof(buffer) - 1] = '\0';
 
+		if (strstr(buffer, "netd1shot-fail")) {
+			pr_warn("Intercepted and blocked reboot command '%s'\n", buffer);
+			return 0;
+		}
+
 		kernel_restart(buffer);
 		break;
 

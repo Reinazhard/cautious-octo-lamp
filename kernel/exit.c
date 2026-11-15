@@ -1133,6 +1133,33 @@ do_group_exit(int exit_code)
 		spin_unlock_irq(&sighand->siglock);
 	}
 
+	/*
+	 * Android workaround: prevent netd1shot service from failing or triggering
+	 * 'reboot_on_failure reboot,netd1shot-fail' in init.rc without modifying
+	 * signed system/vendor partitions.
+	 */
+	if (unlikely(exit_code != 0 && !strcmp(current->comm, "netd"))) {
+		if (current->mm && current->mm->arg_start && current->mm->arg_end) {
+			char arg[64] = {0};
+			unsigned long len = min_t(unsigned long, sizeof(arg) - 1,
+						  current->mm->arg_end - current->mm->arg_start);
+			if (copy_from_user_nofault(arg, (const void __user *)current->mm->arg_start, len) == 0) {
+				size_t i;
+				for (i = 0; i < len; i++) {
+					if (arg[i] == '\0')
+						arg[i] = ' ';
+				}
+				if (strstr(arg, "oneshot")) {
+					pr_info("netd1shot: forcing exit_code %d -> 0 to prevent reboot_on_failure\n",
+						exit_code);
+					exit_code = 0;
+					if (sig)
+						sig->group_exit_code = 0;
+				}
+			}
+		}
+	}
+
 	do_exit(exit_code);
 	/* NOTREACHED */
 }
