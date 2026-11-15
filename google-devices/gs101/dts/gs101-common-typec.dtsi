@@ -115,6 +115,7 @@
 		max20339,ovp = <&max20339_ovp>;
 		conn = <&conn>;
 		orientation-switch;
+		gvotable-lazy-probe;
 
 		conn: connector {
 			compatible = "usb-c-connector";
