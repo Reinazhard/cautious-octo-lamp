@@ -21,6 +21,9 @@
 #if IS_ENABLED(CONFIG_PCI_EXYNOS_GS)
 extern int exynos_pcie_l1ss_ctrl(int enable, int id);
 extern int exynos_pcie_rc_l1ss_ctrl(int enable, int id, int ch_num);
+#else
+static inline int exynos_pcie_l1ss_ctrl(int enable, int id) { return 0; }
+static inline int exynos_pcie_rc_l1ss_ctrl(int enable, int id, int ch_num) { return 0; }
 #endif
 
 #endif
