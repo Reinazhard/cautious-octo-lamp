@@ -1043,6 +1043,7 @@ static void gs_panel_bridge_post_disable(struct drm_bridge *bridge,
 static const struct drm_bridge_funcs gs_panel_bridge_funcs = {
 	.attach = gs_panel_bridge_attach,
 	.detach = gs_panel_bridge_detach,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.atomic_enable = gs_panel_bridge_enable,
 	.atomic_disable = gs_panel_bridge_disable,
 	.atomic_check = gs_panel_bridge_atomic_check,
