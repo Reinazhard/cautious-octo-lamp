@@ -15,7 +15,7 @@ config CRC7
 	  the functions from <linux/crc7.h>.
 
 config CRC8
-	tristate
+	tristate "CRC8 function"
 	help
 	  The CRC8 library functions.  Select this if your module uses any of
 	  the functions from <linux/crc8.h>.

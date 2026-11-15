@@ -80,6 +80,7 @@ endif	# GOOGLE_BMS
 config CHARGER_P9221
 	tristate "IDT P9221 wireless power receiver driver"
 	depends on I2C
+	select CRC8
 	help
 	  This driver provides support for the IDT P9221 wireless
 	  power receiver.
