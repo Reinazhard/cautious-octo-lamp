@@ -2802,6 +2802,10 @@ static inline int __security_genfs_sid(struct selinux_policy *policy,
 	while (path[0] == '/' && path[1] == '/')
 		path++;
 
+	/* Alias dmabuf pseudo-filesystem to anon_inodefs for Android SEPolicy compatibility */
+	if (!strcmp(fstype, "dmabuf"))
+		fstype = "anon_inodefs";
+
 	sclass = unmap_class(&policy->map, orig_sclass);
 	*sid = SECINITSID_UNLABELED;
 
@@ -2892,6 +2896,10 @@ int security_fs_use(struct super_block *sb)
 	struct ocontext *c;
 	struct superblock_security_struct *sbsec = selinux_superblock(sb);
 	const char *fstype = sb->s_type->name;
+
+	/* Alias dmabuf pseudo-filesystem to anon_inodefs for Android SEPolicy compatibility */
+	if (!strcmp(fstype, "dmabuf"))
+		fstype = "anon_inodefs";
 
 	if (!selinux_initialized()) {
 		sbsec->behavior = SECURITY_FS_USE_NONE;
