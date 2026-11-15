@@ -1354,6 +1354,7 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 {
 	struct new_utsname tmp;
 	struct task_struct *t;
+	const char *dash;
 	bool is_gms = false;
 
 	down_read(&uts_sem);
@@ -1369,10 +1370,19 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 	}
 	rcu_read_unlock();
 
+	/*
+	 * Android V+ (API 35+) userspace and NetBpfLoad require an approved
+	 * LTS kernel version (such as 6.6.y). If a non-LTS version (e.g. 7.3.0)
+	 * is reported, NetBpfLoad rejects the kernel, fails to load networking
+	 * BPF maps, and netd aborts with SIGABRT causing a zygote bootloop.
+	 * Present 6.6.y LTS release to userspace while preserving localversion.
+	 */
+	dash = strchr(utsname()->release, '-');
 	if (is_gms)
-		snprintf(tmp.release, sizeof(tmp.release), "%u.%u.%u",
-			 LINUX_VERSION_MAJOR, LINUX_VERSION_PATCHLEVEL,
-			 LINUX_VERSION_SUBLEVEL);
+		snprintf(tmp.release, sizeof(tmp.release), "6.6.65");
+	else
+		snprintf(tmp.release, sizeof(tmp.release), "6.6.65%s",
+			 dash ? dash : "");
 
 	if (copy_to_user(name, &tmp, sizeof(tmp)))
 		return -EFAULT;
