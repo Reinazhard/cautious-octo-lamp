@@ -3507,10 +3507,11 @@ static int max77759_probe(struct i2c_client *client,
 
 	chip->charger_mode_votable = gvotable_election_get_handle(GBMS_MODE_VOTABLE);
 	if (IS_ERR_OR_NULL(chip->charger_mode_votable)) {
-		dev_err(&client->dev, "TCPCI: GBMS_MODE_VOTABLE get failed: %ld",
-			PTR_ERR(chip->charger_mode_votable));
+		dev_warn(&client->dev, "TCPCI: GBMS_MODE_VOTABLE get failed: %ld (using lazy get)\n",
+			 PTR_ERR(chip->charger_mode_votable));
 		if (!of_property_read_bool(dn, "gvotable-lazy-probe"))
 			return -EPROBE_DEFER;
+		chip->charger_mode_votable = NULL;
 	}
 	kthread_init_work(&chip->reenable_auto_ultra_low_power_mode_work,
 			  reenable_auto_ultra_low_power_mode_work_item);
