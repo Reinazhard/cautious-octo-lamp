@@ -2329,7 +2329,8 @@ static int memperf_reboot(struct notifier_block *notifier, unsigned long val,
 					 cpu_possible_mask);
 	static_branch_disable(&system_ready);
 	kick_all_cpus_sync();
-	cpuhp_remove_state_nocalls(cpuhp_state);
+	if (cpuhp_state > 0)
+		cpuhp_remove_state_nocalls(cpuhp_state);
 	return NOTIFY_OK;
 }
 
