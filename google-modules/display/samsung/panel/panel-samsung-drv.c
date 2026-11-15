@@ -5818,6 +5818,7 @@ int exynos_panel_common_init(struct mipi_dsi_device *dsi,
 #ifdef CONFIG_OF
 	ctx->bridge.of_node = ctx->dev->of_node;
 #endif
+	INIT_LIST_HEAD(&ctx->bridge.list);
 	drm_bridge_add(&ctx->bridge);
 
 	ret = sysfs_create_files(&dev->kobj, panel_attrs);
