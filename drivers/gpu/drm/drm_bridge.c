@@ -444,8 +444,13 @@ EXPORT_SYMBOL(__devm_drm_bridge_alloc);
  */
 void drm_bridge_add(struct drm_bridge *bridge)
 {
-	if (!bridge->container)
+	if (!bridge->container) {
 		DRM_WARN("DRM bridge corrupted or not allocated by devm_drm_bridge_alloc()\n");
+		if (!bridge->list.next)
+			INIT_LIST_HEAD(&bridge->list);
+		if (!kref_read(&bridge->refcount))
+			kref_init(&bridge->refcount);
+	}
 
 	drm_bridge_get(bridge);
 
