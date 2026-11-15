@@ -239,8 +239,6 @@ static int sync_fill_fence_info(struct dma_fence *fence,
 			ktime_to_ns(dma_fence_timestamp(fence)) :
 			ktime_set(0, 0);
 
-	rcu_read_unlock();
-
 	return info->status;
 }
 
