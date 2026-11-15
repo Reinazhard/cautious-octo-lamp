@@ -104,6 +104,9 @@ ccflags-y += -DCONFIG_GOOGLE_BCL
 ccflags-y += -DCONFIG_MALI_PIXEL_GPU_PM=1
 ccflags-y += -DCONFIG_MALI_MIDGARD_DVFS=1
 ccflags-y += -DCONFIG_MALI_DEVFREQ=1
+CONFIG_MALI_DEVFREQ := y
+CONFIG_MALI_REAL_HW := y
+ccflags-y += -DCONFIG_MALI_REAL_HW=1
 ccflags-y += -DCONFIG_MALI_PIXEL_GPU_QOS=1
 ccflags-y += -DCONFIG_MALI_PIXEL_GPU_THERMAL=1
 ccflags-y += -DCONFIG_MALI_PIXEL_GPU_SLC=1
@@ -259,7 +262,7 @@ endif
 
 ifeq ($(KBUILD_EXTMOD),)
 # in-tree
-    -include $(INCLUDE_SUBDIR)
+    include $(INCLUDE_SUBDIR)
 else
 # out-of-tree
     include $(INCLUDE_SUBDIR)

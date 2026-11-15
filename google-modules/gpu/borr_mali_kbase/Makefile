@@ -37,6 +37,8 @@ CONFIG_MALI_SYSTEM_TRACE=y
 # Core kbase configuration options
 CONFIG_MALI_EXPERT=y
 CONFIG_MALI_MIDGARD_DVFS=y
+CONFIG_MALI_DEVFREQ=y
+CONFIG_MALI_REAL_HW=y
 CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD = y
 
 # Pixel integration specific configuration options
