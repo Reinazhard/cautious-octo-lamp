@@ -1,7 +1,7 @@
 /*
  * Linux platform device for DHD WLAN adapter
  *
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -380,7 +380,11 @@ static int wifi_plat_dev_drv_probe(struct platform_device *pdev)
 	return wifi_plat_dev_probe_ret;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0))
+static void wifi_plat_dev_drv_remove(struct platform_device *pdev)
+#else
 static int wifi_plat_dev_drv_remove(struct platform_device *pdev)
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0) */
 {
 	wifi_adapter_info_t *adapter;
 
@@ -403,7 +407,9 @@ static int wifi_plat_dev_drv_remove(struct platform_device *pdev)
 #ifdef CONFIG_DTS
 	regulator_put(wifi_regulator);
 #endif /* CONFIG_DTS */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0))
 	return 0;
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0) */
 }
 
 static int wifi_plat_dev_drv_suspend(struct platform_device *pdev, pm_message_t state)
@@ -631,7 +637,11 @@ static int bcmdhd_wifi_plat_dev_drv_probe(struct platform_device *pdev)
 	return dhd_wifi_platform_load();
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0))
+static void bcmdhd_wifi_plat_dev_drv_remove(struct platform_device *pdev)
+#else
 static int bcmdhd_wifi_plat_dev_drv_remove(struct platform_device *pdev)
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0) */
 {
 	int i;
 	wifi_adapter_info_t *adapter;
@@ -643,7 +653,9 @@ static int bcmdhd_wifi_plat_dev_drv_remove(struct platform_device *pdev)
 		wifi_platform_set_power(adapter, FALSE, WIFI_TURNOFF_DELAY);
 		wifi_platform_bus_enumerate(adapter, FALSE);
 	}
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0))
 	return 0;
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0) */
 }
 
 static struct platform_driver dhd_wifi_platform_dev_driver = {

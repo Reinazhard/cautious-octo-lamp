@@ -1,7 +1,7 @@
 /*
  * Linux cfg80211 Vendor Extension Code
  *
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -36,6 +36,7 @@
 #include <bcmutils.h>
 #include <bcmwifi_channels.h>
 #include <bcmendian.h>
+#include <bcmstdlib_s.h>
 #include <ethernet.h>
 #include <802.11.h>
 #include <linux/if_arp.h>
@@ -3495,19 +3496,14 @@ wl_cfgvendor_set_td_policy(struct wiphy *wiphy,
 			u32 td_policy = nla_get_u32(iter);
 
 			WL_INFORM_MEM(("Setting TD policy %d\n", td_policy));
-			if (td_policy == TRANSITION_MODE_WPA3_PSK ||
-					td_policy == TRANSITION_MODE_SAE_PK) {
-				ret = wl_cfg80211_set_wsec_info(net, &td_policy,
-					sizeof(td_policy), WL_WSEC_INFO_BSS_TD_POLICY);
-				if (unlikely(ret)) {
-					WL_ERR(("set wsec_info for td_policy failed, error %d\n", ret));
-					/* Trigger disassoc, going ahead with connection is
-					* violation of TD policy
-					*/
-					wl_cfg80211_disassoc(net, WLAN_REASON_UNSPECIFIED);
-				}
-			} else {
-				WL_ERR(("Unsupported TD policy %d\n", td_policy));
+			ret = wl_cfg80211_set_wsec_info(net, &td_policy,
+				sizeof(td_policy), WL_WSEC_INFO_BSS_TD_POLICY);
+			if (unlikely(ret)) {
+				WL_ERR(("set wsec_info for td_policy failed, error %d\n", ret));
+				/* Trigger disassoc, going ahead with connection is
+				 * violation of TD policy
+				 */
+				wl_cfg80211_disassoc(net, WLAN_REASON_UNSPECIFIED);
 			}
 			break;
 		}
@@ -6934,10 +6930,6 @@ wl_cfgvendor_nan_stop_handler(struct wiphy *wiphy,
 exit:
 	mutex_unlock(&cfg->if_sync);
 	if (cmd_data) {
-		if (cmd_data->scid.data) {
-			MFREE(cfg->osh, cmd_data->scid.data, cmd_data->scid.dlen);
-			cmd_data->scid.dlen = 0;
-		}
 		MFREE(cfg->osh, cmd_data, sizeof(*cmd_data));
 	}
 	NAN_DBG_EXIT();
@@ -10721,7 +10713,7 @@ wl_cfgvendor_twt_setup(struct wiphy *wiphy,
 				if (nla_get_u8(iter) == 1) {
 					val.desc.flow_flags |= WL_TWT_FLOW_FLAG_TRIGGER;
 				}
-				break;
+				BCM_FALLTHROUGH;
 			case ANDR_TWT_ATTR_WAKE_DURATION:
 				/* Wake Duration */
 				val.desc.wake_dur = nla_get_u32(iter);
@@ -12256,7 +12248,7 @@ const struct nla_policy mkeep_alive_attr_policy[MKEEP_ALIVE_ATTRIBUTE_MAX] = {
 };
 #endif /* KEEP_ALIVE */
 #ifdef WL_NAN
-static const struct nla_policy nan_attr_policy[NAN_ATTRIBUTE_MAX] = {
+const struct nla_policy nan_attr_policy[NAN_ATTRIBUTE_MAX] = {
 	[NAN_ATTRIBUTE_2G_SUPPORT] = { .type = NLA_U8, .len = sizeof(uint8) },
 	[NAN_ATTRIBUTE_5G_SUPPORT] = { .type = NLA_U8, .len = sizeof(uint8) },
 	[NAN_ATTRIBUTE_CLUSTER_LOW] = { .type = NLA_U16, .len = sizeof(uint16) },

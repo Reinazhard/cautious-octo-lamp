@@ -1,7 +1,7 @@
 /*
  * Driver O/S-independent utility routines
  *
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -2074,13 +2074,12 @@ bcm_mwbmap_show(struct bcm_mwbmap * mwbmap_hdl)
 	return;
 }
 
-#if defined(BCM_MWBMAP_DEBUG)
 /* Audit a hierarchical multiword bitmap */
 void
 bcm_mwbmap_audit(struct bcm_mwbmap * mwbmap_hdl)
 {
 	bcm_mwbmap_t * mwbmap_p;
-	uint32 count, wordix, idmap_ix, bitix, *bitmap_p;
+	uint32 count, free_cnt = 0U, wordix, idmap_ix, bitix, *bitmap_p;
 
 	mwbmap_p = BCM_MWBMAP_PTR(mwbmap_hdl);
 
@@ -2098,11 +2097,14 @@ bcm_mwbmap_audit(struct bcm_mwbmap * mwbmap_hdl)
 				ASSERT(count == bcm_cntsetbits(mwbmap_p->id_bitmap[idmap_ix]));
 #endif /* ! BCM_MWBMAP_USE_CNTSETBITS */
 				ASSERT(count != 0U);
+				free_cnt += count;
 			}
 		}
 	}
+
+	ASSERT((int)free_cnt == mwbmap_p->ifree);
 }
-#endif /* BCM_MWBMAP_DEBUG */
+
 /* END : Multiword bitmap based 64bit to Unique 32bit Id allocator. */
 
 /* Simple 16bit Id allocator using a stack implementation. */

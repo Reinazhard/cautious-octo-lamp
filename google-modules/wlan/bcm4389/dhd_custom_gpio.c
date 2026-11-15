@@ -1,7 +1,7 @@
 /*
  * Customer code to add GPIO control during WLAN start/stop
  *
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,6 +26,7 @@
 #include <typedefs.h>
 #include <linuxver.h>
 #include <osl.h>
+#include <bcmstdlib_s.h>
 #include <bcmutils.h>
 #include <dngl_stats.h>
 #include <dhd.h>

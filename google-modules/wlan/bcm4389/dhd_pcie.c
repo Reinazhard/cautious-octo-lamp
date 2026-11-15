@@ -1,7 +1,7 @@
 /*
  * DHD Bus Module for PCIE
  *
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -99,8 +99,8 @@
 
 #ifdef DNGL_AXI_ERROR_LOGGING
 #include <dhd_linux_wq.h>
-#endif /* DNGL_AXI_ERROR_LOGGING */
 #include <dhd_linux.h>
+#endif /* DNGL_AXI_ERROR_LOGGING */
 
 #if defined(DHD_CONTROL_PCIE_CPUCORE_WIFI_TURNON)
 #include <dhd_linux_priv.h>
@@ -1502,9 +1502,14 @@ skip_intstatus_read:
 
 		bus->ipend = TRUE;
 
+		/* Due to irq mismatch WARNING in linux, currently keeping it disabled and
+		 * using dongle intmask to control INTR enable/disable
+		 */
 		if (bus->d2h_intr_control == PCIE_HOST_IRQ_CTRL) {
-			bus->host_irq_disable_count++;
-			dhdpcie_disable_irq_nosync(bus); /* Disable interrupt!! */
+			if (!dhdpcie_irq_disabled(bus)) {
+				bus->host_irq_disable_count++;
+				dhdpcie_disable_irq_nosync(bus); /* Disable interrupt!! */
+			}
 		} else {
 			dhdpcie_bus_intr_disable(bus); /* Disable interrupt using IntMask!! */
 			bus->dngl_intmask_disable_count++;
@@ -2140,12 +2145,7 @@ dhdpcie_dongle_attach(dhd_bus_t *bus)
 	dhd_init_backplane_access_lock(bus);
 
 	bus->alp_only = TRUE;
-
-	/* Clean up after the last bus attachment */
-	if (bus->sih) {
-		si_detach(bus->sih);
-		bus->sih = NULL;
-	}
+	bus->sih = NULL;
 
 	/* Checking PCIe bus status with reading configuration space */
 	val = OSL_PCI_READ_CONFIG(osh, PCI_CFG_VID, sizeof(uint32));
@@ -8452,13 +8452,6 @@ dhdpcie_bus_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid, cons
 
 	case IOV_SVAL(IOV_RX_METADATALEN):
 #if !defined(BCM_ROUTER_DHD)
-		/* Reject negative values */
-		if (int_val < 0) {
-			bcmerror = BCME_BADARG;
-			break;
-		}
-
-		/* Enforce upper bound */
 		if (int_val > 64) {
 			bcmerror = BCME_BUFTOOLONG;
 			break;
@@ -8500,13 +8493,6 @@ dhdpcie_bus_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid, cons
 
 	case IOV_SVAL(IOV_TX_METADATALEN):
 #if !defined(BCM_ROUTER_DHD)
-		/* Reject negative values */
-		if (int_val < 0) {
-			bcmerror = BCME_BADARG;
-			break;
-		}
-
-		/* Enforce upper bound */
 		if (int_val > 64) {
 			bcmerror = BCME_BUFTOOLONG;
 			break;
@@ -12319,7 +12305,7 @@ dhd_bus_inb_set_device_wake(struct dhd_bus *bus, bool val)
 		 *
 		 */
 
-		if (1) {
+		if (!CAN_SLEEP()) {
 			dhdpcie_bus_set_pcie_inband_dw_state(bus,
 				DW_DEVICE_DS_DEV_WAKE);
 			DHD_BUS_INB_DW_UNLOCK(bus->inb_lock, flags);
@@ -12722,6 +12708,20 @@ BCMFASTPATH(dhd_bus_dpc)(struct dhd_bus *bus)
 		}
 	}
 
+	/* Due to irq mismatch WARNING in linux, currently keeping it disabled and
+	 * using dongle intmask to control INTR enable/disable
+	 */
+	if (bus->d2h_intr_control == PCIE_HOST_IRQ_CTRL) {
+		/*
+		 * Disable IRQ at start of DPC if it is not disabled and
+		 * Enable back at the end of dpc if irq is disabled.
+		 */
+		if (!dhdpcie_irq_disabled(bus)) {
+			bus->host_irq_disable_count++;
+			dhdpcie_disable_irq_nosync(bus); /* Disable host IRQ!! */
+		}
+	}
+
 	DHD_GENERAL_LOCK(bus->dhd, flags);
 	/* Check for only DHD_BUS_DOWN and not for DHD_BUS_DOWN_IN_PROGRESS
 	 * to avoid IOCTL Resumed On timeout when ioctl is waiting for response
@@ -12747,9 +12747,12 @@ BCMFASTPATH(dhd_bus_dpc)(struct dhd_bus *bus)
 		bus->dpc_exit_time = OSL_LOCALTIME_NS();
 		bus->dpc_time_usec = (bus->dpc_exit_time - bus->dpc_entry_time) / NSEC_PER_USEC;
 		if (!dhd_query_bus_erros(bus->dhd)) {
+			/* Due to irq mismatch WARNING in linux, currently keeping it disabled and
+			 * using dongle intmask to control INTR enable/disable
+			 */
 			if (bus->d2h_intr_control == PCIE_HOST_IRQ_CTRL) {
-				bus->host_irq_enable_count++;
-				dhdpcie_enable_irq(bus);
+				bus->host_irq_enable_count += dhdpcie_irq_disabled(bus);
+				dhdpcie_enable_irq_loop(bus);
 			} else {
 				/* Enable back interrupt using Intmask! */
 				dhdpcie_bus_intr_enable(bus);
@@ -14754,7 +14757,6 @@ dhd_bus_flow_ring_create_response(dhd_bus_t *bus, uint16 flowid, int32 status)
 		DHD_ERROR(("%s: invalid flowid:%d alloc_max:%d fid_max:%d\n",
 			__FUNCTION__, flowid, bus->dhd->num_h2d_rings,
 			bus->dhd->max_tx_flowid));
-		return;
 	}
 
 	flow_ring_node = DHD_FLOW_RING(bus->dhd, flowid);
@@ -14862,7 +14864,6 @@ dhd_bus_flow_ring_delete_response(dhd_bus_t *bus, uint16 flowid, uint32 status)
 		DHD_ERROR(("%s: invalid flowid:%d alloc_max:%d fid_max:%d\n",
 			__FUNCTION__, flowid, bus->dhd->num_h2d_rings,
 			bus->dhd->max_tx_flowid));
-		return;
 	}
 
 	flow_ring_node = DHD_FLOW_RING(bus->dhd, flowid);
@@ -14946,7 +14947,6 @@ dhd_bus_flow_ring_flush_response(dhd_bus_t *bus, uint16 flowid, uint32 status)
 		DHD_ERROR(("%s: invalid flowid:%d alloc_max:%d fid_max:%d\n",
 			__FUNCTION__, flowid, bus->dhd->num_h2d_rings,
 			bus->dhd->max_tx_flowid));
-		return;
 	}
 
 	flow_ring_node = DHD_FLOW_RING(bus->dhd, flowid);

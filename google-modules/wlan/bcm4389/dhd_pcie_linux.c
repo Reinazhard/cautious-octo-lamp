@@ -1,7 +1,7 @@
 /*
  * Linux DHD Bus Module for PCIE
  *
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -270,7 +270,6 @@ static const struct dev_pm_ops dhd_pcie_pm_ops = {
 #endif /* DHD_PCIE_RUNTIMEPM */
 
 static struct pci_driver dhdpcie_driver = {
-	node:		{&dhdpcie_driver.node, &dhdpcie_driver.node},
 	name:		"pcieh",
 	id_table:	dhdpcie_pci_devid,
 	probe:		dhdpcie_pci_probe,
@@ -1541,10 +1540,47 @@ int dhdpcie_pci_suspend_resume(dhd_bus_t *bus, bool state)
 	return rc;
 }
 
+static int dhdpcie_device_scan(struct device *dev, void *data)
+{
+	struct pci_dev *pcidev;
+	int *cnt = data;
+
+	GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST();
+	pcidev = container_of(dev, struct pci_dev, dev);
+	GCC_DIAGNOSTIC_POP();
+
+	if (pcidev->vendor != 0x14e4)
+		return 0;
+
+	DHD_INFO(("Found Broadcom PCI device 0x%04x\n", pcidev->device));
+	*cnt += 1;
+	if (pcidev->driver && strcmp(pcidev->driver->name, dhdpcie_driver.name))
+		DHD_ERROR(("Broadcom PCI Device 0x%04x has allocated with driver %s\n",
+			pcidev->device, pcidev->driver->name));
+
+	return 0;
+}
+
 int
 dhdpcie_bus_register(void)
 {
-	return pci_register_driver(&dhdpcie_driver);
+	int error = 0;
+
+	if (!(error = pci_register_driver(&dhdpcie_driver))) {
+		bus_for_each_dev(dhdpcie_driver.driver.bus, NULL, &error, dhdpcie_device_scan);
+		if (!error) {
+			DHD_ERROR(("No Broadcom PCI device enumerated!\n"));
+		} else if (!dhdpcie_init_succeeded) {
+			DHD_ERROR(("%s: dhdpcie initialize failed.\n", __FUNCTION__));
+		} else {
+			return 0;
+		}
+
+		pci_unregister_driver(&dhdpcie_driver);
+		error = BCME_ERROR;
+	}
+
+	return error;
 }
 
 void
@@ -1822,9 +1858,7 @@ dhdpcie_request_irq(dhdpcie_info_t *dhdpcie_info)
 		DHD_ERROR(("%s: PCI IRQ is already registered\n", __FUNCTION__));
 	}
 
-	if (dhdpcie_irq_disabled(bus)) {
-		dhdpcie_enable_irq(bus);
-	}
+	dhdpcie_enable_irq_loop(bus);
 
 	DHD_TRACE(("%s %s\n", __FUNCTION__, dhdpcie_info->pciname));
 
@@ -2437,6 +2471,16 @@ dhdpcie_enable_irq(dhd_bus_t *bus)
 	dev = bus->dev;
 	enable_irq(dev->irq);
 	return BCME_OK;
+}
+
+void
+dhdpcie_enable_irq_loop(dhd_bus_t *bus)
+{
+	/* Enable IRQ in a loop till host_irq_disable_count becomes 0 */
+	uint host_irq_disable_count = dhdpcie_irq_disabled(bus);
+	while (host_irq_disable_count--) {
+		dhdpcie_enable_irq(bus); /* Enable back interrupt!! */
+	}
 }
 
 int

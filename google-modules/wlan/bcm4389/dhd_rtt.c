@@ -1,7 +1,7 @@
 /*
  * Broadcom Dongle Host Driver (DHD), RTT
  *
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -2138,9 +2138,11 @@ exit:
 void
 dhd_rtt_set_geofence_cur_target_idx(dhd_pub_t *dhd, int8 idx)
 {
+	int8 target_cnt = 0;
 	rtt_status_info_t *rtt_status = GET_RTTSTATE(dhd);
 
-	ASSERT(idx < rtt_status->geofence_cfg.geofence_target_cnt);
+	target_cnt = rtt_status->geofence_cfg.geofence_target_cnt;
+	ASSERT(idx < target_cnt);
 	rtt_status->geofence_cfg.cur_target_idx = idx;
 	return;
 }
@@ -3994,7 +3996,7 @@ dhd_rtt_convert_results_to_host_v3(rtt_result_t *rtt_result, const uint8 *p_data
 	wl_proxd_bitflips_t tof_target_bitflips = 0;
 	int16 rssi = 0;
 	int32 dist = 0;
-	uint32 chanspec = 0;
+	uint32 chanspec = 0, gd_variance = 0;
 	uint8 num_ftm = 0;
 	char *ftm_frame_types[] =  FTM_FRAME_TYPES;
 	rtt_report_t *rtt_report = &(rtt_result->report);
@@ -4060,13 +4062,14 @@ dhd_rtt_convert_results_to_host_v3(rtt_result_t *rtt_result, const uint8 *p_data
 	p_sample_avg = &p_data_info->rtt[0];
 	ftm_tmu_value_to_logstr(ltoh16_ua(&p_sample_avg->rtt.tmu));
 	DHD_RTT((">\tavg_rtt sample: rssi=%d rtt=%d%s std_deviation =%d.%d"
-		"ratespec=0x%08x chanspec=0x%08x\n",
+		"ratespec=0x%08x chanspec=0x%08x gd_variance %u\n",
 		(int16) ltoh16_ua(&p_sample_avg->rssi),
 		ltoh32_ua(&p_sample_avg->rtt.intvl),
 		ftm_tmu_value_to_logstr(ltoh16_ua(&p_sample_avg->rtt.tmu)),
 		ltoh16_ua(&p_data_info->sd_rtt)/10, ltoh16_ua(&p_data_info->sd_rtt)%10,
 		ltoh32_ua(&p_sample_avg->ratespec),
-		ltoh32_ua(&p_sample_avg->chanspec)));
+		ltoh32_ua(&p_sample_avg->chanspec),
+		ltoh32_ua(&p_sample_avg->gd_variance)));
 
 	/* set peer address */
 	rtt_report->addr = p_data_info->peer;
@@ -4194,6 +4197,7 @@ dhd_rtt_convert_results_to_host_v3(rtt_result_t *rtt_result, const uint8 *p_data
 					ltoh16_ua(&p_sample->tof_tgt_bitflips);
 				dist = ltoh32_ua(&p_sample->distance);
 				chanspec = ltoh32_ua(&p_sample->chanspec);
+				gd_variance = ltoh32_ua(&p_sample->gd_variance);
 			} else {
 				rssi = -1;
 				snr = 0;
@@ -4206,7 +4210,7 @@ dhd_rtt_convert_results_to_host_v3(rtt_result_t *rtt_result, const uint8 *p_data
 			DHD_RTT((">\t sample[%d]: id=%d rssi=%d snr=0x%x bitflips=%d"
 				" tof_phy_error %x tof_phy_tgt_error %x target_snr=0x%x"
 				" target_bitflips=%d dist=%d rtt=%d%s status %s Type %s"
-				" coreid=%d chanspec=0x%08x\n",
+				" coreid=%d chanspec=0x%08x gd_variance=%u\n",
 				i, p_sample->id, rssi, snr,
 				bitflips, tof_phy_error, tof_phy_tgt_error,
 				tof_target_snr,
@@ -4215,7 +4219,7 @@ dhd_rtt_convert_results_to_host_v3(rtt_result_t *rtt_result, const uint8 *p_data
 				ftm_tmu_value_to_logstr(ltoh16_ua(&p_sample->rtt.tmu)),
 				ftm_status_value_to_logstr(ltoh32_ua(&p_sample->status)),
 				ftm_frame_types[i % num_ftm], p_sample->coreid,
-				chanspec));
+				chanspec, gd_variance));
 			p_sample++;
 		}
 	}

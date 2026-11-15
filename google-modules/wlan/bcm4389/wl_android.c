@@ -1,7 +1,7 @@
 /*
  * Linux cfg80211 driver - Android related functions
  *
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -1397,6 +1397,7 @@ int wl_android_get_chanspec(struct net_device *dev, char *command, int total_len
 	int error = 0;
 	int bytes_written = 0;
 	int chsp = {0};
+	uint16 band = 0;
 	uint16 bw = 0;
 	uint16 channel = 0;
 	u32 sb = 0;
@@ -1413,10 +1414,11 @@ int wl_android_get_chanspec(struct net_device *dev, char *command, int total_len
 	DHD_INFO(("wl_android_get_80211_mode: return value of chanspec:%x\n", chanspec));
 
 	channel = chanspec & WL_CHANSPEC_CHAN_MASK;
+	band = chanspec & WL_CHANSPEC_BAND_MASK;
 	bw = chanspec & WL_CHANSPEC_BW_MASK;
 
 	DHD_INFO(("wl_android_get_80211_mode: channel:%d band:%d bandwidth:%d\n",
-		channel, (chanspec & WL_CHANSPEC_BAND_MASK), bw));
+		channel, band, bw));
 
 	if (bw == WL_CHANSPEC_BW_160) {
 		bw = WL_CH_BANDWIDTH_160MHZ;
@@ -4725,7 +4727,7 @@ wls_parse_batching_cmd(struct net_device *dev, char *command, int total_len)
 			} else if (!strncmp(param, PNO_PARAM_CHANNEL, strlen(PNO_PARAM_CHANNEL))) {
 				i = 0;
 				pos2 = value;
-				tokens = sscanf(value, "<%48s>", value);
+				tokens = sscanf(value, "<%s>", value);
 				if (tokens != 1) {
 					err = BCME_ERROR;
 					DHD_ERROR(("wls_parse_batching_cmd: invalid format"
@@ -12625,7 +12627,10 @@ wl_handle_private_cmd(struct net_device *net, char *command, u32 cmd_len)
 #if defined(DHD_BLOB_EXISTENCE_CHECK)
 		dhd_pub_t *dhdp = wl_cfg80211_get_dhdp(net);
 #endif /* DHD_BLOB_EXISTENCE_CHECK */
-		if (*rev_info_delim == *CMD_COUNTRY_DELIMITER) {
+		if ((rev_info_delim) &&
+			(strnicmp(rev_info_delim, CMD_COUNTRY_DELIMITER,
+			strlen(CMD_COUNTRY_DELIMITER)) == 0) &&
+			(rev_info_delim + 1)) {
 			revinfo  = bcm_atoi(rev_info_delim + 1);
 		} else {
 			revinfo = 0;

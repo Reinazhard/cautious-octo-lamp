@@ -2,7 +2,7 @@
  * Broadcom Dongle Host Driver (DHD), Linux-specific network interface.
  * Basically selected code segments from usb-cdc.c and usb-rndis.c
  *
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -61,7 +61,11 @@
 #endif /* ENABLE_ADAPTIVE_SCHED */
 #include <linux/rtc.h>
 #include <asm/uaccess.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
+#include <linux/unaligned.h>
+#else
 #include <asm/unaligned.h>
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0) */
 #include <dhd_linux_priv.h>
 
 #include <epivers.h>
@@ -505,10 +509,8 @@ static dhd_if_t * dhd_get_ifp_by_ndev(dhd_pub_t *dhdp, struct net_device *ndev);
 static void dhd_update_rx_pkt_chainable_state(dhd_pub_t* dhdp, uint32 idx);
 #endif /* DHD_WET || DHD_MCAST_REGEN || DHD_L2_FILTER */
 
-#ifdef DHD_DEBUG
 /* Error bits */
 module_param(dhd_msg_level, int, 0);
-#endif /* DHD_DEBUG */
 
 #ifdef ARP_OFFLOAD_SUPPORT
 /* ARP offload agent mode : Enable ARP Host Auto-Reply and ARP Peer Auto-Reply */
@@ -3960,24 +3962,20 @@ dhd_dpc_tasklet_dispatcher_work(struct work_struct * work)
 
 	DHD_INFO(("%s:\n", __FUNCTION__));
 
-	dhd_sched_dpc(&dhd->pub);
+	tasklet_schedule(&dhd->tasklet);
 }
 
 void
 dhd_schedule_delayed_dpc_on_dpc_cpu(dhd_pub_t *dhdp, ulong delay)
 {
 	dhd_info_t *dhd = (dhd_info_t *)dhdp->info;
+	int dpc_cpu = atomic_read(&dhd->dpc_cpu);
 	DHD_INFO(("%s:\n", __FUNCTION__));
 
-	if (dhd->thr_dpc_ctl.thr_pid >= 0) {
-		if (delay)
-			queue_delayed_work(system_unbound_wq, &dhd->dhd_dpc_dispatcher_work, delay);
-		else
-			dhd_dpc_tasklet_dispatcher_work(&dhd->dhd_dpc_dispatcher_work.work);
-	} else {
-		/* scheduler will take care of scheduling to appropriate cpu if dpc_cpu is not online */
-		schedule_delayed_work_on(atomic_read(&dhd->dpc_cpu), &dhd->dhd_dpc_dispatcher_work, delay);
-	}
+	/* scheduler will take care of scheduling to appropriate cpu if dpc_cpu is not online */
+	schedule_delayed_work_on(dpc_cpu, &dhd->dhd_dpc_dispatcher_work, delay);
+
+	return;
 }
 
 #ifdef SHOW_LOGTRACE
@@ -4918,9 +4916,18 @@ dhd_dpc_thread(void *data)
 	tsk_ctl_t *tsk = (tsk_ctl_t *)data;
 	dhd_info_t *dhd = (dhd_info_t *)tsk->parent;
 
-#ifdef CUSTOM_DPC_CPUMASK
-	set_cpus_allowed_ptr(current,
-		to_cpumask(&(unsigned long){ CUSTOM_DPC_CPUMASK }));
+	/* This thread doesn't need any user-level access,
+	 * so get rid of all our resources
+	 */
+	if (dhd_dpc_prio > 0)
+	{
+		struct sched_param param;
+		param.sched_priority = (dhd_dpc_prio < MAX_RT_PRIO)?dhd_dpc_prio:(MAX_RT_PRIO-1);
+		setScheduler(current, SCHED_FIFO, &param);
+	}
+
+#ifdef CUSTOM_DPC_CPUCORE
+	set_cpus_allowed_ptr(current, cpumask_of(CUSTOM_DPC_CPUCORE));
 #endif
 #ifdef CUSTOM_SET_CPUCORE
 	dhd->pub.current_dpc = current;
@@ -4933,6 +4940,7 @@ dhd_dpc_thread(void *data)
 #endif /* ENABLE_ADAPTIVE_SCHED */
 			SMP_RD_BARRIER_DEPENDS();
 			if (tsk->terminated) {
+				DHD_OS_WAKE_UNLOCK(&dhd->pub);
 				break;
 			}
 
@@ -4957,9 +4965,11 @@ dhd_dpc_thread(void *data)
 #endif /* DEBUG_DPC_THREAD_WATCHDOG */
 				}
 				dhd_os_wd_timer_extend(&dhd->pub, FALSE);
+				DHD_OS_WAKE_UNLOCK(&dhd->pub);
 			} else {
 				if (dhd->pub.up)
 					dhd_bus_stop(dhd->pub.bus, TRUE);
+				DHD_OS_WAKE_UNLOCK(&dhd->pub);
 			}
 		} else {
 			break;
@@ -5089,7 +5099,13 @@ dhd_sched_dpc(dhd_pub_t *dhdp)
 	dhd_info_t *dhd = (dhd_info_t *)dhdp->info;
 
 	if (dhd->thr_dpc_ctl.thr_pid >= 0) {
-		binary_sema_up(&dhd->thr_dpc_ctl);
+		DHD_OS_WAKE_LOCK(dhdp);
+		/* If the semaphore does not get up,
+		* wake unlock should be done here
+		*/
+		if (!binary_sema_up(&dhd->thr_dpc_ctl)) {
+			DHD_OS_WAKE_UNLOCK(dhdp);
+		}
 		return;
 	} else {
 		tasklet_schedule(&dhd->tasklet);
@@ -14087,22 +14103,22 @@ dhd_bus_detach(dhd_pub_t *dhdp)
 	}
 }
 
-void
-dhd_pri_dev_close(dhd_pub_t *dhdp)
+void dhd_detach(dhd_pub_t *dhdp)
 {
 	dhd_info_t *dhd;
-	dhd_if_t *ifp;
+	unsigned long flags;
+	int timer_valid = FALSE;
 	struct net_device *dev = NULL;
+	dhd_if_t *ifp;
+#ifdef WL_CFG80211
+	struct bcm_cfg80211 *cfg = NULL;
+#endif
+	if (!dhdp)
+		return;
 
 	dhd = (dhd_info_t *)dhdp->info;
 	if (!dhd)
 		return;
-
-	DHD_PRINT(("%s\n", __FUNCTION__));
-
-#ifdef DHD_PCIE_RUNTIMEPM
-	dhdpcie_runtime_bus_wake(dhdp, TRUE, dhd_pri_dev_close);
-#endif /* DHD_PCIE_RUNTIMEPM */
 
 	/* primary interface 0 */
 	ifp = dhd->iflist[0];
@@ -14123,26 +14139,6 @@ dhd_pri_dev_close(dhd_pub_t *dhdp)
 		}
 		rtnl_unlock();
 	}
-}
-
-void dhd_detach(dhd_pub_t *dhdp)
-{
-	dhd_info_t *dhd;
-	unsigned long flags;
-	int timer_valid = FALSE;
-	dhd_if_t *ifp;
-#ifdef WL_CFG80211
-	struct bcm_cfg80211 *cfg = NULL;
-#endif
-	if (!dhdp)
-		return;
-
-	dhd = (dhd_info_t *)dhdp->info;
-	if (!dhd)
-		return;
-
-	/* primary interface 0 */
-	ifp = dhd->iflist[0];
 
 	DHD_TRACE(("%s: Enter state 0x%x\n", __FUNCTION__, dhd->dhd_state));
 
@@ -14727,8 +14723,6 @@ dhd_module_cleanup(void)
 #ifdef DHD_COREDUMP
 	dhd_plat_unregister_coredump();
 #endif /* DHD_COREDUMP */
-
-	dhd_pri_dev_close(g_dhd_pub);
 
 #ifdef BCMDBUS
 	dbus_deregister();
@@ -18303,6 +18297,7 @@ int dhd_os_wake_unlock(dhd_pub_t *pub)
 	unsigned long flags;
 	int ret = 0;
 
+	dhd_os_wake_lock_timeout(pub);
 	if (dhd && (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
 		DHD_WAKE_SPIN_LOCK(&dhd->wakelock_spinlock, flags);
 
@@ -21926,7 +21921,11 @@ dhd_print_kirqstats(dhd_pub_t *dhd, unsigned int irq_num)
 	bcm_bprintf(&strbuf, "dhd irq %u:", irq_num);
 	for_each_online_cpu(i)
 		bcm_bprintf(&strbuf, "%10u ",
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0))
+			per_cpu(desc->kstat_irqs->cnt, i));
+#else
 			desc->kstat_irqs ? *per_cpu_ptr(desc->kstat_irqs, i) : 0);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0) */
 	if (desc->irq_data.chip) {
 		if (desc->irq_data.chip->name)
 			bcm_bprintf(&strbuf, " %8s", desc->irq_data.chip->name);

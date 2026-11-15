@@ -3,7 +3,7 @@
  * Provides type definitions and function prototypes used to link the
  * DHD OS, bus, and protocol modules.
  *
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -5400,12 +5400,6 @@ int dhd_sync_with_dongle(dhd_pub_t *dhd)
 	}
 	DHD_ERROR(("%s: GET_REVINFO device 0x%x, vendor 0x%x, chipnum 0x%x\n", __FUNCTION__,
 		revinfo.deviceid, revinfo.vendorid, revinfo.chipnum));
-	if (((revinfo.deviceid == 0U) || (revinfo.deviceid == 0xFFFFFFFFU)) ||
-		((revinfo.vendorid == 0U) || (revinfo.vendorid == 0xFFFFFFFFU)) ||
-		((revinfo.chipnum  == 0U) || (revinfo.chipnum  == 0xFFFFFFFFU))) {
-		DHD_ERROR(("%s: revinfo returned invalid values\n", __FUNCTION__));
-		goto done;
-	}
 
 	/* Get the RxBuf post size */
 	/* Use default value in case of failure */
@@ -5425,9 +5419,8 @@ int dhd_sync_with_dongle(dhd_pub_t *dhd)
 				DHD_ERROR(("%s: rxbufpost_sz memcpy failed\n", __FUNCTION__));
 			}
 
-			if ((prot->rxbufpost_sz == 0) ||
-				(prot->rxbufpost_sz > DHD_FLOWRING_RX_BUFPOST_PKTSZ_MAX)) {
-				DHD_ERROR(("%s: invalid RxBuf post size : %d, default to %d\n",
+			if (prot->rxbufpost_sz > DHD_FLOWRING_RX_BUFPOST_PKTSZ_MAX) {
+				DHD_ERROR(("%s: Invalid RxBuf post size : %d, default to %d\n",
 					__FUNCTION__, prot->rxbufpost_sz,
 					DHD_FLOWRING_RX_BUFPOST_PKTSZ));
 					prot->rxbufpost_sz = DHD_FLOWRING_RX_BUFPOST_PKTSZ;
@@ -7000,7 +6993,6 @@ BCMFASTPATH(dhd_prot_process_msgbuf_rxcpl)(dhd_pub_t *dhd, int ringtype, uint32 
 	int i;
 	uint8 sync;
 	unsigned long rx_lock_flags = 0;
-	uint16 fw_len = 0;
 
 #ifdef DHD_LB_RXP
 	/* must be the first check in this function */
@@ -7057,7 +7049,6 @@ BCMFASTPATH(dhd_prot_process_msgbuf_rxcpl)(dhd_pub_t *dhd, int ringtype, uint32 
 
 		while (msg_len > 0) {
 			msg = (host_rxbuf_cmpl_t *)msg_addr;
-			fw_len = ltoh16(msg->data_len);
 
 			/* Don't process further if any bus error has occurred */
 			if (dhd_query_bus_erros(dhd)) {
@@ -7190,13 +7181,8 @@ BCMFASTPATH(dhd_prot_process_msgbuf_rxcpl)(dhd_pub_t *dhd, int ringtype, uint32 
 				/* DMA RX offset updated through shared area */
 				PKTPULL(dhd->osh, pkt, prot->rx_dataoffset);
 			}
-
-			if (fw_len > PKTLEN(dhd->osh, pkt)) {
-				DHD_ERROR(("%s: dongle data_len %u > posted %u\n",
-					__FUNCTION__, fw_len, PKTLEN(dhd->osh, pkt)));
-				fw_len = (uint16)PKTLEN(dhd->osh, pkt);
-			}
-			PKTSETLEN(dhd->osh, pkt, fw_len);
+			/* Actual length of the packet */
+			PKTSETLEN(dhd->osh, pkt, ltoh16(msg->data_len));
 
 #if defined(WL_MONITOR)
 			if (dhd_monitor_enabled(dhd, ifidx)) {
@@ -8305,12 +8291,6 @@ dhd_prot_event_process(dhd_pub_t *dhd, void *msg)
 		PKTPULL(dhd->osh, pkt, dhd->prot->rx_dataoffset);
 #endif /* !BCM_ROUTER_DHD */
 
-	if (buflen > PKTLEN(dhd->osh, pkt)) {
-		DHD_ERROR(("%s: dongle event_data_len %u posted buf %u clamping\n",
-			__FUNCTION__, buflen, PKTLEN(dhd->osh, pkt)));
-		buflen = (uint16)PKTLEN(dhd->osh, pkt);
-	}
-
 	PKTSETLEN(dhd->osh, pkt, buflen);
 #ifdef DHD_LBUF_AUDIT
 	PKTAUDIT(dhd->osh, pkt);
@@ -8363,12 +8343,6 @@ BCMFASTPATH(dhd_prot_process_infobuf_complete)(dhd_pub_t *dhd, void* buf)
 	if (dhd->prot->rx_dataoffset)
 		PKTPULL(dhd->osh, pkt, dhd->prot->rx_dataoffset);
 #endif /* !BCM_ROUTER_DHD */
-
-	if (buflen > PKTLEN(dhd->osh, pkt)) {
-		DHD_ERROR(("%s: dongle info_data_len %u posted buf %u clamping\n",
-			__FUNCTION__, buflen, PKTLEN(dhd->osh, pkt)));
-		buflen = (uint16)PKTLEN(dhd->osh, pkt);
-	}
 
 	PKTSETLEN(dhd->osh, pkt, buflen);
 #ifdef DHD_LBUF_AUDIT
@@ -12248,7 +12222,7 @@ dhd_prot_get_read_addr(dhd_pub_t *dhd, msgbuf_ring_t *ring, uint32 *available_le
 	void  *md_read_addr = NULL; /* address of next msg to be read in ring */
 	int i;
 	uint8 *ptr = NULL;
-	uint32 __maybe_unused total_md_len = 0;
+	uint32 total_md_len = 0;
 
 	DHD_TRACE(("%s: d2h_dma_indx_rd_buf %p, d2h_dma_indx_wr_buf %p\n",
 		__FUNCTION__, (uint32 *)(dhd->prot->d2h_dma_indx_rd_buf.va),

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -18,7 +18,7 @@
  *
  * <<Broadcom-WL-IPTag/Dual:>>
  *
- * + epivers.py --workspace=../../../../components/dhd/src ../../../../build/dhd/android-u/gg_pixel22-gg/pcie@gg/bcmdhd/include/epivers.h
+ * + epivers.py --workspace=../../../../components/dhd/src ../../../../build/dhd/android-b/gg_pixel22-gg/pcie@gg/bcmdhd/include/epivers.h
  *
  * FILE-CSTYLED
  *
@@ -29,29 +29,29 @@
 
 #define EPI_MAJOR_VERSION	101u
 
-#define EPI_MINOR_VERSION	102u
+#define EPI_MINOR_VERSION	628u
 
-#define EPI_RC_NUMBER		28u
+#define EPI_RC_NUMBER		5u
 
-#define EPI_INCREMENTAL_NUMBER	28u
+#define EPI_INCREMENTAL_NUMBER	0u
 
-#define EPI_VERSION		(101, 102, 28, 28)
+#define EPI_VERSION		(101, 628, 5, 0)
 
-#define EPI_VERSION_NUM		0x65661c1cu
+#define EPI_VERSION_NUM		0x65274050u
 
-#define EPI_UNIQUE_NUM		0x65661c1cu
+#define EPI_UNIQUE_NUM		0x652740500u
 
-#define EPI_VERSION_DEV		(101.102.28)
+#define EPI_VERSION_DEV		(101.628.5)
 
 /* Driver Version String, ASCII, 32 chars max */
 #if defined(WLTEST)
-#define EPI_VERSION_STR		"101.102.28.28 (g5caf515 WLTEST)"
+#define EPI_VERSION_STR		"101.628.5 (gf3f9bd5 WLTEST)"
 #elif (defined(BCMDBG_ASSERT) && \
 	!defined(BCMDBG_ASSERT_DISABLED) && \
 	!defined(ASSERT_FP_DISABLE))
-#define EPI_VERSION_STR		"101.102.28.28 (g5caf515 ASSRT)"
+#define EPI_VERSION_STR		"101.628.5 (gf3f9bd5 ASSRT)"
 #else
-#define EPI_VERSION_STR		"101.102.28.28 (g5caf515)"
+#define EPI_VERSION_STR		"101.628.5 (gf3f9bd5)"
 #endif /* BCMINTERNAL */
 
 #endif /* _epivers_h_ */

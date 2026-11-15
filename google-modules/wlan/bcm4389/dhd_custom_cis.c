@@ -2,7 +2,7 @@
  * Process CIS information from OTP for customer platform
  * (Handle the MAC address and module information)
  *
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -40,6 +40,7 @@
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <bcmiov.h>
+#include <bcmstdlib_s.h>
 
 #ifdef DHD_USE_CISINFO_FROM_OTP
 #include <bcmdevs_legacy.h>    /* need to still support chips no longer in trunk firmware */
@@ -411,7 +412,7 @@ dhd_find_naming_info_by_cid(dhd_pub_t *dhdp, char *cid_info)
 naming_info_t *
 dhd_find_naming_info_by_chip_rev(dhd_pub_t *dhdp, bool *is_murata_fem)
 {
-	int board_type = 0, __maybe_unused chip_rev = 0, vid_length = 0;
+	int board_type = 0, chip_rev = 0, vid_length = 0;
 	unsigned char vid[MAX_VID_LEN];
 	naming_info_t *info = NULL;
 	char *cid_info = NULL;

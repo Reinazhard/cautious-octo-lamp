@@ -1,7 +1,7 @@
 /*
  * Platform Dependent file for Hikey
  *
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -34,7 +34,6 @@
 #include <linux/fcntl.h>
 #include <linux/fs.h>
 #include <linux/of_gpio.h>
-#include <bcmutils.h>
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 #include <linux/wlan_plat.h>
 #else
@@ -42,6 +41,7 @@
 #endif /* CONFIG_WIFI_CONTROL_FUNC */
 #include <dhd_dbg.h>
 #include <dhd.h>
+#include <bcmstdlib_s.h>
 
 #if defined(CONFIG_SOC_GOOGLE)
 #include <linux/exynos-pci-ctrl.h>
@@ -147,7 +147,7 @@ typedef struct {
     char sku[MAX_HW_INFO_LEN];
 } sku_info_t;
 
-static sku_info_t sku_table[] = {
+sku_info_t sku_table[] = {
 	{ {"G9S9B"}, {"MMW"} },
 	{ {"G8V0U"}, {"MMW"} },
 	{ {"GFQM1"}, {"MMW"} },
@@ -260,8 +260,8 @@ enum {
 #define HW_MAJOR  "major"
 #define HW_MINOR  "minor"
 
-static char val_revision[MAX_HW_INFO_LEN] = "NA";
-static char val_sku[MAX_HW_INFO_LEN] = "NA";
+char val_revision[MAX_HW_INFO_LEN] = "NA";
+char val_sku[MAX_HW_INFO_LEN] = "NA";
 
 enum hw_stage_attr {
 	DEV = 1,
@@ -276,7 +276,7 @@ typedef struct platform_hw_info {
 	uint8 avail_bmap;
 	char ext_name[MAX_FILE_COUNT][MAX_HW_EXT_LEN];
 } platform_hw_info_t;
-static platform_hw_info_t platform_hw_info;
+platform_hw_info_t platform_hw_info;
 
 static void
 dhd_set_platform_ext_name(char *hw_rev, char* hw_sku)
@@ -518,7 +518,7 @@ dhd_wifi_init_gpio(void)
 {
 	int gpio_reg_on_val;
 	/* ========== WLAN_PWR_EN ============ */
-	char *wlan_node = DHD_DT_COMPAT_ENTRY;
+	const char *wlan_node = DHD_DT_COMPAT_ENTRY;
 	struct device_node *root_node = NULL;
 
 	root_node = of_find_compatible_node(NULL, NULL, wlan_node);
@@ -638,7 +638,7 @@ dhd_wlan_set_carddetect(int val)
 {
 #ifdef EXYNOS_PCIE_RC_ONOFF
 	struct device_node *root_node = NULL;
-	char *wlan_node = DHD_DT_COMPAT_ENTRY;
+	const char *wlan_node = DHD_DT_COMPAT_ENTRY;
 
 	root_node = of_find_compatible_node(NULL, NULL, wlan_node);
 	if (!root_node) {

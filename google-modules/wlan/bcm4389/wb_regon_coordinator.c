@@ -1,7 +1,7 @@
 /*
  * DHD BT WiFi Coex RegON Coordinator
  *
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -100,7 +100,7 @@ struct wbrc_pvt_data {
 };
 
 static struct wbrc_pvt_data *g_wbrc_data;
-static struct mutex wbrc_mutex;
+static DEFINE_MUTEX(wbrc_mutex);
 static wait_queue_head_t outmsg_waitq;
 
 #define WBRC_LOCK(wbrc_mutex)           mutex_lock(&wbrc_mutex)
@@ -368,7 +368,11 @@ int wbrc_init(void)
 		goto err_register;
 	}
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0))
+	wbrc_data->wbrc_bt_dev_class = class_create(CLASS_NAME);
+#else
 	wbrc_data->wbrc_bt_dev_class = class_create(THIS_MODULE, CLASS_NAME);
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)) */
 	err = PTR_ERR(wbrc_data->wbrc_bt_dev_class);
 	if (IS_ERR(wbrc_data->wbrc_bt_dev_class)) {
 		pr_alert("Failed to register device class\n");

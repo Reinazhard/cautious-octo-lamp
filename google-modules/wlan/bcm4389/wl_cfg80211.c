@@ -1,7 +1,7 @@
 /*
  * Linux cfg80211 driver
  *
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -159,7 +159,6 @@ module_param(mscs_offload, uint, 0660);
 
 static struct device *cfg80211_parent_dev = NULL;
 static struct bcm_cfg80211 *g_bcmcfg = NULL;
-#ifdef DHD_DEBUG
 /*
  * wl_dbg_level : a default level to print to dmesg buffer
  * wl_log_level : a default level to log to DLD or Ring
@@ -169,7 +168,6 @@ static struct bcm_cfg80211 *g_bcmcfg = NULL;
  */
 u32 wl_dbg_level = WL_DBG_ERR | WL_DBG_P2P_ACTION | WL_DBG_INFO;
 u32 wl_log_level = WL_DBG_ERR | WL_DBG_P2P_ACTION | WL_DBG_INFO;
-#endif /* DHD_DEBUG */
 
 #define MAX_WAIT_TIME 1500
 #ifdef WLAIBSS_MCHAN
@@ -5814,8 +5812,8 @@ wl_fils_add_hlp_container(struct bcm_cfg80211 *cfg, struct net_device *dev,
 
 	if ((hlp_ie = (const bcm_tlv_ext_t*)bcm_parse_tlvs_dot11((const uint8 *)ie_buf, ie_len,
 		FILS_HLP_CONTAINER_EXT_ID, TRUE))) {
-		uint hlp_len = hlp_ie->len;
-		uint left_len = (ie_len - ((const uint8*)hlp_ie - ie_buf));
+		u16 hlp_len = hlp_ie->len;
+		u16 left_len = (ie_len - ((const uint8*)hlp_ie - ie_buf));
 		bcm_iov_buf_t *iov_buf = 0;
 		uint8* pxtlv;
 		int err;
@@ -5840,10 +5838,9 @@ wl_fils_add_hlp_container(struct bcm_cfg80211 *cfg, struct net_device *dev,
 
 		pxtlv = (uint8 *)&iov_buf->data[0];
 		((bcm_xtlv_t*)pxtlv)->id = WL_FILS_XTLV_HLP_IE;
-		((bcm_xtlv_t *)pxtlv)->len = (uint16)hlp_len;
+		((bcm_xtlv_t*)pxtlv)->len = hlp_len;
 
-		(void)memcpy_s(((bcm_xtlv_t *)pxtlv)->data, ((bcm_xtlv_t *)pxtlv)->len, hlp_ie,
-			((bcm_xtlv_t *)pxtlv)->len);
+		memcpy(((bcm_xtlv_t*)pxtlv)->data, hlp_ie, ((bcm_xtlv_t*)pxtlv)->len);
 
 		iov_buf->version = WL_FILS_IOV_VERSION_1_1;
 		iov_buf->id = WL_FILS_CMD_ADD_HLP_IE;
@@ -20427,23 +20424,19 @@ int wl_cfg80211_do_driver_init(struct net_device *net)
 
 void wl_cfg80211_enable_log_trace(bool set, u32 level)
 {
-#ifdef DHD_DEBUG
 	if (set) {
 		wl_log_level = level & WL_DBG_LEVEL;
 	} else {
 		wl_log_level |= (WL_DBG_LEVEL & level);
 	}
-#endif /* DHD_DEBUG */
 }
 
 void wl_cfg80211_enable_trace(bool set, u32 level)
 {
-#ifdef DHD_DEBUG
 	if (set)
 		wl_dbg_level = level & WL_DBG_LEVEL;
 	else
 		wl_dbg_level |= (WL_DBG_LEVEL & level);
-#endif /* DHD_DEBUG */
 }
 
 uint32 wl_cfg80211_get_print_level(void)
@@ -21188,7 +21181,6 @@ wl_cfg80211_set_mgmt_vndr_ies(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgde
 	wl_bss_vndr_ies_t *ies = NULL;
 	struct net_info *netinfo;
 	struct wireless_dev *wdev;
-	u32 required_len = 0;
 
 	if (!cfgdev) {
 		WL_ERR(("cfgdev is NULL\n"));
@@ -21259,43 +21251,6 @@ wl_cfg80211_set_mgmt_vndr_ies(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgde
 		WL_ERR(("extra IE size too big\n"));
 		ret = -ENOMEM;
 	} else {
-		u32 total_required_len = 0;
-		int j;
-		/* Calculate for deletes */
-		if (mgmt_ie_buf != NULL && *mgmt_ie_len > 0) {
-			ret = wl_cfg80211_parse_vndr_ies(mgmt_ie_buf,
-				*mgmt_ie_len, &old_vndr_ies);
-			if (ret < 0) {
-				WL_ERR(("parse vndr ie failed in pre-check\n"));
-				goto exit;
-			}
-			for (j = 0; j < old_vndr_ies.count; j++) {
-				total_required_len +=
-					wl_cfgp2p_vndr_ie_write_len(
-						old_vndr_ies.ie_info[j].ie_len - VNDR_IE_FIXED_LEN);
-			}
-		}
-		/* Calculate for adds */
-		if (vndr_ie && vndr_ie_len) {
-			ret = wl_cfg80211_parse_vndr_ies((const u8 *)vndr_ie, vndr_ie_len,
-				&new_vndr_ies);
-			if (ret < 0) {
-				WL_ERR(("parse vndr ie failed in pre-check\n"));
-				goto exit;
-			}
-			for (j = 0; j < new_vndr_ies.count; j++) {
-				total_required_len +=
-					wl_cfgp2p_vndr_ie_write_len(
-						new_vndr_ies.ie_info[j].ie_len - VNDR_IE_FIXED_LEN);
-			}
-		}
-		if (total_required_len > WL_VNDR_IE_MAXLEN) {
-			WL_ERR(("Total vendor IE size (%u) exceeds buffer (%u)\n",
-				total_required_len, WL_VNDR_IE_MAXLEN));
-			ret = -EINVAL;
-			goto exit;
-		}
-
 		/* parse and save new vndr_ie in curr_ie_buff before comparing it */
 		if (vndr_ie && vndr_ie_len && curr_ie_buf) {
 			ptr = curr_ie_buf;
@@ -21354,21 +21309,6 @@ wl_cfg80211_set_mgmt_vndr_ies(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgde
 						vndrie_info->vndrie.data[0]));
 				}
 
-				/* Bounds check before writing to g_mgmt_ie_buf for delete */
-				required_len =
-					wl_cfgp2p_vndr_ie_write_len(
-						vndrie_info->ie_len - VNDR_IE_FIXED_LEN);
-				if ((curr_ie_buf - (u8 *)g_mgmt_ie_buf) + required_len >
-					WL_VNDR_IE_MAXLEN) {
-					WL_ERR(("OOB write risk: delete command exceeds"
-						" g_mgmt_ie_buf size |"
-						" required_len=%d, remaining=%d\n",
-						(int)required_len,
-						(int)(WL_VNDR_IE_MAXLEN -
-						(curr_ie_buf - (u8 *)g_mgmt_ie_buf))));
-					ret = -EINVAL;
-					goto exit;
-				}
 				del_add_ie_buf_len = wl_cfgp2p_vndr_ie(cfg, curr_ie_buf,
 					pktflag, vndrie_info->vndrie.oui,
 					vndrie_info->vndrie.id,
@@ -21402,25 +21342,12 @@ wl_cfg80211_set_mgmt_vndr_ies(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgde
 						vndrie_info->vndrie.data[0]));
 				}
 
-				/* Call wl_cfgp2p_vndr_ie to get actual write length */
 				del_add_ie_buf_len = wl_cfgp2p_vndr_ie(cfg, curr_ie_buf,
-						pktflag, vndrie_info->vndrie.oui,
-						vndrie_info->vndrie.id,
-						vndrie_info->ie_ptr + VNDR_IE_FIXED_LEN,
-						vndrie_info->ie_len - VNDR_IE_FIXED_LEN,
-						"add");
-				/* Bounds check before writing to g_mgmt_ie_buf for add */
-				if ((curr_ie_buf - (u8 *)g_mgmt_ie_buf) + del_add_ie_buf_len >
-					WL_VNDR_IE_MAXLEN) {
-					WL_ERR(("OOB write risk: add command exceeds"
-							" g_mgmt_ie_buf size | "
-							"write_len=%d, remaining=%d\n",
-							(int)del_add_ie_buf_len,
-							(int)(WL_VNDR_IE_MAXLEN -
-							(curr_ie_buf - (u8 *)g_mgmt_ie_buf))));
-						ret = -EINVAL;
-						goto exit;
-				}
+					pktflag, vndrie_info->vndrie.oui,
+					vndrie_info->vndrie.id,
+					vndrie_info->ie_ptr + VNDR_IE_FIXED_LEN,
+					vndrie_info->ie_len - VNDR_IE_FIXED_LEN,
+					"add");
 
 				/* verify remained buf size before copy data */
 				if (remained_buf_len >= vndrie_info->ie_len) {
@@ -21859,7 +21786,7 @@ wl_cfg80211_recv_nbr_resp(struct net_device *dev, uint8 *body, uint body_len)
 	wl_roam_channel_list_t channel_list;
 	char iobuf[WLC_IOCTL_SMLEN];
 
-	if (body_len < DOT11_RM_ACTION_LEN + BCM_TLV_HDR_SIZE + DOT11_NEIGHBOR_REP_IE_FIXED_LEN) {
+	if (body_len < DOT11_RM_ACTION_LEN) {
 		WL_ERR(("Received Neighbor Report frame with incorrect length %d\n",
 			body_len));
 		return BCME_ERROR;
@@ -22105,7 +22032,6 @@ wl_cfg80211_set_frameburst(struct bcm_cfg80211 *cfg, bool enable)
 s32
 wl_cfg80211_set_dbg_verbose(struct net_device *ndev, u32 level)
 {
-#ifdef DHD_DEBUG
 	/* configure verbose level for debugging */
 	if (level) {
 		/* Enable increased verbose */
@@ -22117,7 +22043,6 @@ wl_cfg80211_set_dbg_verbose(struct net_device *ndev, u32 level)
 		wl_log_level &= ~WL_DBG_DBG;
 	}
 	WL_INFORM(("debug verbose set to %d\n", level));
-#endif /* DHD_DEBUG */
 
 	return BCME_OK;
 }
@@ -24635,17 +24560,25 @@ wl_cfg80211_debug_data_dump(struct net_device *dev, u8 *buf, u32 buf_len)
 }
 
 void
-wl_cfg80211_wdev_lock(struct wireless_dev *wdev)
+wl_cfg80211_lock(struct wireless_dev *wdev)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0))
+	wiphy_lock(wdev->wiphy);
+#else
 	mutex_lock(&wdev->mtx);
 	__acquire(wdev->mtx);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0) */
 }
 
 void
-wl_cfg80211_wdev_unlock(struct wireless_dev *wdev)
+wl_cfg80211_unlock(struct wireless_dev *wdev)
 {
-	__release(wdev->mtx);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0))
+	wiphy_unlock(wdev->wiphy);
+#else
+	 __release(wdev->mtx);
 	mutex_unlock(&wdev->mtx);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0) */
 }
 
 #ifdef WL_CLIENT_SAE
@@ -24705,9 +24638,9 @@ wl_notify_start_auth(struct bcm_cfg80211 *cfg,
 	WL_INFORM_MEM(("call cfg80211_external_auth_request, BSSID:"MACDBG"\n",
 		MAC2STRDBG(&evt_data->bssid)));
 
-	wl_cfg80211_wdev_lock(wdev);
+	wl_cfg80211_lock(wdev);
 	err = cfg80211_external_auth_request(ndev, &ext_auth_param, GFP_KERNEL);
-	wl_cfg80211_wdev_unlock(wdev);
+	wl_cfg80211_unlock(wdev);
 	if (err) {
 		WL_ERR(("Send external auth request failed, ret %d\n", err));
 		err = BCME_ERROR;

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2026, Broadcom.
+# Copyright (C) 2025, Broadcom.
 #
 #      Unless you and Broadcom execute a separate written software license
 # agreement governing use of this software, this software is licensed to you
@@ -23,14 +23,10 @@
 # Path to the module source
 M ?= $(shell pwd)
 
-ifneq ($(KERNEL_SRC),)
- KBUILD_OPTIONS += BCMDHD_ROOT=$(shell cd $(KERNEL_SRC); readlink -e $(M))
+ifneq ($(ROOT_DIR),)
+ KBUILD_OPTIONS += BCMDHD_ROOT=$(CURDIR)
  -include $(ROOT_DIR)/private/google-modules/soc/gs/Makefile.include
  EXTRA_CFLAGS+="-Wno-missing-prototypes"
-endif
-
-ifneq ($(KERNEL_SRC),)
- KBUILD_OPTIONS += BCMDHD_ROOT=$(shell cd $(KERNEL_SRC); readlink -e $(M))
 endif
 
 # Define and "all" target, which isn't really needed but doesn't hurt.
@@ -38,4 +34,4 @@ all: modules
 
 modules modules_install clean compile_commands.json:
 	$(MAKE) -C $(KERNEL_SRC) M=$(M) $(KBUILD_OPTIONS) \
-		EXTRA_CFLAGS="$(EXTRA_CFLAGS)" KBUILD_EXTRA_SYMBOLS="$(EXTRA_SYMBOLS)" $(@)
+                EXTRA_CFLAGS="$(EXTRA_CFLAGS)" KBUILD_EXTRA_SYMBOLS="$(EXTRA_SYMBOLS)" $(@)

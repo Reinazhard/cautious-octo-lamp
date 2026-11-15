@@ -1,7 +1,7 @@
 /*
  * DHD debug ring API and structures - implementation
  *
- * Copyright (C) 2026, Broadcom.
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -31,6 +31,7 @@
 #include <dhd_dbg.h>
 #include <dhd_dbg_ring.h>
 #include <dhd_debug.h>
+#include <bcmstdlib_s.h>
 
 dhd_dbg_ring_t *
 dhd_dbg_ring_alloc_init(dhd_pub_t *dhd, uint16 ring_id,
