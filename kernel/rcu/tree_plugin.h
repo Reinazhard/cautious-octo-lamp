@@ -393,8 +393,12 @@ static void rcu_preempt_read_enter(void)
 
 static int rcu_preempt_read_exit(void)
 {
-	int ret = READ_ONCE(current->rcu_read_lock_nesting) - 1;
+	int ret = READ_ONCE(current->rcu_read_lock_nesting);
 
+	if (WARN_ON_ONCE(ret <= 0))
+		return -1;
+
+	ret--;
 	WRITE_ONCE(current->rcu_read_lock_nesting, ret);
 	return ret;
 }
@@ -846,7 +850,7 @@ static void rcu_flavor_sched_clock_irq(int user)
 	} else if (rcu_preempt_need_deferred_qs(t)) {
 		rcu_preempt_deferred_qs(t); /* Report deferred QS. */
 		return;
-	} else if (!WARN_ON_ONCE(rcu_preempt_depth())) {
+	} else if (!WARN_ON_ONCE(rcu_preempt_depth() > 0)) {
 		rcu_qs(); /* Report immediate QS. */
 		return;
 	}

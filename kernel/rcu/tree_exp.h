@@ -806,6 +806,7 @@ static void rcu_exp_handler(void *unused)
 
 	// Fourth and finally, negative nesting depth should not happen.
 	WARN_ON_ONCE(1);
+	rcu_report_exp_rdp(rdp);
 }
 
 /*
