@@ -63,6 +63,11 @@ inline int s51xx_pcie_send_doorbell_int(struct pci_dev *pdev, int int_num)
 	int cnt = 0;
 	u16 cmd;
 
+	if (!s51xx_pcie || !s51xx_pcie->doorbell_addr) {
+		mif_err_limited("Can't send Interrupt (doorbell_addr is NULL)!\n");
+		return -EFAULT;
+	}
+
 	if (s51xx_pcie->link_status == 0) {
 		mif_err_limited("Can't send Interrupt(not enabled)!!!\n");
 		return -EAGAIN;
@@ -410,20 +415,22 @@ static int s51xx_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	for (i = 0; i < 6; i++) {
 		pdev->resource[i].start = 0x0;
 		pdev->resource[i].end = 0x0;
-		if (pci_assign_resource(pdev, i))
-			pr_warn("%s: failed to assign pci resource (i=%d)\n", __func__, i);
+		pdev->resource[i].flags = 0;
 	}
+	for (i = 1; i < 6; i++)
+		pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0 + (i * 4), 0);
 
 	/* EP BAR setup: BAR0 (4kB) */
 	pdev->resource[0].start = val;
-	pdev->resource[0].end = val + SZ_4K;
+	pdev->resource[0].end = val + SZ_4K - 1;
+	pdev->resource[0].flags = IORESOURCE_MEM | IORESOURCE_PCI_FIXED;
 	if (pci_assign_resource(pdev, 0))
 		pr_warn("%s: failed to assign EP BAR0 pci resource\n", __func__);
 
 	/* get Doorbell base address from root bus range */
 	tmp_rsc = bus_self->resource + resno;
 	dev_info(&bus_self->dev, "[%s] BAR %d: tmp rsc : %pR\n", __func__, resno, tmp_rsc);
-	s51xx_pcie->dbaddr_base = tmp_rsc->start;
+	s51xx_pcie->dbaddr_base = (tmp_rsc && tmp_rsc->start) ? tmp_rsc->start : val;
 
 	mif_info("Set Doorbell register address.\n");
 	s51xx_pcie->doorbell_addr = devm_ioremap(&pdev->dev,
