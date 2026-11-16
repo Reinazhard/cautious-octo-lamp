@@ -12,7 +12,7 @@
 #include <soc/google/pt.h>
 #include "pt_trace.h"
 #include <linux/err.h>
-#include <linux/fortify-string.h>
+#include <linux/string.h>
 #include <linux/list.h>
 #include <linux/of_platform.h>
 #include <linux/module.h>
