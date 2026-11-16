@@ -541,7 +541,7 @@ static const struct file_operations bcm_spi_fops = {
 
 /* Misc. functions */
 
-unsigned long bcm_clock_get_ms(void)
+static unsigned long bcm_clock_get_ms(void)
 {
 	struct timespec64 t;
 	unsigned long now;
@@ -555,7 +555,7 @@ unsigned long bcm_clock_get_ms(void)
 	return now - init_time;
 }
 
-void wait1secDelay(unsigned int count)
+static void wait1secDelay(unsigned int count)
 {
 	if (count <= 100)
 		usleep_range(1000, 2000);
