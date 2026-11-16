@@ -1375,14 +1375,17 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 	 * LTS kernel version (such as 6.6.y). If a non-LTS version (e.g. 7.3.0)
 	 * is reported, NetBpfLoad rejects the kernel, fails to load networking
 	 * BPF maps, and netd aborts with SIGABRT causing a zygote bootloop.
-	 * Present 6.6.y LTS release to userspace while preserving localversion.
+	 * Present 6.6.y LTS release strictly to bpfloader and netbpfload.
 	 */
-	dash = strchr(utsname()->release, '-');
-	if (is_gms)
-		snprintf(tmp.release, sizeof(tmp.release), "6.6.65");
-	else
+	if (!strcmp(current->comm, "netbpfload") || !strcmp(current->comm, "bpfloader")) {
+		dash = strchr(utsname()->release, '-');
 		snprintf(tmp.release, sizeof(tmp.release), "6.6.65%s",
 			 dash ? dash : "");
+	} else if (is_gms) {
+		snprintf(tmp.release, sizeof(tmp.release), "%u.%u.%u",
+			 LINUX_VERSION_MAJOR, LINUX_VERSION_PATCHLEVEL,
+			 LINUX_VERSION_SUBLEVEL);
+	}
 
 	if (copy_to_user(name, &tmp, sizeof(tmp)))
 		return -EFAULT;

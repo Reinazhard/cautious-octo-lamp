@@ -9,13 +9,9 @@
 
 static int version_proc_show(struct seq_file *m, void *v)
 {
-	const char *dash = strchr(utsname()->release, '-');
-	char rel[65];
-
-	snprintf(rel, sizeof(rel), "6.6.65%s", dash ? dash : "");
 	seq_printf(m, linux_proc_banner,
 		utsname()->sysname,
-		rel,
+		utsname()->release,
 		utsname()->version);
 	return 0;
 }
