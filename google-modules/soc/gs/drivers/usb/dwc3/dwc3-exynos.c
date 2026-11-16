@@ -1192,7 +1192,7 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	struct dwc3_exynos	*exynos;
 	struct device		*dev = &pdev->dev;
 	struct platform_device *dwc3_pdev;
-	struct device_node	*node = dev->of_node, *dwc3_np;
+	struct device_node	*node = dev->of_node, *dwc3_np = NULL;
 	int			ret;
 	struct phy		*temp_usb_phy;
 	struct device_node	*s2mpu_np;
