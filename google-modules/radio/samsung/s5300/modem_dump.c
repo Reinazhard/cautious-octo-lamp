@@ -11,6 +11,7 @@
 #include <linux/shm_ipc.h>
 
 #include "modem_prj.h"
+#include "modem_dump.h"
 #include "modem_utils.h"
 #include "link_device_memory.h"
 

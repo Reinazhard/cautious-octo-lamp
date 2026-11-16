@@ -38,7 +38,7 @@
 #include "modem_ctrl.h"
 #include "s51xx_pcie.h"
 
-void s51xx_pcie_chk_ep_conf(struct pci_dev *pdev)
+static void s51xx_pcie_chk_ep_conf(struct pci_dev *pdev)
 {
 	int i;
 	u32 val1, val2, val3, val4;

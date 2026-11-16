@@ -32,6 +32,7 @@
 #include "link_device.h"
 #include "modem_dump.h"
 #include "modem_ctrl.h"
+#include "modem_variation.h"
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #include "s51xx_pcie.h"
 #endif
@@ -2224,7 +2225,7 @@ static int link_read_gnss_image(struct link_device *ld,
 	return 0;
 }
 
-int shm_get_security_param2(u32 cp_num, unsigned long mode, u32 bl_size,
+static int shm_get_security_param2(u32 cp_num, unsigned long mode, u32 bl_size,
 		unsigned long *param)
 {
 	int ret = 0;
@@ -2248,7 +2249,7 @@ int shm_get_security_param2(u32 cp_num, unsigned long mode, u32 bl_size,
 	return ret;
 }
 
-int shm_get_security_param3(u32 cp_num, unsigned long mode, u32 main_size,
+static int shm_get_security_param3(u32 cp_num, unsigned long mode, u32 main_size,
 		unsigned long *param)
 {
 	int ret = 0;

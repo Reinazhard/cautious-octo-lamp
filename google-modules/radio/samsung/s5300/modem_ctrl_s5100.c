@@ -35,6 +35,7 @@
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "modem_ctrl.h"
+#include "modem_variation.h"
 #include "link_device.h"
 #include "link_device_memory.h"
 #include "s51xx_pcie.h"
@@ -1573,7 +1574,7 @@ static int s5100_force_crash_notifier(struct notifier_block *nb,
 	return s5100_force_crash_exit_ext_reason(buf);
 }
 
-int s5100_send_panic_noti_ext(void)
+static int s5100_send_panic_noti_ext(void)
 {
 	struct modem_data *modem;
 

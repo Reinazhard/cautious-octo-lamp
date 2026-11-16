@@ -6,6 +6,7 @@
 
 #include "modem_prj.h"
 #include "modem_utils.h"
+#include "modem_ctrl.h"
 
 void modem_ctrl_set_kerneltime(struct modem_ctl *mc)
 {
