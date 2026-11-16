@@ -413,9 +413,9 @@ void exynos_pcie_set_perst_gpio(int ch_num, bool on)
 	if (exynos_pcie->ep_device_type == EP_SAMSUNG_MODEM) {
 		pr_debug("%s: force setting for abnormal state\n", __func__);
 		if (on) {
-			gpiod_set_value(exynos_pcie->perst_gpio, 1);
-		} else {
 			gpiod_set_value(exynos_pcie->perst_gpio, 0);
+		} else {
+			gpiod_set_value(exynos_pcie->perst_gpio, 1);
 		}
 	}
 }
@@ -2058,10 +2058,12 @@ static int exynos_pcie_rc_get_resource(struct platform_device *pdev,
 	}
 
 	temp_rsc = platform_get_resource_byname(pdev, IORESOURCE_MEM, "udbg");
-	exynos_pcie->udbg_base = devm_ioremap_resource(&pdev->dev, temp_rsc);
-	if (temp_rsc && IS_ERR(exynos_pcie->udbg_base)) {
-		ret = PTR_ERR(exynos_pcie->udbg_base);
-		return ret;
+	if (temp_rsc) {
+		exynos_pcie->udbg_base = devm_ioremap_resource(&pdev->dev, temp_rsc);
+		if (IS_ERR(exynos_pcie->udbg_base)) {
+			ret = PTR_ERR(exynos_pcie->udbg_base);
+			return ret;
+		}
 	}
 
 	temp_rsc = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
@@ -3119,8 +3121,8 @@ retry:
 	/* EQ Off */
 	exynos_pcie_rc_wr_own_conf(pp, 0x890, 4, 0x12000);
 
-	/* set #PERST high */
-	gpiod_set_value(exynos_pcie->perst_gpio, 1);
+	/* set #PERST high (logical 0 for active-low gpio) */
+	gpiod_set_value(exynos_pcie->perst_gpio, 0);
 	if (exynos_pcie->ep_device_type == EP_BCM_WIFI) {
 		usleep_range(20000, 22000);
 	} else {
@@ -3192,7 +3194,7 @@ retry:
 		restore_pma_regs(exynos_pcie);
 
 		if (try_cnt < 10) {
-			gpiod_set_value(exynos_pcie->perst_gpio, 0);
+			gpiod_set_value(exynos_pcie->perst_gpio, 1);
 			/* LTSSM disable */
 			exynos_elbi_write(exynos_pcie, PCIE_ELBI_LTSSM_DISABLE,
 					  PCIE_APP_LTSSM_ENABLE);
@@ -3246,7 +3248,7 @@ retry:
 			dev_info(dev, "%s: Link is up. But not max speed, try count: %d\n",
 				__func__, try_cnt);
 			if (try_cnt < 10) {
-				gpiod_set_value(exynos_pcie->perst_gpio, 0);
+				gpiod_set_value(exynos_pcie->perst_gpio, 1);
 				/* LTSSM disable */
 				exynos_elbi_write(exynos_pcie, PCIE_ELBI_LTSSM_DISABLE,
 						  PCIE_APP_LTSSM_ENABLE);
@@ -3553,7 +3555,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 		val &= ~HISTORY_BUFFER_ENABLE;
 		exynos_elbi_write(exynos_pcie, val, PCIE_STATE_HISTORY_CHECK);
 
-		gpiod_set_value(exynos_pcie->perst_gpio, 0);
+		gpiod_set_value(exynos_pcie->perst_gpio, 1);
 
 		/* LTSSM disable */
 		exynos_elbi_write(exynos_pcie, PCIE_ELBI_LTSSM_DISABLE, PCIE_APP_LTSSM_ENABLE);
