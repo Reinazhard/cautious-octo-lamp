@@ -107,7 +107,6 @@ static void sscd_release(struct device *dev);
 static struct sscd_platform_data sscd_pdata;
 static struct platform_device sscd_dev = {
 	.name            = DEVICE_NAME,
-	.driver_override = SSCD_NAME,
 	.id              = -1,
 	.dev             = {
 		.platform_data = &sscd_pdata,
@@ -1012,6 +1011,7 @@ uint16 dhd_plat_align_rxbuf_size(uint16 rxbufpost_sz)
 void
 dhd_plat_register_coredump(void)
 {
+	device_set_driver_override(&sscd_dev.dev, SSCD_NAME);
 	platform_device_register(&sscd_dev);
 }
 
