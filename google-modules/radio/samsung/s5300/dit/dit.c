@@ -1220,7 +1220,7 @@ static void dit_update_dst_desc_pos(enum dit_direction dir, enum dit_desc_ring r
 	}
 }
 
-irqreturn_t dit_irq_handler(int irq, void *arg)
+static irqreturn_t dit_irq_handler(int irq, void *arg)
 {
 	int pending_bit = *((int *)(arg));
 	enum dit_desc_ring ring_num;
@@ -2563,7 +2563,7 @@ static int dit_read_dt(struct device_node *np)
 	return 0;
 }
 
-int dit_create(struct platform_device *pdev)
+static int dit_create(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;

@@ -7,6 +7,7 @@
 # with `-I$(KERNEL_SRC)/../google-modules/SOME_MODULE`, inclusion works as-is.
 export KERNEL_SRC := $(srctree)/google-modules
 export ROOT_DIR := $(srctree)
+LINUXINCLUDE := $(LINUXINCLUDE) -I$(srctree)/google-modules/radio/samsung/s5300
 
 obj-y += amplifiers/cs35l41/
 obj-y += amplifiers/cs40l25/

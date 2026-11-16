@@ -18,7 +18,7 @@
 #include "modem_utils.h"
 #include "dit_net.h"
 
-int dit_net_receive_skb(struct sk_buff *skb)
+static int __maybe_unused dit_net_receive_skb(struct sk_buff *skb)
 {
 	return 0;
 }
