@@ -1521,7 +1521,7 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		domain->dn = dn;
+		domain->dn = of_node_get(dn);
 		list_add_tail(&domain->list, &domains);
 
 		print_domain_info(domain);
