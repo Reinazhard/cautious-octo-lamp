@@ -83,7 +83,6 @@ static void sscd_release(struct device *dev);
 static struct sscd_info sscd_info;
 static struct sscd_platform_data sscd_pdata;
 static struct platform_device sscd_dev = { .name = "aoc",
-					   .driver_override = SSCD_NAME,
 					   .id = -1,
 					   .dev = {
 						   .platform_data = &sscd_pdata,
@@ -1074,7 +1073,7 @@ static struct attribute *aoc_attrs[] = {
 ATTRIBUTE_GROUPS(aoc);
 
 static int aoc_platform_probe(struct platform_device *dev);
-static int aoc_platform_remove(struct platform_device *dev);
+static void aoc_platform_remove(struct platform_device *dev);
 static void aoc_platform_shutdown(struct platform_device *dev);
 
 static const struct of_device_id aoc_match[] = {
@@ -2162,7 +2161,7 @@ static int init_chardev(struct aoc_prvdata *prvdata)
 
 	aoc_major = MAJOR(prvdata->aoc_devt);
 
-	prvdata->_class = class_create(THIS_MODULE, AOC_CHARDEV_NAME);
+	prvdata->_class = class_create(AOC_CHARDEV_NAME);
 	if (!prvdata->_class) {
 		pr_err("failed to create aoc_class\n");
 		rc = -ENXIO;
@@ -2772,7 +2771,7 @@ err_platform_not_null:
 	return rc;
 }
 
-static int aoc_platform_remove(struct platform_device *pdev)
+static void aoc_platform_remove(struct platform_device *pdev)
 {
 	struct aoc_prvdata *prvdata;
 	int i;
@@ -2792,8 +2791,6 @@ static int aoc_platform_remove(struct platform_device *pdev)
 	deinit_chardev(prvdata);
 	platform_set_drvdata(pdev, NULL);
 	aoc_platform_device = NULL;
-
-	return 0;
 }
 
 static void sscd_release(struct device *dev)
@@ -2821,6 +2818,11 @@ static int __init aoc_init(void)
 	if (platform_driver_register(&aoc_driver) != 0) {
 		pr_err("failed to register platform driver\n");
 		goto err_aoc_driver;
+	}
+
+	if (device_set_driver_override(&sscd_dev.dev, SSCD_NAME)) {
+		pr_err("failed to set driver override\n");
+		goto err_aoc_coredump;
 	}
 
 	if (platform_device_register(&sscd_dev) != 0) {
@@ -2851,4 +2853,5 @@ module_init(aoc_init);
 module_exit(aoc_exit);
 
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
+MODULE_IMPORT_NS("DMA_BUF_HEAP");
