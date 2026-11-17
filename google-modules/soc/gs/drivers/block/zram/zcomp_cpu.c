@@ -1,37 +1,27 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <linux/module.h>
-#include <linux/crypto.h>
+#include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/cpuhotplug.h>
 #include <linux/local_lock.h>
+#include <linux/lz4.h>
+#include <linux/lzo.h>
 
 #include "zcomp.h"
 
 static const char * const backends[] = {
-#if IS_ENABLED(CONFIG_CRYPTO_LZO)
 	"lzo",
 	"lzo-rle",
-#endif
-#if IS_ENABLED(CONFIG_CRYPTO_LZ4)
 	"lz4",
-#endif
-#if IS_ENABLED(CONFIG_CRYPTO_LZ4HC)
-	"lz4hc",
-#endif
-#if IS_ENABLED(CONFIG_CRYPTO_842)
-	"842",
-#endif
-#if IS_ENABLED(CONFIG_CRYPTO_ZSTD)
-	"zstd",
-#endif
 };
 
 struct zcomp_strm {
-	/* The members ->buffer and ->tfm are protected by ->lock. */
+	/* The members ->buffer and ->workmem are protected by ->lock. */
 	local_lock_t lock;
 	void *buffer;
-	struct crypto_comp *tfm;
+	void *workmem;
 };
 
 struct zcomp_strm *zcomp_stream_get(struct zcomp *comp)
@@ -52,30 +42,39 @@ void zcomp_stream_put(struct zcomp *comp)
 int zcomp_cpu_compress(struct zcomp *comp, struct page *page,
 				struct zcomp_cookie *cookie)
 {
-	int err;
-	unsigned int comp_len;
+	int err = 0;
+	unsigned int comp_len = 0;
 	void *src;
 	struct zcomp_strm *stream;
 
 	/*
 	 * Our dst memory (stream->buffer) is always `2 * PAGE_SIZE' sized
-	 * because sometimes we can endup having a bigger compressed data
-	 * due to various reasons: for example compression algorithms tend
-	 * to add some padding to the compressed buffer. Speaking of padding,
-	 * comp algorithm `842' pads the compressed length to multiple of 8
-	 * and returns -ENOSP when the dst memory is not big enough, which
-	 * is not something that ZRAM wants to see. We can handle the
-	 * `compressed_size > PAGE_SIZE' case easily in ZRAM, but when we
-	 * receive -ERRNO from the compressing backend we can't help it
-	 * anymore. To make `842' happy we need to tell the exact size of
-	 * the dst buffer, zram_drv will take care of the fact that
-	 * compressed buffer is too big.
+	 * because sometimes we can end up having a bigger compressed data
+	 * due to padding or incompressible data.
 	 */
-	comp_len = PAGE_SIZE * 2;
 	stream = zcomp_stream_get(comp);
 	src = kmap_atomic(page);
-	err = crypto_comp_compress(stream->tfm, src, PAGE_SIZE,
-					stream->buffer, &comp_len);
+
+	if (!strcmp(comp->algo_name, "lz4")) {
+		int ret = LZ4_compress_fast(src, stream->buffer, PAGE_SIZE,
+					    PAGE_SIZE * 2, LZ4_ACCELERATION_DEFAULT,
+					    stream->workmem);
+		if (ret <= 0)
+			err = -EINVAL;
+		else
+			comp_len = ret;
+	} else if (!strcmp(comp->algo_name, "lzo") || !strcmp(comp->algo_name, "lzo-rle")) {
+		size_t dlen = PAGE_SIZE * 2;
+		int ret = lzo1x_1_compress(src, PAGE_SIZE, stream->buffer,
+					   &dlen, stream->workmem);
+		if (ret != LZO_E_OK)
+			err = -EINVAL;
+		else
+			comp_len = dlen;
+	} else {
+		err = -EOPNOTSUPP;
+	}
+
 	kunmap_atomic(src);
 	if (unlikely(err)) {
 		zcomp_stream_put(comp);
@@ -93,14 +92,27 @@ int zcomp_cpu_decompress(struct zcomp *comp, void *src,
 {
 	void *dst;
 	unsigned int dst_len = PAGE_SIZE;
-	struct zcomp_strm *stream;
 	int ret;
 
 	dst = kmap_atomic(page);
-	stream = zcomp_stream_get(comp);
-	ret = crypto_comp_decompress(stream->tfm, src, src_len,
-							dst, &dst_len);
-	zcomp_stream_put(comp);
+
+	if (!strcmp(comp->algo_name, "lz4")) {
+		ret = LZ4_decompress_safe(src, dst, src_len, dst_len);
+		if (ret < 0)
+			ret = -EINVAL;
+		else
+			ret = 0;
+	} else if (!strcmp(comp->algo_name, "lzo") || !strcmp(comp->algo_name, "lzo-rle")) {
+		size_t dlen = dst_len;
+		ret = lzo1x_decompress_safe(src, src_len, dst, &dlen);
+		if (ret != LZO_E_OK)
+			ret = -EINVAL;
+		else
+			ret = 0;
+	} else {
+		ret = -EOPNOTSUPP;
+	}
+
 	kunmap_atomic(dst);
 
 	return ret;
@@ -108,26 +120,25 @@ int zcomp_cpu_decompress(struct zcomp *comp, void *src,
 
 static void zcomp_strm_free(struct zcomp_strm *zstrm)
 {
-	if (!IS_ERR_OR_NULL(zstrm->tfm))
-		crypto_free_comp(zstrm->tfm);
-	free_pages((unsigned long)zstrm->buffer, 1);
-	zstrm->tfm = NULL;
-	zstrm->buffer = NULL;
+	kfree(zstrm->workmem);
+	zstrm->workmem = NULL;
+	if (zstrm->buffer) {
+		free_pages((unsigned long)zstrm->buffer, 1);
+		zstrm->buffer = NULL;
+	}
 }
 
 /*
- * Initialize zcomp_strm structure with ->tfm initialized by backend, and
- * ->buffer. Return a negative value on error.
+ * Initialize zcomp_strm structure with work memory and 2-page buffer.
+ * Return a negative value on error.
  */
 static int zcomp_strm_init(struct zcomp_strm *zstrm, struct zcomp *comp)
 {
-	zstrm->tfm = crypto_alloc_comp(comp->algo_name, 0, 0);
-	/*
-	 * allocate 2 pages. 1 for compressed data, plus 1 extra for the
-	 * case when compressed size is larger than the original one
-	 */
+	size_t workmem_size = max_t(size_t, LZ4_MEM_COMPRESS, LZO1X_MEM_COMPRESS);
+
+	zstrm->workmem = kzalloc(workmem_size, GFP_KERNEL);
 	zstrm->buffer = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
-	if (IS_ERR_OR_NULL(zstrm->tfm) || !zstrm->buffer) {
+	if (!zstrm->workmem || !zstrm->buffer) {
 		zcomp_strm_free(zstrm);
 		return -ENOMEM;
 	}
@@ -187,7 +198,7 @@ int zcomp_cpu_dead(unsigned int cpu, struct hlist_node *node)
 	struct zcomp *comp = hlist_entry(node, struct zcomp, node);
 	struct zcomp_strm *zstrm;
 
-	zstrm = per_cpu_ptr((struct zcomp_strm __percpu*)comp->private, cpu);
+	zstrm = per_cpu_ptr((struct zcomp_strm __percpu *)comp->private, cpu);
 	zcomp_strm_free(zstrm);
 	return 0;
 }
