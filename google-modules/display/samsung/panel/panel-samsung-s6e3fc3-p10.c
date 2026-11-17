@@ -658,11 +658,18 @@ static void s6e3fc3_p10_get_panel_rev(struct exynos_panel *ctx, u32 id)
 
 static int s6e3fc3_p10_panel_probe(struct mipi_dsi_device *dsi)
 {
+	const struct exynos_panel_desc *desc;
 	struct s6e3fc3_p10_panel *spanel;
 
-	spanel = devm_kzalloc(&dsi->dev, sizeof(*spanel), GFP_KERNEL);
-	if (!spanel)
-		return -ENOMEM;
+	desc = of_device_get_match_data(&dsi->dev);
+	if (!desc)
+		return -ENODEV;
+
+	spanel = devm_drm_panel_alloc(&dsi->dev, __typeof(*spanel), base.panel,
+				      desc->panel_func,
+				      DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(spanel))
+		return PTR_ERR(spanel);
 
 	spanel->base.op_hz = 90;
 

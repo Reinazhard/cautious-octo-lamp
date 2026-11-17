@@ -5805,7 +5805,6 @@ int exynos_panel_common_init(struct mipi_dsi_device *dsi,
 	mutex_init(&ctx->bl_state_lock);
 	mutex_init(&ctx->lp_state_lock);
 
-	drm_panel_init(&ctx->panel, dev, ctx->desc->panel_func, DRM_MODE_CONNECTOR_DSI);
 
 	ret = exynos_panel_of_backlight(ctx);
 	if (ret) {
@@ -5874,11 +5873,18 @@ EXPORT_SYMBOL_GPL(exynos_panel_common_init);
 
 int exynos_panel_probe(struct mipi_dsi_device *dsi)
 {
+	const struct exynos_panel_desc *desc;
 	struct exynos_panel *ctx;
 
-	ctx = devm_kzalloc(&dsi->dev, sizeof(struct exynos_panel), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	desc = of_device_get_match_data(&dsi->dev);
+	if (!desc)
+		return -ENODEV;
+
+	ctx = devm_drm_panel_alloc(&dsi->dev, __typeof(*ctx), panel,
+				   desc->panel_func,
+				   DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	return exynos_panel_common_init(dsi, ctx);
 }

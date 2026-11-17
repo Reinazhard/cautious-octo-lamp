@@ -1045,6 +1045,7 @@ static void s6e3hc2_gamma_work(struct kthread_work *work)
 
 static int s6e3hc2_panel_probe(struct mipi_dsi_device *dsi)
 {
+	const struct exynos_panel_desc *desc;
 	struct s6e3hc2_panel *spanel;
 	struct exynos_panel *ctx;
 	const struct drm_display_mode *mode;
@@ -1053,9 +1054,15 @@ static int s6e3hc2_panel_probe(struct mipi_dsi_device *dsi)
 		.sched_priority = 16,
 	};
 
-	spanel = devm_kzalloc(&dsi->dev, sizeof(*spanel), GFP_KERNEL);
-	if (!spanel)
-		return -ENOMEM;
+	desc = of_device_get_match_data(&dsi->dev);
+	if (!desc)
+		return -ENODEV;
+
+	spanel = devm_drm_panel_alloc(&dsi->dev, __typeof(*spanel), base.panel,
+				      desc->panel_func,
+				      DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(spanel))
+		return PTR_ERR(spanel);
 
 	ret = exynos_panel_common_init(dsi, &spanel->base);
 	if (ret)

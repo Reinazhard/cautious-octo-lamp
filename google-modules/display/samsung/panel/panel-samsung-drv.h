@@ -20,6 +20,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/hex.h>
+#include <linux/of.h>
 #include <linux/backlight.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_connector.h>

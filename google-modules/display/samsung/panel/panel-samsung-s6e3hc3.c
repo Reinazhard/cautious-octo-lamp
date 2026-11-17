@@ -1391,11 +1391,18 @@ static void s6e3hc3_panel_init(struct exynos_panel *ctx)
 
 static int s6e3hc3_panel_probe(struct mipi_dsi_device *dsi)
 {
+	const struct exynos_panel_desc *desc;
 	struct s6e3hc3_panel *spanel;
 
-	spanel = devm_kzalloc(&dsi->dev, sizeof(*spanel), GFP_KERNEL);
-	if (!spanel)
-		return -ENOMEM;
+	desc = of_device_get_match_data(&dsi->dev);
+	if (!desc)
+		return -ENODEV;
+
+	spanel = devm_drm_panel_alloc(&dsi->dev, __typeof(*spanel), base.panel,
+				      desc->panel_func,
+				      DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(spanel))
+		return PTR_ERR(spanel);
 
 	return exynos_panel_common_init(dsi, &spanel->base);
 }

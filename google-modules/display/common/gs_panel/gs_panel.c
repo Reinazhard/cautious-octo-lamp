@@ -1873,7 +1873,10 @@ int gs_dsi_panel_common_init(struct mipi_dsi_device *dsi, struct gs_panel *ctx)
 	mutex_init(&ctx->bl_state_lock);
 
 	/* Initialize panel */
-	drm_panel_init(&ctx->base, dev, ctx->desc->panel_func, DRM_MODE_CONNECTOR_DSI);
+	INIT_LIST_HEAD(&ctx->base.list);
+	INIT_LIST_HEAD(&ctx->base.followers);
+	mutex_init(&ctx->base.follower_lock);
+	ctx->base.dev = dev; ctx->base.funcs = ctx->desc->panel_func;
 
 	/* Add the panel officially */
 	drm_panel_add(&ctx->base);
