@@ -443,13 +443,14 @@ static int exynos_pm_drvinit(struct platform_device *pdev)
 		return PTR_ERR(pm_info->eint_far_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	pm_info->gic_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(pm_info->gic_base)) {
-		// GIC now claims its MMIO. So for kernels 5.19+, we can't map this
-		// overlapping memory region. Refer to b/237296335 for more details.
-		dev_warn(dev, "drvinit: unable to map gic dist registers, ret=%ld\n",
-			 PTR_ERR(pm_info->gic_base));
-		pm_info->gic_base = 0;
+	if (res) {
+		/*
+		 * GIC dist registers are claimed by gic-v3, so use devm_ioremap
+		 * to avoid request_mem_region conflict (b/237296335).
+		 */
+		pm_info->gic_base = devm_ioremap(dev, res->start, resource_size(res));
+		if (!pm_info->gic_base)
+			dev_warn(dev, "drvinit: unable to map gic dist registers\n");
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
@@ -458,9 +459,13 @@ static int exynos_pm_drvinit(struct platform_device *pdev)
 		return PTR_ERR(pm_info->mbox_aoc);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 4);
-	pm_info->mbox_aocf1 = devm_ioremap_resource(dev, res);
-	if (IS_ERR(pm_info->mbox_aocf1))
-		dev_warn(dev, "unable to get the mapped address of mbox_aocf1\n");
+	if (res) {
+		pm_info->mbox_aocf1 = devm_ioremap_resource(dev, res);
+		if (IS_ERR(pm_info->mbox_aocf1))
+			dev_warn(dev, "unable to get the mapped address of mbox_aocf1\n");
+	} else {
+		pm_info->mbox_aocf1 = ERR_PTR(-ENODEV);
+	}
 
 	ret = of_property_read_u32(np, "num-gic", &pm_info->num_gic);
 	if (ret)
