@@ -33,6 +33,7 @@
 
 #include "eh_internal.h"
 #include "zcomp.h"
+#include "zcomp_eh.h"
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
 #include <asm/irqflags.h>
