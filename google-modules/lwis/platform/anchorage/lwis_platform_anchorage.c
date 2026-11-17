@@ -148,7 +148,7 @@ int lwis_platform_device_enable(struct lwis_device *lwis_dev)
 	if (of_find_property(lwis_dev->k_dev->of_node, "iommus", &iommus_len) && iommus_len) {
 		/* Activate IOMMU for the platform device */
 		domain = iommu_get_domain_for_dev(lwis_dev->k_dev);
-		if (domain)
+		if (domain && domain->cookie_type == IOMMU_COOKIE_NONE)
 			/* Used just for logging. */
 			iommu_set_fault_handler(domain,
 						lwis_iommu_fault_handler,
