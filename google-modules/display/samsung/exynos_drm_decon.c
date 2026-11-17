@@ -1981,7 +1981,10 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 
 	priv->iommu_client = dev;
 
-	iommu_register_device_fault_handler(dev, dpu_sysmmu_fault_handler, decon);
+	domain = iommu_get_domain_for_dev(dev);
+	if (domain && domain->cookie_type == IOMMU_COOKIE_NONE)
+		/* Used just for logging. */
+		iommu_set_fault_handler(domain, dpu_sysmmu_fault_handler, decon);
 
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON) && defined(CONFIG_DEBUG_FS)
 	decon->itmon_nb.notifier_call = dpu_itmon_notifier;
