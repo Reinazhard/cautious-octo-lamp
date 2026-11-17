@@ -39,7 +39,9 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
+};
 
+&pinctrl_1 {
 	aoc2ap_irq: aoc2ap-irq {
 		samsung,pins = "gpa8-6";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
