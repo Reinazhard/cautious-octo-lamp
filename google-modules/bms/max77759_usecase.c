@@ -1514,10 +1514,11 @@ bool gs101_setup_usecases(struct max77759_usecase_data *uc_data,
 	uc_data->wlc_otg_extbst_en = of_property_read_bool(node, "max77759,wlc-otg-extbst-en");
 
 	if (PTR_ERR(uc_data->dc_sw_gpio) == -EPROBE_DEFER) {
-		uc_data->dc_sw_gpio = devm_gpiod_get_optional(dev, "max77759,dc_switch", GPIOD_ASIS);
+		uc_data->dc_sw_gpio = devm_gpiod_get_optional(dev,
+				"max77759,dc_switch", GPIOD_ASIS);
 		if (!uc_data->dc_sw_gpio)
-			uc_data->dc_sw_gpio = devm_gpiod_get_optional(dev, "max77759,gpio_dc_switch",
-								      GPIOD_ASIS);
+			uc_data->dc_sw_gpio = devm_gpiod_get_optional(dev,
+					"max77759,gpio_dc_switch", GPIOD_ASIS);
 	}
 
 	return gs101_setup_usecases_done(uc_data);
