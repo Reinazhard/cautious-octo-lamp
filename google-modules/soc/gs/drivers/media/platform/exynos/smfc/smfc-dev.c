@@ -1080,7 +1080,7 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 		goto err_v4l2;
 
 	domain = iommu_get_domain_for_dev(&pdev->dev);
-	if (domain)
+	if (domain && domain->cookie_type == IOMMU_COOKIE_NONE)
 		/* Used just for logging. */
 		iommu_set_fault_handler(domain, smfc_iommu_fault_handler, smfc);
 

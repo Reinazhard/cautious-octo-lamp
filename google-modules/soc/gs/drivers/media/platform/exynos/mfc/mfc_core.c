@@ -711,7 +711,7 @@ static int mfc_core_probe(struct platform_device *pdev)
 				core->core_pdata->encoder_qos_table[i].bts_scen_idx);
 
 	domain = iommu_get_domain_for_dev(&pdev->dev);
-	if (domain)
+	if (domain && domain->cookie_type == IOMMU_COOKIE_NONE)
 		iommu_set_fault_handler(domain, mfc_core_sysmmu_fault_handler,
 					core);
 

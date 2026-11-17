@@ -845,7 +845,7 @@ static int g2d_probe(struct platform_device *pdev)
 	}
 
 	domain = iommu_get_domain_for_dev(&pdev->dev);
-	if (domain)
+	if (domain && domain->cookie_type == IOMMU_COOKIE_NONE)
 		/* Used just for logging. */
 		iommu_set_fault_handler(domain, g2d_fault_handler, g2d_dev);
 
