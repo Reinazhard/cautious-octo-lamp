@@ -97,7 +97,7 @@ extern void integrated_module_load_end(void);
 #define module_init(x) \
 	____define_initcall(x,						\
 		__initcall_stub(x, __KBUILD_MODNAME,),			\
-		__PASTE(__initcall__, __PASTE(__KBUILD_MODNAME, __)),	\
+		__PASTE(__initcall__, __PASTE(kmod_, __PASTE(__KBUILD_MODNAME, __))),	\
 		".rodata")
 #else
 #define module_init(x)	__initcall(x);
