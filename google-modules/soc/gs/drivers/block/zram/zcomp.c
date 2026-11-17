@@ -28,6 +28,13 @@ struct zcomp_backend {
 static LIST_HEAD(zcomp_list);
 static DECLARE_RWSEM(zcomp_rwsem);
 
+/*
+ * zs_obj_read_begin() needs a scratch buffer when a stored object spans two
+ * physical pages. The read path runs with preemption disabled while the slot
+ * bit spin-lock is held, so a per-CPU buffer is used.
+ */
+static DEFINE_PER_CPU(char[PAGE_SIZE], zcomp_local_copy);
+
 /* caller should hold a zcomp_rwsem under semaphore */
 static struct zcomp *find_zcomp(const char *algo_name)
 {
@@ -62,8 +69,7 @@ int zcomp_register(const char *algo_name, const struct zcomp_operation *op)
 		goto out;
 	}
 
-	strncpy(zcomp->algo_name, algo_name, len);
-	zcomp->algo_name[len] = '\0';
+	strscpy(zcomp->algo_name, algo_name, sizeof(zcomp->algo_name));
 	zcomp->op = op;
 
 	down_write(&zcomp_rwsem);
@@ -213,11 +219,21 @@ int zcomp_decompress(struct zcomp *comp, u32 index, struct page *page)
 
 	handle = zram_get_handle(zram, index);
 	src_len = zram_get_obj_size(zram, index);
-	src = zs_map_object(zram->mem_pool, handle, ZS_MM_RO);
+	if (src_len == PAGE_SIZE) {
+		void *dst;
 
+		src = zs_obj_read_begin(zram->mem_pool, handle, PAGE_SIZE, NULL);
+		dst = kmap_local_page(page);
+		memcpy(dst, src, PAGE_SIZE);
+		kunmap_local(dst);
+		zs_obj_read_end(zram->mem_pool, handle, PAGE_SIZE, src);
+		return 0;
+	}
+
+	src = zs_obj_read_begin(zram->mem_pool, handle, src_len,
+				this_cpu_ptr(zcomp_local_copy));
 	ret = zcomp_decompress_buf(comp, index, src, src_len, page);
-
-	zs_unmap_object(zram->mem_pool, handle);
+	zs_obj_read_end(zram->mem_pool, handle, src_len, src);
 	return ret;
 }
 
@@ -301,7 +317,6 @@ struct zcomp *zcomp_create(const char *algo_name, struct zcomp_params *params,
 int zcomp_copy_buffer(void *buffer, int comp_len, struct zram *zram,
 		      struct page *page, u32 index, u32 prio)
 {
-	void *dst_addr;
 	unsigned long handle;
 
 	if (comp_len >= huge_class_size)
@@ -311,22 +326,19 @@ int zcomp_copy_buffer(void *buffer, int comp_len, struct zram *zram,
 			__GFP_KSWAPD_RECLAIM |
 			__GFP_NOWARN |
 			__GFP_HIGHMEM |
-			__GFP_MOVABLE |
-			__GFP_CMA);
+			__GFP_MOVABLE, page_to_nid(page));
 	if (IS_ERR((void *)handle)) {
 		return PTR_ERR((void *)handle);
 	}
 
-	dst_addr = zs_map_object(zram->mem_pool, handle, ZS_MM_WO);
 	if (comp_len == PAGE_SIZE) {
 		void *src = kmap_local_page(page);
 
-		memcpy(dst_addr, src, comp_len);
+		zs_obj_write(zram->mem_pool, handle, src, comp_len);
 		kunmap_local(src);
 	} else {
-		memcpy(dst_addr, buffer, comp_len);
+		zs_obj_write(zram->mem_pool, handle, buffer, comp_len);
 	}
-	zs_unmap_object(zram->mem_pool, handle);
 	zram_slot_update(zram, index, handle, comp_len, prio);
 
 	return 0;
@@ -359,7 +371,6 @@ int zcomp_recompress_copy_buffer(void *buffer, int comp_len_new,
 	unsigned int class_index_old;
 	unsigned int class_index_new;
 	unsigned long handle_new;
-	void *dst;
 
 	comp_len_old = zram_get_obj_size(zram, index);
 	class_index_old = zs_lookup_class_index(zram->mem_pool, comp_len_old);
@@ -381,13 +392,11 @@ int zcomp_recompress_copy_buffer(void *buffer, int comp_len_new,
 			       __GFP_KSWAPD_RECLAIM |
 			       __GFP_NOWARN |
 			       __GFP_HIGHMEM |
-			       __GFP_MOVABLE);
+			       __GFP_MOVABLE, NUMA_NO_NODE);
 	if (IS_ERR_VALUE(handle_new))
 		return PTR_ERR((void *)handle_new);
 
-	dst = zs_map_object(zram->mem_pool, handle_new, ZS_MM_WO);
-	memcpy(dst, buffer, comp_len_new);
-	zs_unmap_object(zram->mem_pool, handle_new);
+	zs_obj_write(zram->mem_pool, handle_new, buffer, comp_len_new);
 
 	zram_recompress_slot_update(zram, index, handle_new, comp_len_new,
 				    prio);
