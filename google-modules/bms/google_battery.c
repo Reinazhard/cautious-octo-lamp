@@ -13607,7 +13607,8 @@ static int gbatt_get_ttf(struct batt_drv *batt_drv)
 	if (!batt_drv->fg_psy)
 		return -1;
 
-	rc = power_supply_get_property(batt_drv->fg_psy, POWER_SUPPLY_PROP_TIME_TO_FULL_NOW, &val);
+	rc = gbms_get_psy_property(batt_drv->fg_psy,
+				   POWER_SUPPLY_PROP_TIME_TO_FULL_NOW, &val);
 	return rc < 0 ? -1 : val.intval;
 }
 
@@ -13754,13 +13755,13 @@ static int gbatt_get_property(struct power_supply *psy,
 			if (rc == 0)
 				val->strval = batt_drv->serial_number;
 			else
-				err = power_supply_get_property(batt_drv->fg_psy, psp, val);
+				err = gbms_get_psy_property(batt_drv->fg_psy, psp, val);
 		}
 		break;
 	default:
 		if (!batt_drv->fg_psy)
 			return -EINVAL;
-		err = power_supply_get_property(batt_drv->fg_psy, psp, val);
+		err = gbms_get_psy_property(batt_drv->fg_psy, psp, val);
 		break;
 	}
 

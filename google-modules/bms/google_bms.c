@@ -1332,6 +1332,43 @@ int gbms_set_property(struct power_supply *psy, enum gbms_property psp,
 }
 EXPORT_SYMBOL_GPL(gbms_set_property);
 
+static bool gbms_psy_desc_has_property(const struct power_supply_desc *psy_desc,
+				       enum power_supply_property psp)
+{
+	int i;
+
+	for (i = 0; i < psy_desc->num_properties; i++)
+		if (psy_desc->properties[i] == psp)
+			return true;
+
+	return false;
+}
+
+/*
+ * Upstream Linux 6.13+ power_supply_get_property() rejects properties omitted
+ * from psy->desc->properties[] with -EINVAL. Fallback directly to
+ * psy->desc->get_property() after power_supply_get_property() validates device
+ * readiness (use_cnt) so BMS drivers can still forward internal properties not
+ * exposed to sysfs/uevents.
+ */
+int gbms_get_psy_property(struct power_supply *psy,
+			  enum power_supply_property psp,
+			  union power_supply_propval *val)
+{
+	int ret;
+
+	if (!psy)
+		return -EINVAL;
+
+	ret = power_supply_get_property(psy, psp, val);
+	if (ret == -EINVAL && psy->desc->get_property &&
+	    !gbms_psy_desc_has_property(psy->desc, psp))
+		ret = psy->desc->get_property(psy, psp, val);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gbms_get_psy_property);
+
 int gbms_get_property(struct power_supply *psy, enum gbms_property psp,
 		      union gbms_propval *val)
 {
@@ -1351,7 +1388,8 @@ int gbms_get_property(struct power_supply *psy, enum gbms_property psp,
 	if (!dsc->forward)
 		return -ENODEV;
 
-	ret = power_supply_get_property(psy, psp, &val->prop);
+	ret = gbms_get_psy_property(psy, (enum power_supply_property)psp,
+				    &val->prop);
 	if (ret < 0)
 		pr_err("failed to get psp=%d from '%s', ret=%d\n",
 		       psp, psy->desc->name, ret);

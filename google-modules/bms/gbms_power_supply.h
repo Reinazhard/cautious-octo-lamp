@@ -137,5 +137,8 @@ extern int gbms_set_property(struct power_supply *psy, enum gbms_property psp,
 			     const union gbms_propval *val);
 extern int gbms_get_property(struct power_supply *psy, enum gbms_property psp,
 			     union gbms_propval *val);
+extern int gbms_get_psy_property(struct power_supply *psy,
+				 enum power_supply_property psp,
+				 union power_supply_propval *val);
 
 #endif /* __GBMS_POWER_SUPPLY_H__ */

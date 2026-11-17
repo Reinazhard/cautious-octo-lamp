@@ -750,13 +750,13 @@ static int gdbatt_get_property(struct power_supply *psy,
 	if (!dual_fg_drv->first_fg_psy || !dual_fg_drv->second_fg_psy)
 		goto single_fg;
 
-	err = power_supply_get_property(dual_fg_drv->first_fg_psy, psp, &fg_1);
+	err = gbms_get_psy_property(dual_fg_drv->first_fg_psy, psp, &fg_1);
 	if (err != 0) {
 		pr_debug("error %d reading first fg prop %d\n", err, psp);
 		return err;
 	}
 
-	err = power_supply_get_property(dual_fg_drv->second_fg_psy, psp, &fg_2);
+	err = gbms_get_psy_property(dual_fg_drv->second_fg_psy, psp, &fg_2);
 	if (err != 0) {
 		pr_debug("error %d reading second fg prop %d\n", err, psp);
 		return err;
@@ -821,9 +821,9 @@ static int gdbatt_get_property(struct power_supply *psy,
 
 single_fg:
 	if (dual_fg_drv->first_fg_psy)
-		err = power_supply_get_property(dual_fg_drv->first_fg_psy, psp, val);
+		err = gbms_get_psy_property(dual_fg_drv->first_fg_psy, psp, val);
 	else if (dual_fg_drv->second_fg_psy)
-		err = power_supply_get_property(dual_fg_drv->second_fg_psy, psp, val);
+		err = gbms_get_psy_property(dual_fg_drv->second_fg_psy, psp, val);
 
 	if (err < 0)
 		pr_debug("error %d reading single prop %d\n", err, psp);

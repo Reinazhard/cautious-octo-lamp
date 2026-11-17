@@ -2220,7 +2220,7 @@ static int gcpm_psy_get_property(struct power_supply *psy,
 	}
 
 	if (route)
-		ret = power_supply_get_property(chg_psy, psp, pval);
+		ret = gbms_get_psy_property(chg_psy, psp, pval);
 
 	mutex_unlock(&gcpm->chg_psy_lock);
 	return ret;

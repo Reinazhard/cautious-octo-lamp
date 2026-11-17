@@ -416,7 +416,7 @@ static int dock_get_property(struct power_supply *psy,
 		break;
 
 	default:
-		ret = power_supply_get_property(dock->dc_psy, psp, val);
+		ret = gbms_get_psy_property(dock->dc_psy, psp, val);
 		break;
 	}
 

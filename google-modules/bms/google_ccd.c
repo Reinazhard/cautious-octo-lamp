@@ -348,7 +348,7 @@ static int gccd_psy_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STATUS:
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		pval->intval = PSY_GET_INT_PROP(gccd->main_chg_psy, psp, &ret);
+		pval->intval = GPSY_GET_INT_PROP(gccd->main_chg_psy, psp, &ret);
 		break;
 	default:
 		pr_debug("%s: property (%d) unsupported.\n", __func__, psp);
