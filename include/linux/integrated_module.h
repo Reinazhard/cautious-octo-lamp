@@ -15,5 +15,5 @@
  */
 #if KBUILD_IS_MODULE
 #include <linux/types.h>
-atomic_t __weak __used __PASTE(__initdone__, __PASTE(__KBUILD_MODNAME, __));
+atomic_t __weak __used __PASTE(__initdone__, __PASTE(kmod_, __PASTE(__KBUILD_MODNAME, __)));
 #endif
