@@ -2406,7 +2406,7 @@ static int exynos_serial_init_port(struct exynos_uart_port *ourport,
 		ourport->tx_irq = ret + 1;
 	}
 
-	ret = platform_get_irq(platdev, 1);
+	ret = platform_get_irq_optional(platdev, 1);
 	if (ret > 0)
 		ourport->tx_irq = ret;
 	/*
