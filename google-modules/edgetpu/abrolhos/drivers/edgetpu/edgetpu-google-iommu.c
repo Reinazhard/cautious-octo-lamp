@@ -173,7 +173,8 @@ static void edgetpu_init_etdomain(struct edgetpu_iommu_domain *etdomain,
 	etdomain->iommu_domain = domain;
 	etdomain->pasid = IOMMU_PASID_INVALID;
 	etdomain->token = token;
-	iommu_set_fault_handler(domain, edgetpu_iommu_fault_handler, etdomain);
+	if (domain && domain->cookie_type == IOMMU_COOKIE_NONE)
+		iommu_set_fault_handler(domain, edgetpu_iommu_fault_handler, etdomain);
 }
 
 /*
