@@ -796,7 +796,7 @@ static ssize_t gsa_log_show(struct device *gsa, struct device_attribute *attr, c
 	struct gsa_dev_state *s = platform_get_drvdata(pdev);
 
 	bool is_intermediate = (attr == &dev_attr_log_intermediate);
-	return gsa_log_read(s->log, is_intermediate, buf);
+	return gsa_log_read(s->log, is_intermediate, buf, PAGE_SIZE);
 }
 
 static struct attribute *gsa_attrs[] = {

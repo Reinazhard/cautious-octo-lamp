@@ -86,14 +86,23 @@ struct gsa_log *gsa_log_init(struct platform_device *pdev)
 	return log;
 }
 
-ssize_t gsa_log_read(struct gsa_log *log, bool intermediate, char *buf)
+ssize_t gsa_log_read(struct gsa_log *log, bool intermediate, char *buf, size_t read_size)
 {
 	uint32_t magic;
 	size_t size;
 	size_t tail;
-	size_t offset = 0;
+	size_t next_read_size;
+	size_t copied = 0;
 	void *base;
 	struct gsa_log_mem *gsa_log_mem_base;
+
+	if (IS_ERR(log))
+		return PTR_ERR(log);
+	else if (!log)
+		return -ENODEV;
+
+	if (!read_size)
+		return 0;
 
 	if (intermediate) {
 		base = log->base_intermediate;
@@ -122,16 +131,23 @@ ssize_t gsa_log_read(struct gsa_log *log, bool intermediate, char *buf)
 	 * Check to see if the byte after tail is null to discriminate
 	 * which case the log is in:
 	 */
+	next_read_size = size - tail - 1;
 	if ((tail + 1) != size && readb(&gsa_log_mem_base->body[tail + 1])) {
-		memcpy_fromio(buf, &gsa_log_mem_base->body[tail + 1], size - tail - 1);
-		offset += size - tail - 1;
+		if (next_read_size > read_size - 1)
+			next_read_size = read_size - 1;
+		memcpy_fromio(buf, &gsa_log_mem_base->body[tail + 1], next_read_size);
+		copied += next_read_size;
 	}
 
 	/* Copy the newer log data (bytes up to 'tail') */
-	memcpy_fromio(&buf[offset], gsa_log_mem_base->body, tail);
-	buf[offset + tail] = '\0';
+	next_read_size = tail;
+	if (next_read_size > read_size - copied - 1)
+		next_read_size = read_size - copied - 1;
+	memcpy_fromio(&buf[copied], gsa_log_mem_base->body, next_read_size);
+	copied += next_read_size;
+	buf[copied] = '\0';
 
-	return offset + tail;
+	return copied;
 }
 
 MODULE_LICENSE("GPL v2");

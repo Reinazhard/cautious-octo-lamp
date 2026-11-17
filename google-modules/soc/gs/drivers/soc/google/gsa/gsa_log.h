@@ -9,6 +9,6 @@ struct gsa_log;
 
 struct gsa_log *gsa_log_init(struct platform_device *pdev);
 
-ssize_t gsa_log_read(struct gsa_log *log, bool intermediate, char *buf);
+ssize_t gsa_log_read(struct gsa_log *log, bool intermediate, char *buf, size_t sz);
 
 #endif /* __LINUX_GSA_LOG_H */
