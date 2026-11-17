@@ -5432,7 +5432,7 @@ int fts_chip_powercycle(struct fts_ts_info *info)
 	if (info->board->reset_gpio) {
 		mdelay(10);	/* time to wait before bring up the reset
 				  * gpio after the power up of the regulators */
-		gpiod_set_value(info->board->reset_gpio, 1);
+		gpiod_set_value(info->board->reset_gpio, 0);
 	}
 
 	release_all_touches(info);

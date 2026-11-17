@@ -88,7 +88,7 @@ int fts_system_reset(struct fts_ts_info *info)
 		else {
 			gpiod_set_value(info->board->reset_gpio, 1);
 			msleep(10);
-			gpiod_set_value(info->board->reset_gpio, 1);
+			gpiod_set_value(info->board->reset_gpio, 0);
 			res = OK;
 		}
 		if (res < OK)
