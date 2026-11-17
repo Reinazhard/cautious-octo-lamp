@@ -2614,8 +2614,9 @@ static int decon_register_irqs(struct decon_device *decon)
 
 	/* 4: DIMMING START */
 	decon->irq_ds = of_irq_get_byname(np, "dimming_start");
-	if (devm_request_irq(dev, decon->irq_ds, decon_irq_handler,
-			0, pdev->name, decon)) {
+	if (decon->irq_ds < 0 ||
+	    devm_request_irq(dev, decon->irq_ds, decon_irq_handler,
+			     0, pdev->name, decon)) {
 		decon->irq_ds = -1;
 		decon_info(decon, "dimming start irq is not supported\n");
 	} else {
@@ -2624,8 +2625,9 @@ static int decon_register_irqs(struct decon_device *decon)
 
 	/* 5: DIMMING END */
 	decon->irq_de = of_irq_get_byname(np, "dimming_end");
-	if (devm_request_irq(dev, decon->irq_de, decon_irq_handler,
-			0, pdev->name, decon)) {
+	if (decon->irq_de < 0 ||
+	    devm_request_irq(dev, decon->irq_de, decon_irq_handler,
+			     0, pdev->name, decon)) {
 		decon->irq_de = -1;
 		decon_info(decon, "dimming end irq is not supported\n");
 	} else {
