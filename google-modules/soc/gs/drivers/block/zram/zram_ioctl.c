@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/sched/task.h>
 #include <linux/pagewalk.h>
-#include <linux/swapops.h>
+#include <linux/leafops.h>
 #include <uapi/linux/zram_ioctl.h>
 
 #include "zram_drv.h"
@@ -63,7 +63,7 @@ static int zram_process_walker(pmd_t *pmd, unsigned long start,
 	struct vm_area_struct *vma = walk->vma;
 	struct swap_info_struct *sis;
 	pte_t *ptep, pte;
-	swp_entry_t entry;
+	softleaf_t entry;
 	spinlock_t *ptl;
 	unsigned long addr;
 	unsigned long index;
@@ -82,11 +82,8 @@ static int zram_process_walker(pmd_t *pmd, unsigned long start,
 		pte = ptep_get(ptep);
 		pte_unmap_unlock(ptep, ptl);
 
-		if (!is_swap_pte(pte))
-			continue;
-
-		entry = pte_to_swp_entry(pte);
-		if (unlikely(non_swap_entry(entry)))
+		entry = softleaf_from_pte(pte);
+		if (!softleaf_is_swap(entry))
 			continue;
 
 		/* prevent the swapoff race condition */
