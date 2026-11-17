@@ -211,7 +211,8 @@ void s51xx_pcie_save_state(struct pci_dev *pdev)
 
 	/* pci_enable_wake(s51xx_pcie.s51xx_pdev, PCI_D0, 0); */
 
-	pci_disable_device(pdev);
+	if (pci_is_enabled(pdev))
+		pci_disable_device(pdev);
 
 	pci_wake_from_d3(pdev, false);
 	if (pci_set_power_state(pdev, PCI_D3hot))
