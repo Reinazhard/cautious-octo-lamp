@@ -414,17 +414,18 @@ static int s51xx_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *en
 
 	mif_info("Disable BAR resources.\n");
 	for (i = 0; i < 6; i++) {
+		pci_release_resource(pdev, i);
 		pdev->resource[i].start = 0x0;
 		pdev->resource[i].end = 0x0;
-		pdev->resource[i].flags = 0;
 	}
-	for (i = 1; i < 6; i++)
+	for (i = 1; i < 6; i++) {
+		pdev->resource[i].flags = 0;
 		pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0 + (i * 4), 0);
+	}
 
 	/* EP BAR setup: BAR0 (4kB) */
 	pdev->resource[0].start = val;
 	pdev->resource[0].end = val + SZ_4K - 1;
-	pdev->resource[0].flags = IORESOURCE_MEM | IORESOURCE_PCI_FIXED;
 	if (pci_assign_resource(pdev, 0))
 		pr_warn("%s: failed to assign EP BAR0 pci resource\n", __func__);
 
