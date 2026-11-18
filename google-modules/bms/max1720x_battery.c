@@ -6336,7 +6336,7 @@ static void max17x0x_read_serial_number(struct max1720x_chip *chip)
 		ret = gbms_storage_read(GBMS_TAG_SNUM, buff, sizeof(chip->serial_number));
 
 	if (ret >= 0)
-		strncpy(chip->serial_number, buff, ret);
+		strscpy(chip->serial_number, buff, ret);
 	else
 		chip->serial_number[0] = '\0';
 }

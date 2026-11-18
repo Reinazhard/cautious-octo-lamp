@@ -3798,7 +3798,7 @@ static void max77779_fg_read_serial_number(struct max77779_fg_chip *chip)
 	int ret = gbms_storage_read(GBMS_TAG_MINF, buff, GBMS_MINF_LEN);
 
 	if (ret >= 0)
-		strncpy(chip->serial_number, buff, ret);
+		strscpy(chip->serial_number, buff, ret);
 	else
 		chip->serial_number[0] = '\0';
 }
