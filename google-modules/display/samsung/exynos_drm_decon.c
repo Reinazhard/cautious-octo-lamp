@@ -2751,7 +2751,7 @@ err:
 	return ret;
 }
 
-static int decon_remove(struct platform_device *pdev)
+static void decon_remove(struct platform_device *pdev)
 {
 	struct decon_device *decon = platform_get_drvdata(pdev);
 
@@ -2764,8 +2764,6 @@ static int decon_remove(struct platform_device *pdev)
 
 	__decon_unmap_regs(decon);
 	iounmap(decon->regs.regs);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

@@ -988,9 +988,8 @@ static int samsung_dp_dma_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int samsung_dp_dma_remove(struct platform_device *pdev)
+static void samsung_dp_dma_remove(struct platform_device *pdev)
 {
-	return 0;
 }
 
 static const struct of_device_id samsung_dp_dma_match[] = {
@@ -1140,12 +1139,11 @@ static int samsung_display_adma_probe(struct platform_device *pdev)
 	return of_platform_populate(np, NULL, NULL, dev);
 }
 
-static int samsung_display_adma_remove(struct platform_device *pdev)
+static void samsung_display_adma_remove(struct platform_device *pdev)
 {
 	vunmap(dp_ado_reserved_mem);
 	dp_ado_reserved_mem = NULL;
 	snd_soc_unregister_component(&pdev->dev);
-	return 0;
 }
 
 static const struct of_device_id samsung_display_adma_match[] = {
