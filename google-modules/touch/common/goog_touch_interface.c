@@ -2585,7 +2585,7 @@ int goog_get_config_name(struct device_node *node, int id, char *name, size_t si
 
 	err = of_property_read_string_index(node, "goog,config_names", id, &config_name);
 	if (err == 0) {
-		strncpy(name, config_name, size);
+		strscpy(name, config_name, size);
 		pr_info("%s: found config name: %s\n", __func__, name);
 	} else {
 		pr_warn("%s: Fail to find config name!\n", __func__);
@@ -2601,7 +2601,7 @@ int goog_get_test_limits_name(struct device_node *node, int id, char *name, size
 
 	err = of_property_read_string_index(node, "goog,test_limits_names", id, &limits_name);
 	if (err == 0) {
-		strncpy(name, limits_name, size);
+		strscpy(name, limits_name, size);
 		pr_info("%s: found test limits name: %s\n", __func__, name);
 	} else {
 		pr_warn("%s: Fail to find test limits name!\n", __func__);
