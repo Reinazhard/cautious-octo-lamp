@@ -224,15 +224,15 @@ subdir-ccflags-y += \
 
 KBUILD_OPTIONS += $(foreach m,$(GBMS_MODULES),CONFIG_$(m)=m )
 
-EXTRA_CFLAGS += -DDYNAMIC_DEBUG_MODULE
-EXTRA_CFLAGS += $(foreach m,$(GBMS_MODULES),-DCONFIG_$(m)_MODULE)
+CFLAGS_MODULE += -DDYNAMIC_DEBUG_MODULE
+CFLAGS_MODULE += $(foreach m,$(GBMS_MODULES),-DCONFIG_$(m)_MODULE)
 
 EXTRA_SYMBOLS += $(COMMON_OUT_DIR)/private/google-modules/bms/misc/Module.symvers
 include $(ROOT_DIR)/private/google-modules/soc/gs/Makefile.include
 
 modules modules_install clean compile_commands.json:
 	$(MAKE) -C $(KERNEL_SRC) M=$(M) W=1 \
-	$(KBUILD_OPTIONS) EXTRA_CFLAGS="$(EXTRA_CFLAGS)" KBUILD_EXTRA_SYMBOLS="$(EXTRA_SYMBOLS)" $(@)
+	$(KBUILD_OPTIONS) CFLAGS_MODULE="$(CFLAGS_MODULE)" KBUILD_EXTRA_SYMBOLS="$(EXTRA_SYMBOLS)" $(@)
 
 print-%:
 	@echo $* = $($*)
