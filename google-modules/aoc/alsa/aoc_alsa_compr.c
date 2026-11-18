@@ -647,7 +647,7 @@ int aoc_compr_get_position(struct aoc_alsa_stream *alsa_stream, uint64_t *positi
 }
 
 static int aoc_compr_pointer(struct snd_soc_component *component, struct snd_compr_stream *cstream,
-			     struct snd_compr_tstamp *arg)
+			     struct snd_compr_tstamp64 *arg)
 {
 	struct snd_compr_runtime *runtime = cstream->runtime;
 	struct aoc_alsa_stream *alsa_stream = runtime->private_data;
