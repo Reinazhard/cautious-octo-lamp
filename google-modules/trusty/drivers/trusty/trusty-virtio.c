@@ -409,20 +409,20 @@ err_share_memory:
 
 static int trusty_virtio_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 				  struct virtqueue *vqs[],
-				  vq_callback_t *callbacks[],
-				  const char * const names[],
-				  const bool *ctxs,
+				  struct virtqueue_info vqs_info[],
 				  struct irq_affinity *desc)
 {
+	struct virtqueue_info *vqi;
 	unsigned int i;
 	int ret;
 	bool ctx = false;
 
 	for (i = 0; i < nvqs; i++) {
+		vqi = &vqs_info[i];
 		ctx = false;
-		if (ctxs)
-			ctx = ctxs[i];
-		vqs[i] = _find_vq(vdev, i, callbacks[i], names[i], ctx);
+		if (vqi->ctx)
+			ctx = vqi->ctx;
+		vqs[i] = _find_vq(vdev, i, vqi->callback, vqi->name, ctx);
 		if (IS_ERR(vqs[i])) {
 			ret = PTR_ERR(vqs[i]);
 			_del_vqs(vdev);
@@ -704,19 +704,31 @@ err_share_memory:
 	return ret;
 }
 
-static dma_addr_t trusty_virtio_dma_map_page(struct device *dev,
-					     struct page *page,
-					     unsigned long offset, size_t size,
+static dma_addr_t trusty_virtio_dma_map_phys(struct device *dev,
+					     phys_addr_t phys, size_t size,
 					     enum dma_data_direction dir,
 					     unsigned long attrs)
 {
-	struct tipc_msg_buf *buf = page_to_virt(page) + offset;
+	struct tipc_msg_buf *buf = phys_to_virt(phys);
+
+	if (unlikely(attrs & DMA_ATTR_MMIO))
+		return DMA_MAPPING_ERROR;
 
 	return buf->buf_id;
 }
 
+static void trusty_virtio_dma_unmap_phys(struct device *dev,
+					 dma_addr_t dma_handle,
+					 size_t size,
+					 enum dma_data_direction dir,
+					 unsigned long attrs)
+{
+	return;
+}
+
 static const struct dma_map_ops trusty_virtio_dma_map_ops = {
-	.map_page = trusty_virtio_dma_map_page,
+	.map_phys = trusty_virtio_dma_map_phys,
+	.unmap_phys = trusty_virtio_dma_unmap_phys,
 };
 
 static int trusty_virtio_probe(struct platform_device *pdev)
