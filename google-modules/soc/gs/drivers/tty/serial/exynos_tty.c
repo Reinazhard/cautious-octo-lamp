@@ -2874,7 +2874,7 @@ static int exynos_serial_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int exynos_serial_remove(struct platform_device *dev)
+static void exynos_serial_remove(struct platform_device *dev)
 {
 	struct uart_port *port = exynos_dev_to_port(&dev->dev);
 
@@ -2891,8 +2891,6 @@ static int exynos_serial_remove(struct platform_device *dev)
 	}
 
 	uart_unregister_driver(&exynos_uart_drv);
-
-	return 0;
 }
 
 /* UART power management code */
