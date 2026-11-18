@@ -870,7 +870,7 @@ err:
 	return rc;
 }
 
-static int bigo_remove(struct platform_device *pdev)
+static void bigo_remove(struct platform_device *pdev)
 {
 	struct bigo_core *core = (struct bigo_core *)platform_get_drvdata(pdev);
 
@@ -881,7 +881,6 @@ static int bigo_remove(struct platform_device *pdev)
 	bigo_of_dt_release(core);
 	deinit_chardev(core);
 	platform_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 static const struct of_device_id bigo_dt_match[] = {
