@@ -137,9 +137,8 @@ fail:
 	return ret;
 }
 
-static int cp_thermal_zone_remove(struct platform_device *pdev)
+static void cp_thermal_zone_remove(struct platform_device *pdev)
 {
-	return 0;
 }
 
 static const struct of_device_id cp_thermal_zone_match[] = {
