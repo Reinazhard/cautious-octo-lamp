@@ -5380,7 +5380,7 @@ probe_fail:
 	return ret;
 }
 
-static int exynos_pcie_rc_remove(struct platform_device *pdev)
+static void exynos_pcie_rc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dw_pcie *pci = container_of(&dev, struct dw_pcie, dev);
@@ -5389,8 +5389,6 @@ static int exynos_pcie_rc_remove(struct platform_device *pdev)
 	dev_info(&pdev->dev, "%s\n", __func__);
 
 	mutex_destroy(&exynos_pcie->power_onoff_lock);
-
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_PM)
