@@ -1861,7 +1861,7 @@ err0:
 	return ret;
 }
 
-static int s3c64xx_spi_remove(struct platform_device *pdev)
+static void s3c64xx_spi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *master = spi_controller_get(platform_get_drvdata(pdev));
 	struct s3c64xx_spi_driver_data *sdd = spi_controller_get_devdata(master);
@@ -1884,8 +1884,6 @@ static int s3c64xx_spi_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 	spi_controller_put(master);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
