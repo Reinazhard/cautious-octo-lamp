@@ -66,7 +66,6 @@ static void bigo_sscd_release(struct device *dev)
 
 static struct platform_device bigo_sscd_dev = {
 	.name            = BIGO_CHRDEV_NAME,
-	.driver_override = SSCD_NAME,
 	.id              = -1,
 	.dev             = {
 		.platform_data = &bigo_sscd_platdata,
@@ -843,6 +842,9 @@ static int bigo_probe(struct platform_device *pdev)
 	} else {
 		rc = 0;
 	}
+
+	if (device_set_driver_override(&bigo_sscd_dev.dev, SSCD_NAME))
+		pr_warn("Failed to set driver override\n");
 
 	if(platform_device_register(&bigo_sscd_dev))
 		pr_warn("Failed to register bigo_sscd_dev.\n");
