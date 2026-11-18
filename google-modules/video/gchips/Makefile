@@ -15,13 +15,14 @@ KBUILD_OPTIONS += CONFIG_BIGWAVE=m ENABLE_SLC=y
 
 include $(ROOT_DIR)/private/google-modules/soc/gs/Makefile.include
 
-EXTRA_CFLAGS += -I$(ROOT_DIR)/private/google-modules/video/gchips/include
-EXTRA_CFLAGS += -DENABLE_SLC=1
+ccflags-y += -I$(srctree)/google-modules/video/gchips/include -DENABLE_SLC=1
+CFLAGS_MODULE += -I$(ROOT_DIR)/private/google-modules/video/gchips/include
+CFLAGS_MODULE += -DENABLE_SLC=1
 
 modules modules_install headers_install clean compile_commands.json:
 	$(MAKE) -C $(KERNEL_SRC) M=$(M) \
 	$(KBUILD_OPTIONS) \
-	EXTRA_CFLAGS="$(EXTRA_CFLAGS)" \
+	CFLAGS_MODULE="$(CFLAGS_MODULE)" \
 	KBUILD_EXTRA_SYMBOLS="$(EXTRA_SYMBOLS)" \
 	$(@)
 
