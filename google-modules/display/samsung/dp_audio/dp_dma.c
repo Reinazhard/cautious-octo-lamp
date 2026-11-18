@@ -910,7 +910,7 @@ static int dma_ioctl(struct snd_soc_component *component,
 static const struct snd_soc_component_driver dp_dma_cmpnt_drv = {
 	.controls		= dp_ado_controls,
 	.num_controls		= ARRAY_SIZE(dp_ado_controls),
-	.pcm_construct		= dma_new,
+	.pcm_new		= dma_new,
 	.pcm_destruct		= dma_free_dma_buffers,
 	.open			= dma_open,
 	.close			= dma_close,
