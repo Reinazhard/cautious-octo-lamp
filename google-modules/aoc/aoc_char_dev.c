@@ -338,7 +338,7 @@ static int __init acd_init(void)
 		goto fail;
 	}
 
-	acd_class = class_create(THIS_MODULE, ACD_CHARDEV_NAME);
+	acd_class = class_create(ACD_CHARDEV_NAME);
 	if (!acd_class) {
 		pr_err("Failed to create class\n");
 		goto fail;

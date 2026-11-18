@@ -1254,7 +1254,7 @@ int __init edgetpu_fs_init(void)
 	int ret;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 4, 0)
-	edgetpu_class = class_create(THIS_MODULE, "edgetpu");
+	edgetpu_class = class_create("edgetpu");
 #else
 	edgetpu_class = class_create("edgetpu");
 #endif

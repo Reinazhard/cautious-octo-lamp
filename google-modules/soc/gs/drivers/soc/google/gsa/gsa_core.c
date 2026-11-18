@@ -712,7 +712,7 @@ int gsa_cdev_init(void)
 		return ret;
 	}
 
-	gsa_cdev_class = class_create(THIS_MODULE, KBUILD_MODNAME);
+	gsa_cdev_class = class_create(KBUILD_MODNAME);
 	if (IS_ERR(gsa_cdev_class)) {
 		ret = PTR_ERR(gsa_cdev_class);
 		unregister_chrdev_region(gsa_cdev_base_num, MAX_DEVICES);
