@@ -3170,7 +3170,7 @@ static void get_chip_vendor(void *device_data)
 	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
 	char buff[16] = { 0 };
 
-	strncpy(buff, "SEC", sizeof(buff));
+	strscpy(buff, "SEC", sizeof(buff));
 	sec_cmd_set_default_result(sec);
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 	sec->cmd_state = SEC_CMD_STATUS_OK;
@@ -3184,15 +3184,15 @@ static void get_chip_name(void *device_data)
 	char buff[16] = { 0 };
 
 	if (ts->plat_data->img_version_of_ic[0] == 0x02)
-		strncpy(buff, "MC44", sizeof(buff));
+		strscpy(buff, "MC44", sizeof(buff));
 	else if (ts->plat_data->img_version_of_ic[0] == 0x05)
-		strncpy(buff, "A552", sizeof(buff));
+		strscpy(buff, "A552", sizeof(buff));
 	else if (ts->plat_data->img_version_of_ic[0] == 0x09)
-		strncpy(buff, "Y661", sizeof(buff));
+		strscpy(buff, "Y661", sizeof(buff));
 	else if (ts->plat_data->img_version_of_ic[0] == 0x10)
-		strncpy(buff, "Y761", sizeof(buff));
+		strscpy(buff, "Y761", sizeof(buff));
 	else
-		strncpy(buff, "N/A", sizeof(buff));
+		strscpy(buff, "N/A", sizeof(buff));
 
 	sec_cmd_set_default_result(sec);
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
