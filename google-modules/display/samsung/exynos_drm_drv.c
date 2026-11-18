@@ -573,7 +573,7 @@ static int exynos_atomic_helper_wait_for_fences(struct drm_device *dev,
 			}
 			print_drm_plane_state_info(&p, new_plane_state);
 
-			spin_lock_irq(fence->lock);
+			spin_lock_irq(dma_fence_spinlock(fence));
 			drm_printf(&p, "fence: %s-%s %llu-%llu status:%s\n",
 				fence->ops ? fence->ops->get_driver_name(fence) : "none",
 				fence->ops ? fence->ops->get_timeline_name(fence) : "none",
@@ -586,7 +586,7 @@ static int exynos_atomic_helper_wait_for_fences(struct drm_device *dev,
 			}
 			if (fence->error)
 				drm_printf(&p, "fence: err=%d\n", fence->error);
-			spin_unlock_irq(fence->lock);
+			spin_unlock_irq(dma_fence_spinlock(fence));
 
 			tmo = 0;
 			err = -ETIMEDOUT;
@@ -1280,10 +1280,9 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 					       match);
 }
 
-static int exynos_drm_platform_remove(struct platform_device *pdev)
+static void exynos_drm_platform_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &exynos_drm_ops);
-	return 0;
 }
 
 static void exynos_drm_platform_shutdown(struct platform_device *pdev)
@@ -1412,5 +1411,5 @@ MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
 MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");
 MODULE_AUTHOR("Seung-Woo Kim <sw0312.kim@samsung.com>");
 MODULE_DESCRIPTION("Samsung SoC DRM Driver");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 MODULE_LICENSE("GPL");
