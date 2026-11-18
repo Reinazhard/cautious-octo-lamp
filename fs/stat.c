@@ -263,6 +263,14 @@ int vfs_getattr(const struct path *path, struct kstat *stat,
 }
 EXPORT_SYMBOL(vfs_getattr);
 
+#ifdef CONFIG_KSU
+#include <linux/jump_label.h>
+extern struct static_key_true ksu_is_init_rc_hook_enabled;
+extern struct static_key_true ksu_su_compat_enabled;
+extern void ksu_handle_vfs_fstat(int fd, loff_t *kstat_size_ptr);
+extern int ksu_handle_stat(int *dfd, struct filename **filename, int *flags);
+#endif
+
 /**
  * vfs_fstat - Get the basic attributes by file descriptor
  * @fd: The file descriptor referring to the file of interest
@@ -275,10 +283,16 @@ EXPORT_SYMBOL(vfs_getattr);
  */
 int vfs_fstat(int fd, struct kstat *stat)
 {
+	int ret;
 	CLASS(fd_raw, f)(fd);
 	if (fd_empty(f))
 		return -EBADF;
-	return vfs_getattr(&fd_file(f)->f_path, stat, STATX_BASIC_STATS, 0);
+	ret = vfs_getattr(&fd_file(f)->f_path, stat, STATX_BASIC_STATS, 0);
+#ifdef CONFIG_KSU
+	if (!ret && static_branch_unlikely(&ksu_is_init_rc_hook_enabled))
+		ksu_handle_vfs_fstat(fd, &stat->size);
+#endif
+	return ret;
 }
 
 static int statx_lookup_flags(int flags)
@@ -348,6 +362,11 @@ static int vfs_statx(int dfd, struct filename *filename, int flags,
 	if (flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT | AT_EMPTY_PATH |
 		      AT_STATX_SYNC_TYPE))
 		return -EINVAL;
+
+#ifdef CONFIG_KSU
+	if (static_branch_unlikely(&ksu_su_compat_enabled))
+		ksu_handle_stat(&dfd, &filename, &flags);
+#endif
 
 retry:
 	error = filename_lookup(dfd, filename, lookup_flags, &path, NULL);

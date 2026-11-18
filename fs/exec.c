@@ -1935,12 +1935,23 @@ out:
 	return retval;
 }
 
+#ifdef CONFIG_KSU
+extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
+			       void *envp, int *flags);
+extern int ksu_handle_post_execveat_sucompat(int *fd, struct filename **filename_ptr,
+					     void *argv_user, void *envp_user,
+					     int *flags, int *retval);
+#endif
+
 static int do_execveat_common(int fd, struct filename *filename,
 			      struct user_arg_ptr argv,
 			      struct user_arg_ptr envp,
 			      int flags)
 {
 	int retval;
+#ifdef CONFIG_KSU
+	int su_compat = -1;
+#endif
 
 	/*
 	 * We move the actual failure in case of RLIMIT_NPROC excess from
@@ -1955,6 +1966,10 @@ static int do_execveat_common(int fd, struct filename *filename,
 	/* We're below the limit (still or again), so we don't want to make
 	 * further execve() calls fail. */
 	current->flags &= ~PF_NPROC_EXCEEDED;
+
+#ifdef CONFIG_KSU
+	su_compat = ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
+#endif
 
 	CLASS(bprm, bprm)(fd, filename, flags);
 	if (IS_ERR(bprm))
@@ -2003,7 +2018,12 @@ static int do_execveat_common(int fd, struct filename *filename,
 			     current->comm, bprm->filename);
 	}
 
-	return bprm_execve(bprm);
+	retval = bprm_execve(bprm);
+#ifdef CONFIG_KSU
+	if (su_compat == 0)
+		ksu_handle_post_execveat_sucompat(&fd, &filename, &argv, &envp, &flags, &retval);
+#endif
+	return retval;
 }
 
 int kernel_execve(const char *kernel_filename,

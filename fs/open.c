@@ -461,6 +461,12 @@ static const struct cred *access_override_creds(void)
 	return override_creds(override_cred);
 }
 
+#ifdef CONFIG_KSU
+#include <linux/jump_label.h>
+extern struct static_key_true ksu_su_compat_enabled;
+extern int ksu_handle_faccessat(int *dfd, struct filename **filename, int *mode, int *__unused_flags);
+#endif
+
 static int do_faccessat(int dfd, const char __user *filename, int mode, int flags)
 {
 	struct path path;
@@ -485,6 +491,10 @@ static int do_faccessat(int dfd, const char __user *filename, int mode, int flag
 	}
 
 	CLASS(filename_uflags, name)(filename, flags);
+#ifdef CONFIG_KSU
+	if (static_branch_unlikely(&ksu_su_compat_enabled))
+		ksu_handle_faccessat(&dfd, &name, &mode, NULL);
+#endif
 retry:
 	res = filename_lookup(dfd, name, lookup_flags, &path, NULL);
 	if (res)
