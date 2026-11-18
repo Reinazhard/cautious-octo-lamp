@@ -1646,7 +1646,7 @@ int gbms_decode_eeprom_sn(char *decode_sn, const size_t max_len)
 		return ret;
 
 	/* Pack barcode area data in ASCII format */
-	strncpy(decode_sn, sn, pack_barcode_len);
+	strscpy(decode_sn, sn, pack_barcode_len);
 
 	/*
 	 * decode address
