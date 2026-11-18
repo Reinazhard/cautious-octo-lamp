@@ -312,7 +312,7 @@ static void dbg_snapshot_task(int cpu, struct task_struct *v_task)
 	dss_log->task[cpu][i].task = v_task;
 	dss_log->task[cpu][i].pid = v_task->pid;
 	dss_log->task[cpu][i].se_exec_start = v_task->se.exec_start;
-	strncpy(dss_log->task[cpu][i].task_comm, v_task->comm, TASK_COMM_LEN - 1);
+	strscpy(dss_log->task[cpu][i].task_comm, v_task->comm, TASK_COMM_LEN - 1);
 }
 
 static void dbg_snapshot_sched_switch(void *ignore, bool preempt, struct task_struct *prev,
@@ -524,7 +524,7 @@ void dbg_snapshot_acpm(unsigned long long timestamp, const char *log,
 	dss_log->acpm[i].time = local_clock();
 	dss_log->acpm[i].acpm_time = timestamp;
 	len = sizeof(dss_log->acpm[i].log) - 1;
-	strncpy(dss_log->acpm[i].log, log, len);
+	strscpy(dss_log->acpm[i].log, log, len);
 	dss_log->acpm[i].log[len] = '\0';
 	dss_log->acpm[i].data = data;
 }

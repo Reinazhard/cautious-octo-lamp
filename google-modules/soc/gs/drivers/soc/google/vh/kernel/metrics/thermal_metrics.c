@@ -377,7 +377,7 @@ tr_handle register_temp_residency_stats(const char *name, char *group_name)
 		return -EINVAL;
 	stats = &residency_stat_array[instance];
 	spin_lock_init(&stats->lock);
-	strncpy(stats->name, name, THERMAL_NAME_LENGTH);
+	strscpy(stats->name, name, THERMAL_NAME_LENGTH);
 	stats->num_thresholds = ARRAY_SIZE(default_thresholds);
 	set_residency_thresholds(instance, default_thresholds);
 	stats->started = false;
@@ -420,7 +420,7 @@ int unregister_temp_residency_stats(tr_handle instance)
 	if (instance < 0 || (instance >= MAX_NUM_SUPPORTED_THERMAL_ZONES))
 		return -EINVAL;
 	stats = &residency_stat_array[instance];
-	strncpy(stats->name, "", THERMAL_NAME_LENGTH);
+	strscpy(stats->name, "", THERMAL_NAME_LENGTH);
 	set_residency_thresholds(instance, default_thresholds);
 	stats->ops = (struct temp_residency_stats_callbacks){NULL, NULL, NULL, NULL};
 	stats->use_callback = false;
