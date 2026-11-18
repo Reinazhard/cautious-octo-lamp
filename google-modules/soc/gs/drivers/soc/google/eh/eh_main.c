@@ -1301,7 +1301,7 @@ disable_pm_runtime:
 	return ret;
 }
 
-static int eh_of_remove(struct platform_device *pdev)
+static void eh_of_remove(struct platform_device *pdev)
 {
 	struct eh_device *eh_dev = platform_get_drvdata(pdev);
 
@@ -1309,7 +1309,6 @@ static int eh_of_remove(struct platform_device *pdev)
 	clk_put(eh_dev->clk);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static int eh_suspend(struct device *dev)
