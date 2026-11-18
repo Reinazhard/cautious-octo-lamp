@@ -1481,13 +1481,14 @@ static int bcm_spi_probe(struct spi_device *spi)
 	/* Register ssrdump platform */
 	priv->sscd_dev = (struct platform_device){
 		.name            = DEVICE_NAME,
-		.driver_override = SSCD_NAME,
 		.id              = -1,
 		.dev             = {
 			.platform_data = &priv->sscd_pdata,
 			.release       = sscd_release,
 			},
 	};
+
+	device_set_driver_override(&priv->sscd_dev.dev, SSCD_NAME);
 
 	platform_device_register(&priv->sscd_dev);
 
