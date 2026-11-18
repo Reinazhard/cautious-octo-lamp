@@ -388,7 +388,7 @@ pm_err:
 static int cs40l26_svc_en_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_dapm_context *dapm =
-			snd_soc_component_get_dapm(snd_kcontrol_chip(kcontrol));
+			snd_soc_component_to_dapm(snd_kcontrol_chip(kcontrol));
 	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(snd_kcontrol_chip(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
@@ -470,7 +470,7 @@ static int cs40l26_invert_streaming_data_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_dapm_context *dapm =
-			snd_soc_component_get_dapm(snd_kcontrol_chip(kcontrol));
+			snd_soc_component_to_dapm(snd_kcontrol_chip(kcontrol));
 	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(snd_kcontrol_chip(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
@@ -577,7 +577,7 @@ pm_err:
 static int cs40l26_a2h_level_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_dapm_context *dapm =
-			snd_soc_component_get_dapm(snd_kcontrol_chip(kcontrol));
+			snd_soc_component_to_dapm(snd_kcontrol_chip(kcontrol));
 	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(snd_kcontrol_chip(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
@@ -649,7 +649,7 @@ pm_err:
 static int cs40l26_i2s_atten_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(comp);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(comp);
 	struct cs40l26_codec *codec = snd_soc_component_get_drvdata(comp);
 	struct cs40l26_private *cs40l26 = codec->core;
 	struct regmap *regmap = cs40l26->regmap;
@@ -752,7 +752,7 @@ err:
 static int cs40l26_a2h_delay_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_dapm_context *dapm =
-			snd_soc_component_get_dapm(snd_kcontrol_chip(kcontrol));
+			snd_soc_component_to_dapm(snd_kcontrol_chip(kcontrol));
 	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(snd_kcontrol_chip(kcontrol));
 	struct cs40l26_private *cs40l26 = codec->core;
@@ -828,7 +828,7 @@ static int cs40l26_boost_disable_delay_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(comp);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(comp);
 	struct cs40l26_codec *codec = snd_soc_component_get_drvdata(comp);
 	struct cs40l26_private *cs40l26 = codec->core;
 	u32 algo_id, delay, reg;

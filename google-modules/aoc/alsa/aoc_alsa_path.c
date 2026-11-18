@@ -2402,7 +2402,7 @@ static int aoc_of_xlate_dai_name(struct snd_soc_component *component,
 
 static int aoc_cmp_probe(struct snd_soc_component *comp)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(comp);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(comp);
 	int ret;
 
 	ret = snd_soc_dapm_new_controls(dapm, aoc_widget,

@@ -488,7 +488,7 @@ static int cs35l41_amp_reset_put(struct snd_kcontrol *kcontrol,
 	struct cs35l41_private *cs35l41 =
 		snd_soc_component_get_drvdata(component);
 	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
+		snd_soc_component_to_dapm(component);
 	int ret, retries, timeout = 100;
 	u32 status;
 
@@ -3221,7 +3221,7 @@ static const char * const dapm_names[] = { "SPK", "VP", "VBST", "ISENSE",
 
 static void cs35l41_component_ignore_suspend(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dapm_names); i++) {
