@@ -14991,12 +14991,12 @@ static int google_battery_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int google_battery_remove(struct platform_device *pdev)
+static void google_battery_remove(struct platform_device *pdev)
 {
 	struct batt_drv *batt_drv = platform_get_drvdata(pdev);
 
 	if (!batt_drv)
-		return 0;
+		return;
 
 	power_supply_unreg_notifier(&batt_drv->fg_nb);
 
@@ -15029,8 +15029,6 @@ static int google_battery_remove(struct platform_device *pdev)
 	batt_drv->csi.type_votable = NULL;
 	batt_drv->charging_policy_votable = NULL;
 	batt_drv->point_full_ui_soc_votable = NULL;
-
-	return 0;
 }
 
 static void google_battery_shutdown(struct platform_device *pdev)
