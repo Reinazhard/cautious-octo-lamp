@@ -27,6 +27,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/acpi.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spidev.h>
@@ -894,7 +895,6 @@ static const struct file_operations st54spi_fops = {
 	.compat_ioctl = st54spi_compat_ioctl,
 	.open = st54spi_open,
 	.release = st54spi_release,
-	.llseek = no_llseek,
 };
 
 /*-------------------------------------------------------------------------*/
