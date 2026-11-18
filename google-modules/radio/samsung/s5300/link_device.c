@@ -2818,7 +2818,7 @@ static int shmem_ioctl(struct link_device *ld, struct io_device *iod,
 			return -EINVAL;
 		}
 
-		strncpy(str, base + SHMEM_BOOTLOG_OFFSET, size);
+		strscpy(str, base + SHMEM_BOOTLOG_OFFSET, size);
 		mif_info("CP boot log[%d] : %s\n", size, str);
 		break;
 	}

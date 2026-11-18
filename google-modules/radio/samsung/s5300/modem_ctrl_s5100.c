@@ -1561,7 +1561,7 @@ static int s5100_force_crash_exit_ext_reason(const char *buf)
 	struct link_device *ld = get_current_link(g_mc->bootd);
 
 	if (strlen(buf) > 0)
-		strncpy(ld->crash_reason.string, buf, CP_CRASH_INFO_SIZE);
+		strscpy(ld->crash_reason.string, buf, CP_CRASH_INFO_SIZE);
 
 	return s5100_force_crash_exit_ext(CRASH_REASON_MIF_FORCED);
 }
