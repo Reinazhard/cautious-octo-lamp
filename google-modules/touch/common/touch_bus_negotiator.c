@@ -36,7 +36,7 @@ static void handle_tbn_event_response(struct tbn_context *tbn,
 	struct TbnEventResponse *response);
 #endif
 static int tbn_handshaking(struct tbn_context *tbn, enum TbnOperation operation);
-static int tbn_remove(struct platform_device *pdev);
+static void tbn_remove(struct platform_device *pdev);
 
 static struct tbn_context *tbn_context;
 
@@ -562,13 +562,13 @@ failed:
 	return err;
 }
 
-static int tbn_remove(struct platform_device *pdev)
+static void tbn_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct tbn_context *tbn = dev_get_drvdata(dev);
 
 	if (tbn == NULL)
-		return 0;
+		return;
 
 	if (tbn->mode == TBN_MODE_GPIO) {
 		free_irq(tbn->aoc2ap_irq, tbn);
@@ -587,7 +587,6 @@ static int tbn_remove(struct platform_device *pdev)
 
 	devm_kfree(dev, tbn);
 	tbn_context = NULL;
-	return 0;
 }
 
 static struct of_device_id tbn_of_match_table[] = {
