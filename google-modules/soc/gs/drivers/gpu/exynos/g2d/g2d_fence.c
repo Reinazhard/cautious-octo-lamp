@@ -226,9 +226,9 @@ static bool g2d_fence_has_error(struct g2d_layer *layer, int layer_idx)
 	bool err = false;
 
 	if (fence) {
-		spin_lock_irqsave(fence->lock, flags);
+		spin_lock_irqsave(dma_fence_spinlock(fence), flags);
 		err = dma_fence_get_status_locked(fence) < 0;
-		spin_unlock_irqrestore(fence->lock, flags);
+		spin_unlock_irqrestore(dma_fence_spinlock(fence), flags);
 	}
 
 	if (err) {
