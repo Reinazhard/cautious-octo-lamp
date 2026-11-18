@@ -1727,15 +1727,16 @@ static int kbase_pm_l2_update_state(struct kbase_device *kbdev)
 				kbase_hwcnt_context_enable(kbdev->hwcnt_gpu_ctx);
 				backend->hwcnt_disabled = false;
 			}
-#if IS_ENABLED(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD)
-			/* b/395792107 Centralize cycle counter enablement */
-			/* START the GPU cycle counter*/
+			/*
+			 * Cycle counter is enabled unconditionally on JM GPUs during
+			 * kbase_pm_init_hw() for GPU timestamp queries, so start/stop
+			 * here cannot depend on CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD.
+			 */
 			if (!(kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(GPU_STATUS)) &
 			      GPU_STATUS_CYCLE_COUNT_ACTIVE)) {
 				kbase_reg_write32(kbdev, GPU_CONTROL_ENUM(GPU_COMMAND),
 						  GPU_COMMAND_CYCLE_COUNT_START);
 			}
-#endif /* IS_ENABLED(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD) */
 #endif
 			backend->l2_state = KBASE_L2_ON;
 			break;
@@ -1802,11 +1803,16 @@ static int kbase_pm_l2_update_state(struct kbase_device *kbdev)
 					kbdev, &cycle_count, &system_time, NULL);
 			/* Store the last seen cycle count */
 			kbdev->last_cycle_count = cycle_count;
-			/* b/395792107 Centralize cycle counter disablement */
-			/* STOP cycle count */
+#endif /* IS_ENABLED(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD) && !MALI_USE_CSF */
+#if !MALI_USE_CSF
+			/*
+			 * Match kbase_pm_init_hw(): stop the cycle counter before
+			 * powering down L2/PD_EMBEDDED_G3D even when work-period
+			 * metrics tracing is disabled, otherwise QACTIVE stays high.
+			 */
 			kbase_reg_write32(kbdev, GPU_CONTROL_ENUM(GPU_COMMAND),
 					  GPU_COMMAND_CYCLE_COUNT_STOP);
-#endif /* IS_ENABLED(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD) & MALI_USE_CSF */
+#endif /* !MALI_USE_CSF */
 
 			backend->hwcnt_desired = false;
 			if (!backend->hwcnt_disabled)
