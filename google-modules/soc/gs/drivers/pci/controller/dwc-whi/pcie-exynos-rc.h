@@ -44,6 +44,8 @@
 #define PCIE_APP_LTSSM_ENABLE		0x054
 #define PCIE_ELBI_LTSSM_DISABLE		0x0
 #define PCIE_ELBI_LTSSM_ENABLE		0x1
+#define PCIE_SLV_PEND_SEL_NAK           0x03D8
+#define PCIE_APP_XFER_PENDING           0x0074
 #define PCIE_APP_REQ_EXIT_L1		0x06C
 #define APP_INIT_RST			0x100
 #define XMIT_PME_TURNOFF		0x118
@@ -135,7 +137,7 @@
 #define PCI_EXP_LNKCTL2_TLS_5_0GB	0x2
 #define PCI_EXP_LNKCTL2_TLS_8_0GB	0x3
 #define PCIE_CAP_CPL_TIMEOUT_VAL_MASK	0xf
-#define PCIE_CAP_CPL_TIMEOUT_VAL_44MS_DEFALT	0x0
+#define PCIE_CAP_CPL_TIMEOUT_VAL_44MS_DEFALT	0x5
 #define PCIE_CAP_CPL_TIMEOUT_VAL_6_2MS	0x2
 #define PCIE_LINK_L1SS_CONTROL		0x19C
 #define PORT_LINK_TCOMMON_32US		(0x20 << 8)
@@ -186,6 +188,7 @@
 #define TARGET_LINK_WIDTH_MASK		0xffffffc0
 #define DIRECT_LINK_WIDTH_CHANGE_SET	0x40
 
+#define PCIE_ATU_VIEWPORT		0x900
 #define EXYNOS_PCIE_ATU_REGION_INBOUND	(0x1 << 31)
 #define EXYNOS_PCIE_ATU_REGION_OUTBOUND	(0x0 << 31)
 #define EXYNOS_PCIE_ATU_REGION_INDEX2	(0x2 << 0)
@@ -199,9 +202,21 @@
 #define PCIE_ATU_CR2			0x908
 #define EXYNOS_PCIE_ATU_ENABLE		(0x1 << 31)
 #define EXYNOS_PCIE_ATU_BAR_MODE_ENABLE	(0x1 << 30)
+#undef PCIE_ATU_LOWER_BASE
+#define PCIE_ATU_LOWER_BASE		0x90C
+#undef PCIE_ATU_UPPER_BASE
+#define PCIE_ATU_UPPER_BASE		0x910
+#undef PCIE_ATU_LIMIT
+#define PCIE_ATU_LIMIT			0x914
+#undef PCIE_ATU_LOWER_TARGET
+#define PCIE_ATU_LOWER_TARGET		0x918
 #define EXYNOS_PCIE_ATU_BUS(x)		(((x) & 0xff) << 24)
 #define EXYNOS_PCIE_ATU_DEV(x)		(((x) & 0x1f) << 19)
 #define EXYNOS_PCIE_ATU_FUNC(x)		(((x) & 0x7) << 16)
+#undef PCIE_ATU_UPPER_TARGET
+#define PCIE_ATU_UPPER_TARGET		0x91C
+
+#define PCIE_GEN2_CTRL_OFF		0x80C
 
 #define PCIE_MSI_ADDR_LO		0x820
 #define PCIE_MSI_ADDR_HI		0x824
@@ -254,7 +269,6 @@
 #define WIFI_ASPM_L12_EN		(0x1 << 2)
 #define WIFI_ASPM_L11_EN		(0x1 << 3)
 #define WIFI_COMMON_RESTORE_TIME	(0xa << 8)	/* Default Value */
-#define WIFI_QC_L12_LTR_THRESHOLD	(0x4096 << 16)
 
 /* L1SS LTR Latency Register */
 #define MAX_NO_SNOOP_LAT_VALUE_3	(3 << 16)
@@ -307,9 +321,6 @@
 #define PCIE_ATU_LOWER_TARGET_OUTBOUND2	0x300414
 #define PCIE_ATU_UPPER_TARGET_OUTBOUND2	0x300418
 
-#define SECURE_ATU_ENABLE		0x5a5a5a5a
-#define SMC_SECURE_ATU_SETUP		0x820020D8
-
 #define EXYNOS_IP_VER_OF_WHI   0x984500
 
 #define EOM_PH_SEL_MAX		72
@@ -342,7 +353,7 @@ extern struct dma_map_ops exynos_pcie_dma_ops;
 
 static void __maybe_unused pcie_sysmmu_enable(int hsi_block_num)
 {
-	pr_err("PCIe SysMMU is NOT Enabled!!!\n");
+	pr_err("PCIe SysMMU is Enabled!!!\n");
 }
 
 static void __maybe_unused pcie_sysmmu_disable(int hsi_block_num)
@@ -353,14 +364,14 @@ static void __maybe_unused pcie_sysmmu_disable(int hsi_block_num)
 static int __maybe_unused pcie_iommu_map(unsigned long iova, phys_addr_t paddr,
 					 size_t size, int prot, int hsi_block_num)
 {
-	pr_err("PCIe SysMMU is NOT Enabled!!!\n");
+	pr_err("PCIe SysMMU is Mapped!!!\n");
 	return -ENODEV;
 }
 
 static size_t __maybe_unused pcie_iommu_unmap(unsigned long iova, size_t size,
 					    int hsi_block_num)
 {
-	pr_err("PCIe SysMMU is NOT Enabled!!!\n");
+	pr_err("PCIe SysMMU is Unmapped!!!\n");
 	return 0;
 }
 
@@ -390,4 +401,26 @@ int exynos_pcie_rc_check_link_speed(int ch_num);
 int exynos_pcie_rc_change_link_speed(int ch_num, int target_speed);
 int exynos_pcie_l1_exit(int ch_num);
 void exynos_pcie_rc_register_dump(int ch_num);
+void exynos_pcie_set_perst_gpio(int ch_num, bool on);
+void exynos_pcie_set_ready_cto_recovery(int ch_num);
+void exynos_pcie_rc_print_msi_register(int ch_num);
+void exynos_pcie_rc_dump_all_status(int ch_num);
+void exynos_pcie_rc_force_linkdown_work(int ch_num);
+void exynos_pcie_pm_suspend(int ch_num);
+int exynos_pcie_pm_resume(int ch_num);
+bool exynos_pcie_rc_get_sudden_linkdown_state(int ch_num);
+void exynos_pcie_rc_set_sudden_linkdown_state(int ch_num, bool recovery);
+bool exynos_pcie_rc_get_cpl_timeout_state(int ch_num);
+void exynos_pcie_rc_set_cpl_timeout_state(int ch_num, bool recovery);
+int exynos_pcie_poweron(int ch_num, int spd, int width);
+void exynos_pcie_poweroff(int ch_num);
+int exynos_pcie_rc_chk_link_status(int ch_num);
+int exynos_pcie_register_event(struct exynos_pcie_register_event *reg);
+int exynos_pcie_deregister_event(struct exynos_pcie_register_event *reg);
+int register_separated_msi_vector(int ch_num, irq_handler_t handler, void *context, int *irq_num);
+int exynos_pcie_set_msi_ctrl_addr(int ch_num, u64 msi_ctrl_addr);
+void exynos_pcie_set_skip_config(int ch_num, bool val);
+bool exynos_pcie_is_sysmmu_enabled(int ch_num);
+int exynos_pcie_get_max_link_speed(int ch_num);
+int exynos_pcie_get_max_link_width(int ch_num);
 #endif
