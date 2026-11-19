@@ -136,7 +136,7 @@ static bool update_irq_data(struct bal_irq *bi, int *cpu)
 	 * someone else since the last balancing run, or if the CPU this IRQ was
 	 * previously running on has since gone offline.
 	 */
-	nr = *per_cpu_ptr(desc->kstat_irqs, *cpu);
+	nr = per_cpu_ptr(desc->kstat_irqs, *cpu)->cnt;
 	if (nr <= bi->old_nr) {
 		bi->old_nr = nr;
 		return false;
@@ -171,7 +171,7 @@ static int move_irq_to_cpu(struct bal_irq *bi, int cpu)
 
 	if (!ret) {
 		/* Update the old interrupt count using the new CPU */
-		bi->old_nr = *per_cpu_ptr(desc->kstat_irqs, cpu);
+		bi->old_nr = per_cpu_ptr(desc->kstat_irqs, cpu)->cnt;
 		pr_debug("Moved IRQ%d (CPU%d -> CPU%d)\n",
 			 irq_desc_get_irq(desc), prev_cpu, cpu);
 	}
