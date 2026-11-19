@@ -262,7 +262,6 @@ int zcomp_recompress(struct zcomp *comp, u32 index, struct page *page,
 void zcomp_destroy(struct zcomp *comp)
 {
 	comp->op->destroy(comp);
-	/* @comp was allocated by zcomp_create(); @scratch is the template's */
 	kfree(comp);
 }
 
@@ -304,7 +303,6 @@ struct zcomp *zcomp_create(const char *algo_name, struct zcomp_params *params,
 
 	comp->op = tmpl->op;
 	strscpy(comp->algo_name, tmpl->algo_name, sizeof(comp->algo_name));
-	comp->scratch = tmpl->scratch;
 
 	/* assign the params before comp->op->create */
 	comp->params = params;
