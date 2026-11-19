@@ -47,7 +47,7 @@ void cass_cpu_util(struct cass_cpu_cand *c, int this_cpu, bool sync)
 	/* Get this CPU's utilization from CFS tasks */
 	c->util = READ_ONCE(cfs_rq->avg.util_avg);
 	if (sched_feat(UTIL_EST)) {
-		est = READ_ONCE(cfs_rq->avg.util_est.enqueued);
+		est = READ_ONCE(cfs_rq->avg.util_est);
 		if (est > c->util) {
 			/* Don't deduct @current's util from estimated util */
 			sync = false;
@@ -196,7 +196,7 @@ static int cass_best_cpu(struct task_struct *p, int prev_cpu, bool sync)
 
 		/* Get the _current_, throttled maximum capacity of this CPU */
 		curr->cap_max = curr->cap_orig -
-			min_t(unsigned long, thermal_load_avg(rq), curr->cap_orig - 1);
+			min_t(unsigned long, hw_load_avg(rq), curr->cap_orig - 1);
 
 		/* Prefer the CPU that more closely meets the uclamp minimum */
 		if (curr->cap_max < uc_min && curr->cap_max < best->cap_max)
