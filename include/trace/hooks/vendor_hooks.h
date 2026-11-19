@@ -53,6 +53,18 @@ int android_rvh_probe_register(struct tracepoint *tp, void *probe, void *data);
 	}								\
 	DEFINE_STATIC_CALL(tp_func_##_name, __traceiter_##_name);
 
+#undef __DEFINE_RUST_DO_RESTRICTED_HOOK
+#ifdef CREATE_RUST_TRACE_POINTS
+#define __DEFINE_RUST_DO_RESTRICTED_HOOK(_name, proto, args, cond)	\
+	notrace void rust_do_trace_##_name(proto)			\
+	{								\
+		DO_RESTRICTED_HOOK(_name, TP_ARGS(args),		\
+				   TP_CONDITION(cond));			\
+	}
+#else
+#define __DEFINE_RUST_DO_RESTRICTED_HOOK(_name, proto, args, cond)
+#endif
+
 #undef DECLARE_RESTRICTED_HOOK
 
 #define DEFINE_HOOK_FN(_name, _reg, _unreg, _proto, _args)		\
@@ -60,10 +72,11 @@ int android_rvh_probe_register(struct tracepoint *tp, void *probe, void *data);
 		.regfunc = _reg,					\
 		.unregfunc = _unreg,					\
 	};								\
-	__DEFINE_HOOK_EXT(_name, &__tracepoint_ext_##_name, PARAMS(_proto), PARAMS(_args));
-#define DECLARE_RESTRICTED_HOOK(name, proto, args, cond) \
-	__DEFINE_HOOK_EXT(name, NULL, PARAMS(proto), PARAMS(args));
-
+	__DEFINE_HOOK_EXT(_name, &__tracepoint_ext_##_name, PARAMS(_proto), PARAMS(_args)); \
+	__DEFINE_RUST_DO_RESTRICTED_HOOK(_name, PARAMS(_proto), PARAMS(_args), 1)
+#define DECLARE_RESTRICTED_HOOK(name, proto, args, cond)		\
+	__DEFINE_HOOK_EXT(name, NULL, PARAMS(proto), PARAMS(args));	\
+	__DEFINE_RUST_DO_RESTRICTED_HOOK(name, PARAMS(proto), PARAMS(args), cond)
 
 /* prevent additional recursion */
 #undef TRACE_HEADER_MULTI_READ
@@ -96,6 +109,7 @@ int android_rvh_probe_register(struct tracepoint *tp, void *probe, void *data);
 	extern int __traceiter_##name(data_proto);			\
 	DECLARE_STATIC_CALL(tp_func_##name, __traceiter_##name);	\
 	extern struct tracepoint __tracepoint_##name;			\
+	extern void rust_do_trace_##name(proto);			\
 	static inline void trace_##name(proto)				\
 	{								\
 		if (static_branch_unlikely(&__tracepoint_##name.key))	\
