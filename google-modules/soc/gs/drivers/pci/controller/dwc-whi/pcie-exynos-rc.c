@@ -4253,9 +4253,12 @@ int exynos_pcie_rc_poweron(int ch_num)
 		}
 	}
 
-	if (exynos_pcie->ep_l1ss_cap_off == U32_MAX)
-		WRITE_ONCE(exynos_pcie->ep_l1ss_cap_off,
-			   pci_find_ext_capability(exynos_pcie->ep_pci_dev, PCI_EXT_CAP_ID_L1SS));
+	if (exynos_pcie->ep_l1ss_cap_off == U32_MAX && exynos_pcie->ep_pci_dev) {
+		u32 cap_off = pci_find_ext_capability(exynos_pcie->ep_pci_dev,
+						     PCI_EXT_CAP_ID_L1SS);
+		if (cap_off)
+			WRITE_ONCE(exynos_pcie->ep_l1ss_cap_off, cap_off);
+	}
 
 	dev_dbg(dev, "end poweron, state: %d\n", exynos_pcie->state);
 	logbuffer_log(exynos_pcie->log, "end poweron, state: %d\n", exynos_pcie->state);
@@ -4609,12 +4612,28 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct dw_pcie_rp *pp, int id)
 			__func__, exynos_pcie->l1ss_ctrl_id_state, id);
 
 		return -1;
-	} else if (READ_ONCE(exynos_pcie->ep_l1ss_cap_off) == U32_MAX) {
-		return -1;
 	} else {
+		u32 cap_off = READ_ONCE(exynos_pcie->ep_l1ss_cap_off);
+
+		if (cap_off == U32_MAX || !cap_off) {
+			if (!exynos_pcie->ep_pci_dev)
+				exynos_pcie->ep_pci_dev = exynos_pcie_get_pci_dev(pp);
+			if (exynos_pcie->ep_pci_dev)
+				cap_off = pci_find_ext_capability(exynos_pcie->ep_pci_dev,
+								  PCI_EXT_CAP_ID_L1SS);
+			if (!cap_off) {
+				dev_err(dev, "L1SS capability not found on EP device\n");
+				return -1;
+			}
+			WRITE_ONCE(exynos_pcie->ep_l1ss_cap_off, cap_off);
+		}
+
+		if (!exynos_pcie->ep_pci_dev)
+			return -1;
+
 		exynos_pcie->ep_link_ctrl_off = exynos_pcie->ep_pci_dev->pcie_cap + PCI_EXP_LNKCTL;
-		exynos_pcie->ep_l1ss_ctrl1_off = exynos_pcie->ep_l1ss_cap_off + PCI_L1SS_CTL1;
-		exynos_pcie->ep_l1ss_ctrl2_off = exynos_pcie->ep_l1ss_cap_off + PCI_L1SS_CTL2;
+		exynos_pcie->ep_l1ss_ctrl1_off = cap_off + PCI_L1SS_CTL1;
+		exynos_pcie->ep_l1ss_ctrl2_off = cap_off + PCI_L1SS_CTL2;
 	}
 
 	/* get the domain_num & ep_pci_bus of EP device */
