@@ -115,7 +115,7 @@ static unsigned long pages_pending_free(void)
 	for (i = 0; i < READ_ONCE(nr_victims); i++) {
 		struct mm_struct *mm = victims[i].mm;
 
-		if (!mm || test_bit(MMF_OOM_SKIP, &mm->flags))
+		if (!mm || mm_flags_test(MMF_OOM_SKIP, mm))
 			continue;
 
 		total += victims[i].pending;
@@ -690,7 +690,7 @@ static struct mm_struct *next_reap_victim(bool force)
 			if (force) {
 				struct mm_struct *drop_mm = NULL;
 
-				set_bit(MMF_OOM_SKIP, &mm->flags);
+				mm_flags_set(MMF_OOM_SKIP, mm);
 				if (victims[i].mm == mm) {
 					victims[i].mm = NULL;
 					drop_mm = mm;
