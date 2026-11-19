@@ -2307,7 +2307,7 @@ static void bts_remove(struct platform_device *pdev)
 	pm_qos_remove_request(&exynos_mif_qos);
 #endif
 
-	unregister_syscore_ops(&exynos_bts_syscore_ops);
+	unregister_syscore(&exynos_bts_syscore);
 
 	devm_kfree(&pdev->dev, btsdev);
 	btsdev = NULL;
