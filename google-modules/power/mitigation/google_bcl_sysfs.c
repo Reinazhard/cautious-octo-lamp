@@ -104,7 +104,7 @@ static void irq_safe_config(struct bcl_zone *zone, bool disabled)
 
 	if (disabled)
 		disable_irq_nosync(zone->bcl_irq);
-	else if (zone->bcl_pin != NOT_USED)
+	else if (!IS_ERR_OR_NULL(zone->bcl_pin))
 		enable_irq(zone->bcl_irq);
 }
 
