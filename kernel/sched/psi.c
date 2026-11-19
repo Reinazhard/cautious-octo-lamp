@@ -1359,8 +1359,9 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group, char *buf,
 	/*
 	 * Checking the privilege here on file->f_cred implies that a privileged user
 	 * could open the file and delegate the write to an unprivileged one.
+	 * In-kernel callers pass file == NULL and are inherently privileged.
 	 */
-	privileged = cap_raised(file->f_cred->cap_effective, CAP_SYS_RESOURCE);
+	privileged = !file || cap_raised(file->f_cred->cap_effective, CAP_SYS_RESOURCE);
 
 	if (sscanf(buf, "some %u %u", &threshold_us, &window_us) == 2)
 		state = PSI_IO_SOME + res * 2;
