@@ -246,11 +246,10 @@ static void dw3000_spi_remove(struct spi_device *spi)
 	/*
 	 * dw3000_state_stop() only stops the state-machine kthread; it does
 	 * not cancel the NFCC coexistence watchdog, which is armed with
-	 * add_timer() from the mcps path. del_timer_sync() rather than
-	 * del_timer(): the callback may already be running, and it is the
-	 * only primitive that waits for it.
+	 * add_timer() from the mcps path. timer_delete_sync() waits for any
+	 * running callback to finish.
 	 */
-	del_timer_sync(&dw->nfcc_coex.watchdog_timer);
+	timer_delete_sync(&dw->nfcc_coex.watchdog_timer);
 	dw3000_pm_qos_remove_request(dw);
 	/* Free pre-computed SPI messages */
 	dw3000_transfers_free(dw);
