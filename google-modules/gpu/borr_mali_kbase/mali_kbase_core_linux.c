@@ -6097,7 +6097,7 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 
 #if IS_ENABLED(CONFIG_GOOGLE_BCL)
 	if (!google_retrieve_bcl_handle())
-		return -EPROBE_DEFER;
+		dev_warn(&pdev->dev, "BCL handle not ready during probe, continuing\n");
 #endif
 
 	mali_kbase_print_cs_experimental();
