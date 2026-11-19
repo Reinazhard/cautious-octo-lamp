@@ -2046,7 +2046,7 @@ static int gs_map_dt_data(struct platform_device *pdev)
 	if (of_property_read_string(pdev->dev.of_node, "tmu_name", &tmu_name))
 		dev_err(&pdev->dev, "failed to get tmu_name\n");
 	else
-		strncpy(data->tmu_name, tmu_name, THERMAL_NAME_LENGTH);
+		strscpy(data->tmu_name, tmu_name, THERMAL_NAME_LENGTH);
 
 	data->tmu_type = TMU_TYPE_CPU;
 	if (of_property_read_u32(pdev->dev.of_node, "tmu_type", &data->tmu_type))
@@ -5707,9 +5707,8 @@ err_sensor:
 	return ret;
 }
 
-static int gs_tmu_remove(struct platform_device *pdev)
+static void gs_tmu_remove(struct platform_device *pdev)
 {
-	return -EBUSY;
 }
 
 #if IS_ENABLED(CONFIG_PM_SLEEP)
