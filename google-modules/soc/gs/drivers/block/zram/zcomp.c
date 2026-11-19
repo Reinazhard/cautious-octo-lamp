@@ -369,6 +369,7 @@ struct zcomp *zcomp_create(const char *algo_name, struct zcomp_params *params,
 
 	comp->op = tmpl->op;
 	strscpy(comp->algo_name, tmpl->algo_name, sizeof(comp->algo_name));
+	comp->scratch = tmpl->scratch;
 
 	/* assign the params before comp->op->create */
 	comp->params = params;
