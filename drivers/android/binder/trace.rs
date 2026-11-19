@@ -10,8 +10,14 @@ use kernel::bindings::{
 use kernel::error::Result;
 use kernel::ffi::{c_int, c_uint, c_ulong};
 use kernel::task::{Pid, Task};
-use kernel::tracepoint::declare_trace;
+use kernel::tracepoint::{declare_trace, declare_vendor_hook};
 use kernel::uapi;
+
+declare_vendor_hook! {
+    unsafe fn android_vh_rust_binder_set_priority(tr: rust_binder_transaction, t: *mut task_struct);
+    unsafe fn android_vh_rust_binder_restore_priority(task: *mut task_struct);
+    unsafe fn android_vh_rust_binder_looper_entry(t: rust_binder_thread, looper_flags: u32);
+}
 
 declare_trace! {
     unsafe fn binder_ioctl(cmd: c_uint, arg: c_ulong);
@@ -19,9 +25,6 @@ declare_trace! {
     unsafe fn binder_read_done(ret: c_int);
     unsafe fn binder_write_done(ret: c_int);
     unsafe fn binder_set_priority(thread: *mut task_struct, desired_prio: c_int, new_prio: c_int);
-    unsafe fn android_vh_rust_binder_set_priority(tr: rust_binder_transaction, t: *mut task_struct);
-    unsafe fn android_vh_rust_binder_restore_priority(task: *mut task_struct);
-    unsafe fn android_vh_rust_binder_looper_entry(t: rust_binder_thread, looper_flags: u32);
     unsafe fn binder_wait_for_work(proc_work: bool, transaction_stack: bool, thread_todo: bool);
     unsafe fn binder_transaction(reply: bool, t: rust_binder_transaction, thread: *mut task_struct);
     unsafe fn binder_transaction_received(t: rust_binder_transaction);

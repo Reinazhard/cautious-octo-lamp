@@ -47,3 +47,46 @@ macro_rules! declare_trace {
 }
 
 pub use declare_trace;
+
+/// Declare the Rust entry point for an Android vendor hook tracepoint.
+///
+/// Unlike [`declare_trace!`], vendor hooks remain enabled when `CONFIG_ANDROID_ONLY_VH_TRACING`
+/// disables standard tracepoints.
+#[macro_export]
+macro_rules! declare_vendor_hook {
+    ($($(#[$attr:meta])* $pub:vis unsafe fn $name:ident($($argname:ident : $argtyp:ty),* $(,)?);)*) => {$(
+        $( #[$attr] )*
+        #[inline(always)]
+        $pub unsafe fn $name($($argname : $argtyp),*) {
+            #[cfg(all(CONFIG_TRACEPOINTS, CONFIG_ANDROID_VENDOR_HOOKS))]
+            {
+                // SAFETY: It's always okay to query the static key for a vendor hook tracepoint.
+                let should_trace = unsafe {
+                    $crate::macros::paste! {
+                        $crate::jump_label::static_branch_unlikely!(
+                            $crate::bindings::[< __tracepoint_ $name >],
+                            $crate::bindings::tracepoint,
+                            key
+                        )
+                    }
+                };
+
+                if should_trace {
+                    $crate::macros::paste! {
+                        // SAFETY: The caller guarantees that it is okay to call this vendor hook.
+                        unsafe { $crate::bindings::[< rust_do_trace_ $name >]($($argname),*) };
+                    }
+                }
+            }
+
+            #[cfg(not(all(CONFIG_TRACEPOINTS, CONFIG_ANDROID_VENDOR_HOOKS)))]
+            {
+                // If vendor hooks are disabled, insert a trivial use of each argument
+                // to avoid unused argument warnings.
+                $( let _unused = $argname; )*
+            }
+        }
+    )*}
+}
+
+pub use declare_vendor_hook;
