@@ -367,7 +367,7 @@ struct process_timer {
 
 static void process_timeout(struct timer_list *t)
 {
-	struct process_timer *timeout = from_timer(timeout, t, timer);
+	struct process_timer *timeout = timer_container_of(timeout, t, timer);
 
 	wake_up_process(timeout->task);
 }
@@ -387,7 +387,7 @@ static void sbalance_wait(long poll_jiffies)
 	add_timer(&timer.timer);
 	schedule();
 	timer_delete_sync(&timer.timer);
-	destroy_timer_on_stack(&timer.timer);
+	timer_destroy_on_stack(&timer.timer);
 }
 
 static int __noreturn sbalance_thread(void *data)
