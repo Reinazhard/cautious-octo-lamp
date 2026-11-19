@@ -512,7 +512,7 @@ struct bcl_device *google_retrieve_bcl_handle(void)
 	struct bcl_device *bcl_dev;
 
 	np = of_find_node_by_name(NULL, "google,mitigation");
-	if (!np || !virt_addr_valid(np) || !of_device_is_available(np))
+	if (!np || !of_device_is_available(np))
 		return NULL;
 	pdev = of_find_device_by_node(np);
 	if (!pdev)
@@ -2694,7 +2694,7 @@ debug_fs_removal:
 bcl_soc_probe_exit:
 	google_bcl_remove_thermal(bcl_dev);
 	dev_err(bcl_dev->device, "BCL SW disabled.  Revert to HW mitigation\n");
-	return ret;
+	return 0;
 }
 
 static void google_bcl_remove(struct platform_device *pdev)
