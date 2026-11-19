@@ -292,7 +292,8 @@ kernel::impl_flags!(
     }
 );
 
-pub(crate) const LOOPER_VH_MASK: u32 = LOOPER_REGISTERED | LOOPER_ENTERED | LOOPER_EXITED;
+pub(crate) const LOOPER_VH_MASK: u32 =
+    (LooperFlag::Registered as u32) | (LooperFlag::Entered as u32) | (LooperFlag::Exited as u32);
 
 impl InnerThread {
     fn new(pid: i32) -> Result<Self> {
@@ -1617,7 +1618,7 @@ impl Thread {
             }
             _ => unreachable!(),
         }
-        crate::trace::vh_looper_entry(self, inner.looper_flags);
+        crate::trace::vh_looper_entry(self, u32::from(inner.looper_flags));
     }
 
     fn write(self: &Arc<Self>, req: &mut BinderWriteRead) -> Result {
@@ -1833,8 +1834,8 @@ impl Thread {
         {
             let mut inner = self.inner.lock();
             inner.is_dead = true;
-            inner.looper_flags |= LOOPER_EXITED;
-            crate::trace::vh_looper_entry(self, inner.looper_flags);
+            inner.looper_flags |= LooperFlag::Exited;
+            crate::trace::vh_looper_entry(self, u32::from(inner.looper_flags));
         }
 
         self.unwind_transaction_stack();
