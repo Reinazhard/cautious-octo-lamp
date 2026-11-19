@@ -4149,15 +4149,6 @@ int exynos_pcie_rc_poweron(int ch_num)
 		dev_dbg(dev, "pcie clk enable, ret value = %d\n", ret);
 		logbuffer_log(exynos_pcie->log, "pcie clk enable, ret value = %d", ret);
 
-		if (pci_load_saved_state(exynos_pcie->pci_dev,
-					 exynos_pcie->pci_saved_configs)) {
-			logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
-				       "Failed to load pcie state");
-			goto poweron_fail;
-		}
-		dev_dbg(dev, "Restoring PCIe root port state");
-		pci_restore_state(exynos_pcie->pci_dev);
-
 #if IS_ENABLED(CONFIG_CPU_IDLE)
 		if (exynos_pcie->use_sicd) {
 			dev_dbg(dev, "ip idle status: %d, index: %d\n",
@@ -4252,6 +4243,14 @@ int exynos_pcie_rc_poweron(int ch_num)
 					return ret;
 				}
 			}
+
+			if (pci_load_saved_state(exynos_pcie->pci_dev,
+						 exynos_pcie->pci_saved_configs)) {
+				logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
+					       "Failed to load pcie state");
+				goto poweron_fail;
+			}
+			pci_restore_state(exynos_pcie->pci_dev);
 		}
 	}
 
