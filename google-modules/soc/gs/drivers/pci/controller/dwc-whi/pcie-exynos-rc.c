@@ -36,7 +36,11 @@
 #include <linux/pm_runtime.h>
 #include <linux/kthread.h>
 #include <linux/random.h>
+#include <linux/irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
+#include <linux/irqdesc.h>
 #include <linux/irqdomain.h>
+#include <linux/msi.h>
 
 #include <soc/google/exynos-pm.h>
 #if IS_ENABLED(CONFIG_CPU_IDLE)
@@ -2041,8 +2045,6 @@ static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exyno
 	const char *use_nclkoff_en;
 	const char *use_pcieon_sleep;
 	const char *use_phy_isol_con;
-	struct dw_pcie *pci = exynos_pcie->pci;
-	struct dw_pcie_rp *pp = &pci->pp;
 
 	if (of_property_read_u32(np, "ip-ver", &exynos_pcie->ip_ver)) {
 		dev_err(dev, "Failed to parse the number of ip-ver\n");
@@ -2149,25 +2151,6 @@ static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exyno
 	} else {
 		exynos_pcie->support_msi64_addressing = false;
 	}
-
-	/* Even if MSI is enabled, we need to set msi_irq to -ENODEV.
-	 * This ensures that the core pci driver doesn't register the msi_irq in
-	 * dw_pcie_host_init().
-	 * The PCIe interrupt is registered during the probe of this driver.
-	 * The EP drivers register MSI interrupt handlers with the core driver's
-	 * MSI framework.
-	 * When the EP has an MSI to send, it will write to the MSI address
-	 * specified in the PCIe config header which is populated with an entry
-	 * from the end point device tree.
-	 * The PCIe RC on detecting this write will generate an interrupt that is
-	 * routed to exynos_pcie_rc_irq_handler().
-	 * If it's an MSI interrupt, it will be sent to the core pcie driver
-	 * dw_handle_msi_irq().
-	 * This in turn will route it to the appropriate handler registered by the
-	 * EP driver.
-	 */
-
-	pp->msi_irq[0] = -ENODEV;
 
 	if (!of_property_read_string(np, "use-sicd", &use_sicd)) {
 		if (!strcmp(use_sicd, "true")) {
@@ -3183,6 +3166,326 @@ static void exynos_pcie_setup_rc(struct dw_pcie_rp *pp)
 	exynos_pcie_rc_wr_own_conf(pp, pcie_cap_off + PCI_EXP_DEVCTL2, 4, val);
 }
 
+#ifdef CONFIG_SMP
+static void exynos_pcie_msi_irq_noop(struct irq_data *d) { }
+
+static int exynos_pcie_get_msi_parent_irq(struct dw_pcie_rp *pp)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+
+	if (exynos_pcie->separated_msi &&
+	    sep_msi_vec[exynos_pcie->ch_num][0].is_used)
+		return sep_msi_vec[exynos_pcie->ch_num][0].irq;
+
+	return pp->irq;
+}
+
+static int exynos_pcie_msi_set_affinity(struct irq_data *d,
+					const struct cpumask *dest, bool force)
+{
+	struct dw_pcie_rp *pp = irq_data_get_irq_chip_data(d);
+	unsigned int cpu;
+	int parent_irq;
+	int ret;
+
+	/*
+	 * Update software redirection first while dest is still valid, then
+	 * steer the underlying GIC SPI to the same target CPU to avoid
+	 * cross-CPU IPIs on single-EP links. Pass cpumask_of(cpu) rather than
+	 * dest because irq_do_set_affinity() aliases dest to a per-CPU scratch
+	 * cpumask that the nested affinity update overwrites.
+	 */
+	ret = irq_chip_redirect_set_affinity(d, dest, force);
+
+	if (!pp)
+		return ret;
+
+	parent_irq = exynos_pcie_get_msi_parent_irq(pp);
+	cpu = cpumask_first(dest);
+	if (parent_irq > 0 && cpu < nr_cpu_ids) {
+		if (force)
+			irq_force_affinity(parent_irq, cpumask_of(cpu));
+		else
+			irq_set_affinity(parent_irq, cpumask_of(cpu));
+	}
+
+	return ret;
+}
+#endif
+
+static int exynos_pcie_rc_set_enable_wake(struct irq_data *data,
+					  unsigned int enable)
+{
+	struct dw_pcie_rp *pp = irq_data_get_irq_chip_data(data);
+	struct dw_pcie *pci;
+
+	if (!pp) {
+		pr_err("Warning: exynos_pcie_rc_set_enable_wake: not exist pp\n");
+		return -EINVAL;
+	}
+
+	pci = to_dw_pcie_from_pp(pp);
+	dev_dbg(pci->dev, "%s: enable = %u\n", __func__, enable);
+
+	/*
+	 * Propagate wakeup state to pp->irq so suspend_device_irqs() keeps the
+	 * controller SPI unmasked at GICv3 during use_pcieon_sleep suspend.
+	 * Child MSI descriptors use a separate lockdep class to avoid false
+	 * lock recursion against pp->irq's irq_desc lock.
+	 */
+	return irq_set_irq_wake(pp->irq, enable);
+}
+
+static bool exynos_pcie_init_dev_msi_info(struct device *dev,
+					  struct irq_domain *domain,
+					  struct irq_domain *real_parent,
+					  struct msi_domain_info *info)
+{
+	if (!msi_lib_init_dev_msi_info(dev, domain, real_parent, info))
+		return false;
+
+#ifdef CONFIG_SMP
+	info->chip->irq_ack = exynos_pcie_msi_irq_noop;
+	info->chip->irq_pre_redirect = irq_chip_pre_redirect_parent;
+#else
+	info->chip->irq_ack = irq_chip_ack_parent;
+#endif
+	info->chip->irq_set_wake = irq_chip_set_wake_parent;
+
+	return true;
+}
+
+#define EXYNOS_PCIE_MSI_FLAGS_REQUIRED_BASE (MSI_FLAG_USE_DEF_DOM_OPS	| \
+					     MSI_FLAG_USE_DEF_CHIP_OPS)
+#define EXYNOS_PCIE_MSI_FLAGS_REQUIRED (EXYNOS_PCIE_MSI_FLAGS_REQUIRED_BASE | \
+					MSI_FLAG_PCI_MSI_MASK_PARENT)
+#define EXYNOS_PCIE_MSI_FLAGS_SUPPORTED (MSI_FLAG_MULTI_PCI_MSI		| \
+					 MSI_FLAG_PCI_MSIX		| \
+					 MSI_GENERIC_FLAGS_MASK)
+
+static const struct msi_parent_ops exynos_pcie_msi_parent_ops = {
+	.required_flags		= EXYNOS_PCIE_MSI_FLAGS_REQUIRED,
+	.supported_flags	= EXYNOS_PCIE_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.prefix			= "EXYNOS-",
+	.init_dev_msi_info	= exynos_pcie_init_dev_msi_info,
+};
+
+/*
+ * Modem and QC WiFi endpoints manage masking at the PCI device layer rather
+ * than in DWC PCIE_MSI_INTR0_MASK, which Exynos programs directly on linkup.
+ */
+static const struct msi_parent_ops exynos_pcie_msi_pci_mask_parent_ops = {
+	.required_flags		= EXYNOS_PCIE_MSI_FLAGS_REQUIRED_BASE,
+	.supported_flags	= EXYNOS_PCIE_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.prefix			= "EXYNOS-",
+	.init_dev_msi_info	= exynos_pcie_init_dev_msi_info,
+};
+
+static void exynos_pcie_msi_setup_msg(struct irq_data *d, struct msi_msg *msg)
+{
+	struct dw_pcie_rp *pp = irq_data_get_irq_chip_data(d);
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	u64 msi_target = (u64)pp->msi_data;
+
+	msg->address_lo = lower_32_bits(msi_target);
+	msg->address_hi = upper_32_bits(msi_target);
+	msg->data = d->hwirq;
+
+	dev_dbg(pci->dev, "msi#%d address_hi %#x address_lo %#x\n",
+		(int)d->hwirq, msg->address_hi, msg->address_lo);
+}
+
+static void exynos_pcie_msi_bottom_mask(struct irq_data *d)
+{
+	struct dw_pcie_rp *pp = irq_data_get_irq_chip_data(d);
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	unsigned int res, bit, ctrl;
+
+	guard(raw_spinlock)(&pp->lock);
+	ctrl = d->hwirq / MAX_MSI_IRQS_PER_CTRL;
+	res = ctrl * MSI_REG_CTRL_BLOCK_SIZE;
+	bit = d->hwirq % MAX_MSI_IRQS_PER_CTRL;
+
+	pp->irq_mask[ctrl] |= BIT(bit);
+	dw_pcie_writel_dbi(pci, PCIE_MSI_INTR0_MASK + res, pp->irq_mask[ctrl]);
+}
+
+static void exynos_pcie_msi_bottom_unmask(struct irq_data *d)
+{
+	struct dw_pcie_rp *pp = irq_data_get_irq_chip_data(d);
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	unsigned int res, bit, ctrl;
+
+	guard(raw_spinlock)(&pp->lock);
+	ctrl = d->hwirq / MAX_MSI_IRQS_PER_CTRL;
+	res = ctrl * MSI_REG_CTRL_BLOCK_SIZE;
+	bit = d->hwirq % MAX_MSI_IRQS_PER_CTRL;
+
+	pp->irq_mask[ctrl] &= ~BIT(bit);
+	dw_pcie_writel_dbi(pci, PCIE_MSI_INTR0_MASK + res, pp->irq_mask[ctrl]);
+}
+
+static void exynos_pcie_msi_bottom_ack(struct irq_data *d)
+{
+	struct dw_pcie_rp *pp = irq_data_get_irq_chip_data(d);
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	unsigned int res, bit, ctrl;
+
+	ctrl = d->hwirq / MAX_MSI_IRQS_PER_CTRL;
+	res = ctrl * MSI_REG_CTRL_BLOCK_SIZE;
+	bit = d->hwirq % MAX_MSI_IRQS_PER_CTRL;
+
+	dw_pcie_writel_dbi(pci, PCIE_MSI_INTR0_STATUS + res, BIT(bit));
+}
+
+static struct irq_chip exynos_pcie_msi_bottom_irq_chip = {
+	.name			= "EXYNOS-PCI-MSI",
+	.irq_compose_msi_msg	= exynos_pcie_msi_setup_msg,
+	.irq_mask		= exynos_pcie_msi_bottom_mask,
+	.irq_unmask		= exynos_pcie_msi_bottom_unmask,
+	.irq_set_wake		= exynos_pcie_rc_set_enable_wake,
+#ifdef CONFIG_SMP
+	.irq_ack		= exynos_pcie_msi_irq_noop,
+	.irq_pre_redirect	= exynos_pcie_msi_bottom_ack,
+	.irq_set_affinity	= exynos_pcie_msi_set_affinity,
+#else
+	.irq_ack		= exynos_pcie_msi_bottom_ack,
+#endif
+};
+
+static struct lock_class_key exynos_pcie_msi_lock_class;
+static struct lock_class_key exynos_pcie_msi_request_class;
+
+static int exynos_pcie_irq_domain_alloc(struct irq_domain *domain,
+					unsigned int virq,
+					unsigned int nr_irqs, void *args)
+{
+	struct dw_pcie_rp *pp = domain->host_data;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+	irq_flow_handler_t handler = exynos_pcie->separated_msi ?
+				     handle_level_irq : handle_edge_irq;
+	int bit;
+
+	scoped_guard(raw_spinlock_irq, &pp->lock) {
+		bit = bitmap_find_free_region(pp->msi_irq_in_use,
+					      pp->num_vectors,
+					      order_base_2(nr_irqs));
+	}
+
+	if (bit < 0)
+		return -ENOSPC;
+
+	for (unsigned int i = 0; i < nr_irqs; i++) {
+		irq_set_lockdep_class(virq + i, &exynos_pcie_msi_lock_class,
+				      &exynos_pcie_msi_request_class);
+		irq_domain_set_info(domain, virq + i, bit + i, pp->msi_irq_chip,
+				    pp, handler, NULL, NULL);
+	}
+
+	return 0;
+}
+
+static void exynos_pcie_irq_domain_free(struct irq_domain *domain,
+					unsigned int virq,
+					unsigned int nr_irqs)
+{
+	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
+	struct dw_pcie_rp *pp = domain->host_data;
+
+	guard(raw_spinlock_irq)(&pp->lock);
+	bitmap_release_region(pp->msi_irq_in_use, d->hwirq,
+			      order_base_2(nr_irqs));
+}
+
+static const struct irq_domain_ops exynos_pcie_msi_domain_ops = {
+	.alloc	= exynos_pcie_irq_domain_alloc,
+	.free	= exynos_pcie_irq_domain_free,
+};
+
+static int exynos_pcie_msi_host_init(struct dw_pcie_rp *pp)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+	struct device *dev = pci->dev;
+	const struct msi_parent_ops *parent_ops;
+	struct irq_domain_info info;
+	u64 *msi_vaddr = NULL;
+	u32 ctrl;
+	int ret;
+
+	for (ctrl = 0; ctrl < MAX_MSI_CTRLS; ctrl++)
+		pp->irq_mask[ctrl] = ~0;
+
+	if (!pp->num_vectors)
+		pp->num_vectors = MSI_DEF_NUM_VECTORS;
+
+	dev_dbg(dev, "Using %d MSI vectors\n", pp->num_vectors);
+
+	pp->msi_irq_chip = &exynos_pcie_msi_bottom_irq_chip;
+
+	if (exynos_pcie->ep_device_type == EP_QC_WIFI ||
+	    exynos_pcie->ep_device_type == EP_SAMSUNG_MODEM)
+		parent_ops = &exynos_pcie_msi_pci_mask_parent_ops;
+	else
+		parent_ops = &exynos_pcie_msi_parent_ops;
+
+	info = (struct irq_domain_info) {
+		.fwnode		= dev_fwnode(dev),
+		.ops		= &exynos_pcie_msi_domain_ops,
+		.size		= pp->num_vectors,
+		.host_data	= pp,
+	};
+
+	pp->irq_domain = msi_create_parent_irq_domain(&info, parent_ops);
+	if (!pp->irq_domain) {
+		dev_err(dev, "Failed to create MSI parent IRQ domain\n");
+		return -ENOMEM;
+	}
+
+	/*
+	 * iMSI-RX terminates incoming MWr TLPs targeting MSI_CTRL_ADDR before
+	 * they reach the AXI bus, so a 32-bit config window address can serve
+	 * as the MSI target without allocating DMA memory. Fall back to
+	 * coherent DMA allocation if cfg0_base lies above 4 GiB.
+	 */
+	if (!(pp->cfg0_base & GENMASK_ULL(63, 32))) {
+		pp->msi_data = pp->cfg0_base;
+		return 0;
+	}
+
+	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+	if (!ret)
+		msi_vaddr = dmam_alloc_coherent(dev, sizeof(u64), &pp->msi_data,
+						GFP_KERNEL);
+
+	if (!msi_vaddr) {
+		dev_warn(dev, "Failed to allocate 32-bit MSI address\n");
+		dma_set_coherent_mask(dev, DMA_BIT_MASK(64));
+		msi_vaddr = dmam_alloc_coherent(dev, sizeof(u64), &pp->msi_data,
+						GFP_KERNEL);
+		if (!msi_vaddr) {
+			dev_err(dev, "Failed to allocate MSI address\n");
+			irq_domain_remove(pp->irq_domain);
+			pp->irq_domain = NULL;
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
+static void exynos_pcie_rc_deinit(struct dw_pcie_rp *pp)
+{
+	if (pp->irq_domain) {
+		irq_domain_remove(pp->irq_domain);
+		pp->irq_domain = NULL;
+	}
+}
+
 static int exynos_pcie_rc_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
@@ -3198,6 +3501,8 @@ static int exynos_pcie_rc_init(struct dw_pcie_rp *pp)
 
 static struct dw_pcie_host_ops exynos_pcie_rc_ops = {
 	.init = exynos_pcie_rc_init,
+	.deinit = exynos_pcie_rc_deinit,
+	.msi_init = exynos_pcie_msi_host_init,
 };
 
 static void exynos_pcie_msi_post_process(struct dw_pcie_rp *pp)
@@ -4917,27 +5222,6 @@ int exynos_pcie_deregister_event(struct exynos_pcie_register_event *reg)
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_deregister_event);
 
-static int __maybe_unused
-exynos_pcie_rc_set_enable_wake(struct irq_data *data, unsigned int enable)
-{
-	struct dw_pcie_rp *pp = data->parent_data->domain->host_data;
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct irq_data *parent;
-
-	dev_dbg(pci->dev, "%s: enable = %d\n", __func__, enable);
-
-	if (pp == NULL) {
-		pr_err("Warning: exynos_pcie_rc_set_enable_wake: not exist pp\n");
-		return -EINVAL;
-	}
-
-	parent = irq_get_irq_data(pp->irq);
-	if (parent && parent->chip->irq_set_wake)
-		return parent->chip->irq_set_wake(parent, enable);
-
-	return -EINVAL;
-}
-
 #if IS_ENABLED(CONFIG_CPU_IDLE)
 static void __maybe_unused exynos_pcie_rc_set_tpoweron(struct dw_pcie_rp *pp, int max)
 {
@@ -4977,41 +5261,6 @@ static void __maybe_unused exynos_pcie_rc_set_tpoweron(struct dw_pcie_rp *pp, in
 	writel(val, ep_dbi_base + WIFI_L1SS_CONTROL);
 }
 #endif
-
-static int __maybe_unused
-exynos_pcie_msi_set_affinity(struct irq_data *irq_data, const struct cpumask *mask,
-					bool force)
-{
-	struct dw_pcie_rp *pp;
-	struct irq_data *idata = irq_data->parent_data;
-	struct dw_pcie *pci;
-	struct exynos_pcie *exynos_pcie;
-
-	if (!idata)
-		return -ENODEV;
-
-	/* set affinity for PCIe IRQ */
-	pp = (struct dw_pcie_rp *) idata->chip_data;
-	if (!pp)
-		return -ENODEV;
-
-	pci = to_dw_pcie_from_pp(pp);
-	if (!pci)
-		return -ENODEV;
-
-	exynos_pcie = to_exynos_pcie(pci);
-	if (!exynos_pcie)
-		return -ENODEV;
-
-	idata = irq_get_irq_data(pp->irq);
-	if (!idata || !idata->chip)
-		return -ENODEV;
-
-	if (idata->chip->irq_set_affinity)
-		idata->chip->irq_set_affinity(idata, mask, force);
-
-	return 0;
-}
 
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 static int exynos_pcie_rc_itmon_notifier(struct notifier_block *nb, unsigned long action,
@@ -5078,39 +5327,6 @@ static irqreturn_t exynos_pcie_msi0_handler(int irq, void *arg)
 	}
 
 	dw_handle_msi_irq(pp);
-
-	if (!msi_vec->flags) {
-		/* To set as handle_level_irq, get virq, mapped_irq, irq_data. */
-		struct irq_data *irq_data;
-		int i, virq, mapped_irq, changed_irq = 0;
-
-		virq = irq_find_mapping(pp->irq_domain, 0);
-		mapped_irq = pp->irq_domain->mapcount;
-
-		dev_dbg(dev, "Start virq = %d, Total mapped irq = %d\n",
-				virq, mapped_irq);
-
-		for (i = 0; i < PCIE_DOMAIN_MAX_IRQ; i++) {
-			irq_data = irq_domain_get_irq_data(pp->irq_domain, virq);
-			if (irq_data == NULL) {
-				virq++;
-				continue;
-			}
-
-			dev_dbg(dev, "Change flow interrupt for virq(%d)\n", virq);
-			irq_domain_set_info(pp->irq_domain, virq, irq_data->hwirq,
-					pp->msi_irq_chip,
-					pp, handle_level_irq,
-					NULL, NULL);
-
-			virq++;
-			changed_irq++;
-
-			if (changed_irq == mapped_irq)
-				break;
-		}
-		msi_vec->flags = 1;
-	}
 	exynos_pcie_msi_post_process(pp);
 
 	return IRQ_HANDLED;
@@ -5353,24 +5569,6 @@ skip_sep_request_irq:
 
 		return ret;
 	}
-
-/* TODO(b/442591113): migrate away from legacy MSI setup. */
-#if 0
-	if (pp->msi_domain) {
-		struct msi_domain_info *msi_domain_info;
-		struct irq_domain *msi_domain;
-
-		msi_domain = pp->msi_domain;
-		msi_domain_info = (struct msi_domain_info *)msi_domain->host_data;
-		msi_domain_info->chip->irq_set_affinity = exynos_pcie_msi_set_affinity;
-		msi_domain_info->chip->irq_set_wake = exynos_pcie_rc_set_enable_wake;
-		if (exynos_pcie->ep_device_type == EP_QC_WIFI ||
-				exynos_pcie->ep_device_type == EP_SAMSUNG_MODEM) {
-			msi_domain_info->chip->irq_mask = pci_msi_mask_irq;
-			msi_domain_info->chip->irq_unmask = pci_msi_unmask_irq;
-		}
-	}
-#endif
 
 	return 0;
 }
@@ -5812,13 +6010,17 @@ probe_fail:
 
 static void exynos_pcie_rc_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct dw_pcie *pci = container_of(&dev, struct dw_pcie, dev);
-	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+	struct exynos_pcie *exynos_pcie = platform_get_drvdata(pdev);
 
 	dev_info(&pdev->dev, "%s\n", __func__);
 
+	if (!exynos_pcie)
+		return;
+
 	cancel_delayed_work_sync(&exynos_pcie->cfg_access_work);
+
+	if (exynos_pcie->pci)
+		exynos_pcie_rc_deinit(&exynos_pcie->pci->pp);
 
 	mutex_destroy(&exynos_pcie->power_onoff_lock);
 }

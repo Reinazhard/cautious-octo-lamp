@@ -7,6 +7,7 @@ config PCI_EXYNOS_GS
 	depends on PCI_MSI
 	select PCIEPORTBUS
 	select PCIE_DW_HOST
+	select IRQ_MSI_LIB
 
 config PCI_EXYNOS_CAL_GS201
 	tristate "Samsung Exynos PCIe PHY CAL for GS201"
