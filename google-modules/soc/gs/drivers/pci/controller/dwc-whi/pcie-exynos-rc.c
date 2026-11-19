@@ -4732,7 +4732,7 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct dw_pcie_rp *pp, int id)
 				/* 4) [EP] enable ASPM */
 				exynos_pcie_rc_rd_other_conf(pp, ep_pci_bus, 0,
 							     exynos_pcie->ep_link_ctrl_off, 4, &val);
-				val &= ~PCI_EXP_LNKCTL_ASPM_L1;
+				val &= ~PCI_EXP_LNKCTL_ASPMC;
 				val |= PCI_EXP_LNKCTL_CCC | PCI_EXP_LNKCTL_CLKREQ_EN |
 				       aspm_l1_enable;
 				exynos_pcie_rc_wr_other_conf(pp, ep_pci_bus, 0,
