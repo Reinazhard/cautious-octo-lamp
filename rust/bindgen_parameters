@@ -26,6 +26,13 @@
 # warning. We don't need to peek into it anyway.
 --opaque-type spinlock
 
+# When CONFIG_SCHEDSTATS is disabled, `struct sched_statistics` is an empty
+# struct with `____cacheline_aligned` (sizeof=0, align=64). Bindgen omits
+# `#[repr(align(64))]` on empty structs, shifting every subsequent field in
+# `struct task_struct` (including `mm`, `pid`, and `group_leader`) by -48 bytes.
+# Marking it opaque preserves both size and alignment in all configurations.
+--opaque-type sched_statistics
+
 # enums that appear in indirect function calls should specify a cfi type
 --newtype-enum lru_status
 --with-attribute-custom-enum=lru_status='#[cfi_encoding="10lru_status"]'
