@@ -1958,7 +1958,7 @@ static void s3c2410wdt_remove(struct platform_device *dev)
 	s3c_wdt[wdt->cluster] = NULL;
 
 	if (wdt->cluster == LITTLE_CLUSTER) {
-		unregister_syscore_ops(&s3c2410wdt_syscore_ops);
+		unregister_syscore(&s3c2410wdt_syscore);
 		atomic_notifier_chain_unregister(&panic_notifier_list,
 						 &wdt_block.nb_panic_block);
 
