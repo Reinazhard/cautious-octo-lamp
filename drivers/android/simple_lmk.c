@@ -18,6 +18,13 @@
 
 #include <uapi/linux/sched/types.h>
 
+/* The minimum number of pages to free per reclaim */
+#ifndef CONFIG_ANDROID_SIMPLE_LMK_MINFREE
+#define CONFIG_ANDROID_SIMPLE_LMK_MINFREE 128
+#endif
+
+#define MIN_FREE_PAGES (CONFIG_ANDROID_SIMPLE_LMK_MINFREE * SZ_1M / PAGE_SIZE)
+
 /* Grace period in milliseconds for newly backgrounded apps */
 #define GRACE_PERIOD_MS 5000
 
@@ -126,26 +133,31 @@ static unsigned long pages_pending_free(void)
 }
 
 /*
- * How far below the free-page reserve we are, less the pages already committed
- * to earlier kills. Without that subtraction the same deficit is charged every
- * cycle until the memory lands, and the driver keeps escalating past what the
- * deficit needed.
+ * Target free pages calculation:
+ * Sized to at least MIN_FREE_PAGES to satisfy PSI pressure events, expanding
+ * to cover the reserve deficit plus a margin if nr_free_pages has dropped
+ * below totalreserve_pages.
+ *
+ * In-flight kills (pages_pending_free) are subtracted so consecutive cycles
+ * do not over-kill before earlier victims finish exiting.
  */
 static unsigned long get_target_free_pages(void)
 {
-	unsigned long deficit, pending;
+	unsigned long target = MIN_FREE_PAGES;
+	unsigned long pending;
 
-	if (nr_free_pages() >= totalreserve_pages)
-		return 0;
+	if (nr_free_pages() < totalreserve_pages) {
+		unsigned long deficit = totalreserve_pages - nr_free_pages();
 
-	deficit = totalreserve_pages - nr_free_pages();
-	deficit += (deficit >> 3); /* 12.5% margin */
+		deficit += (deficit >> 3); /* 12.5% margin */
+		target = max(target, deficit);
+	}
 
 	pending = pages_pending_free();
-	if (pending >= deficit)
+	if (pending >= target)
 		return 0;
 
-	return deficit - pending;
+	return target - pending;
 }
 
 /*
@@ -312,6 +324,9 @@ static void find_victims(int *vindex, unsigned long *target_out,
 	struct task_struct *tsk;
 
 	*target_out = target_pages;
+
+	if (!target_pages)
+		return;
 
 	/*
 	 * Walk the process list under RCU and pin every candidate, so the
