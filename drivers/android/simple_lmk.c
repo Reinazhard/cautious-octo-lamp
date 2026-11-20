@@ -18,12 +18,7 @@
 
 #include <uapi/linux/sched/types.h>
 
-/* The minimum number of pages to free per reclaim */
-#ifndef CONFIG_ANDROID_SIMPLE_LMK_MINFREE
-#define CONFIG_ANDROID_SIMPLE_LMK_MINFREE 128
-#endif
-
-#define MIN_FREE_PAGES (CONFIG_ANDROID_SIMPLE_LMK_MINFREE * SZ_1M / PAGE_SIZE)
+#define FILECACHE_MIN_PAGES (100UL * SZ_1M / PAGE_SIZE)
 
 /* Grace period in milliseconds for newly backgrounded apps */
 #define GRACE_PERIOD_MS 5000
@@ -141,44 +136,78 @@ static unsigned long pages_pending_free(void)
 }
 
 /*
- * Target free pages calculation:
- * Sized to at least MIN_FREE_PAGES to satisfy PSI pressure events, expanding
- * to cover the reserve deficit plus a margin if nr_free_pages has dropped
- * below totalreserve_pages.
+ * Dynamic target free pages calculation:
+ * Evaluates live kernel VM memory health across three physical dimensions:
+ * 1. Zone Watermark Deficit: pages needed to bring all populated zones to WMARK_HIGH.
+ * 2. zRAM Swap Exhaustion: pages needed to maintain 10% swap headroom.
+ * 3. Filecache Thrashing: pages needed to keep active+inactive file cache >= 100 MiB.
  *
  * In-flight kills (pages_pending_free) are subtracted so consecutive cycles
  * do not over-kill before earlier victims finish exiting.
+ *
+ * If steady-state VM metrics show no deficit but a PSI stall triggered this
+ * cycle, target 1 page so process_victims() reaps exactly one least-important
+ * candidate to relieve the transient spike.
  */
 static unsigned long get_target_free_pages(void)
 {
-	unsigned long target = MIN_FREE_PAGES;
-	unsigned long pending;
+	unsigned long wmark_deficit = 0;
+	unsigned long swap_deficit = 0;
+	unsigned long file_deficit = 0;
+	unsigned long target, pending;
+	struct zone *zone;
 
-	if (nr_free_pages() < totalreserve_pages) {
-		unsigned long deficit = totalreserve_pages - nr_free_pages();
+	/* 1. Zone high watermark deficit across all populated memory zones */
+	for_each_populated_zone(zone) {
+		unsigned long free, high_wmark;
 
-		deficit += (deficit >> 3); /* 12.5% margin */
-		target = max(target, deficit);
+		free = zone_page_state(zone, NR_FREE_PAGES);
+#ifdef CONFIG_CMA
+		if (free > zone_cma_pages(zone))
+			free -= zone_cma_pages(zone);
+		else
+			free = 0;
+#endif
+		high_wmark = high_wmark_pages(zone);
+		if (free < high_wmark)
+			wmark_deficit += (high_wmark - free);
 	}
 
 #ifdef CONFIG_SWAP
+	/* 2. zRAM swap exhaustion deficit: maintain 10% free swap headroom */
 	if (total_swap_pages > 0) {
 		long free_swap = get_nr_swap_pages();
-		long swap_floor = total_swap_pages >> 4; /* ~6.25% swap reserve */
+		long swap_floor = total_swap_pages / 10;
 
-		if (free_swap < swap_floor) {
-			unsigned long swap_deficit = swap_floor - max(0L, free_swap);
-
-			target = max(target, swap_deficit);
-		}
+		if (free_swap < swap_floor)
+			swap_deficit = swap_floor - max(0L, free_swap);
 	}
 #endif
+
+	/* 3. File pagecache depletion deficit: maintain viable file cache */
+	{
+		unsigned long file_pages;
+
+		file_pages = global_node_page_state(NR_ACTIVE_FILE) +
+			     global_node_page_state(NR_INACTIVE_FILE);
+		if (file_pages < FILECACHE_MIN_PAGES)
+			file_deficit = FILECACHE_MIN_PAGES - file_pages;
+	}
+
+	target = max(wmark_deficit, swap_deficit);
+	target = max(target, file_deficit);
 
 	pending = pages_pending_free();
 	if (pending >= target)
 		return 0;
 
-	return target - pending;
+	target -= pending;
+
+	/* Under transient PSI stall with 0 deficit, target 1 page for single-victim relief */
+	if (!target)
+		target = 1;
+
+	return target;
 }
 
 /*
