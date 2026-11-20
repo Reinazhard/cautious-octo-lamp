@@ -184,6 +184,7 @@ static unsigned long stall_jiffies_last;
 
 static unsigned long measure_stall_pct(unsigned long interval_jiffies)
 {
+	unsigned long max_window = msecs_to_jiffies(LMK_PSI_WINDOW_MS);
 	u64 now_ns = psi_system.total[PSI_POLL][PSI_MEM_FULL];
 	u64 delta_ns;
 	u64 window_ns;
@@ -193,6 +194,9 @@ static unsigned long measure_stall_pct(unsigned long interval_jiffies)
 
 	delta_ns = now_ns - stall_ns_last;
 	stall_ns_last = now_ns;
+
+	if (interval_jiffies > max_window)
+		interval_jiffies = max_window;
 
 	window_ns = (u64)interval_jiffies * NSEC_PER_SEC / HZ;
 	if (delta_ns >= window_ns)
