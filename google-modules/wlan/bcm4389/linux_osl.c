@@ -1934,7 +1934,7 @@ osl_getcycles(void)
 void *
 osl_reg_map(uint32 pa, uint size)
 {
-	return (ioremap_nocache((unsigned long)pa, (unsigned long)size));
+	return (ioremap((unsigned long)pa, (unsigned long)size));
 }
 
 void
@@ -2307,7 +2307,7 @@ osl_dma_lock(osl_t *osh)
 	 * Please refer to the __local_bh_enable_ip() function
 	 * in kernel/softirq.c to understand the condtion.
 	 */
-	if (likely(in_irq() || irqs_disabled())) {
+	if (likely(in_hardirq() || irqs_disabled())) {
 		spin_lock(&osh->dma_lock);
 	} else {
 		spin_lock_bh(&osh->dma_lock);
