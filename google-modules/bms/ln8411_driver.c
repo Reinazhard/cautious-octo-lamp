@@ -5657,6 +5657,21 @@ error:
 	destroy_workqueue(ln8411_charger->dc_wq);
 	mutex_destroy(&ln8411_charger->lock);
 	wakeup_source_unregister(ln8411_charger->monitor_wake_lock);
+	if (ln8411_charger->log)
+		logbuffer_unregister(ln8411_charger->log);
+	pps_free(&ln8411_charger->pps_data);
+	if (ln8411_charger->batt_psy) {
+		power_supply_put(ln8411_charger->batt_psy);
+		ln8411_charger->batt_psy = NULL;
+	}
+	if (ln8411_charger->pd) {
+		power_supply_put(ln8411_charger->pd);
+		ln8411_charger->pd = NULL;
+	}
+	if (ln8411_charger->wlc_psy) {
+		power_supply_put(ln8411_charger->wlc_psy);
+		ln8411_charger->wlc_psy = NULL;
+	}
 	return ret;
 }
 
@@ -5683,6 +5698,19 @@ static void ln8411_remove(struct i2c_client *client)
 	if (ln8411_charger->log)
 		logbuffer_unregister(ln8411_charger->log);
 	pps_free(&ln8411_charger->pps_data);
+
+	if (ln8411_charger->batt_psy) {
+		power_supply_put(ln8411_charger->batt_psy);
+		ln8411_charger->batt_psy = NULL;
+	}
+	if (ln8411_charger->pd) {
+		power_supply_put(ln8411_charger->pd);
+		ln8411_charger->pd = NULL;
+	}
+	if (ln8411_charger->wlc_psy) {
+		power_supply_put(ln8411_charger->wlc_psy);
+		ln8411_charger->wlc_psy = NULL;
+	}
 }
 
 static const struct i2c_device_id ln8411_id[] = {
