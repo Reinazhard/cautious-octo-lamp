@@ -688,6 +688,10 @@ static void google_dock_remove(struct platform_device *pdev)
 	alarm_try_to_cancel(&dock->icl_ramp_alarm);
 	cancel_delayed_work(&dock->detect_work);
 	wakeup_source_unregister(dock->detect_ws);
+	if (dock->dc_psy) {
+		power_supply_put(dock->dc_psy);
+		dock->dc_psy = NULL;
+	}
 }
 
 static void google_dock_shutdown(struct platform_device *pdev)
