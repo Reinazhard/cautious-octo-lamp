@@ -153,6 +153,19 @@ static unsigned long get_target_free_pages(void)
 		target = max(target, deficit);
 	}
 
+#ifdef CONFIG_SWAP
+	if (total_swap_pages > 0) {
+		long free_swap = get_nr_swap_pages();
+		long swap_floor = total_swap_pages >> 4; /* ~6.25% swap reserve */
+
+		if (free_swap < swap_floor) {
+			unsigned long swap_deficit = swap_floor - max(0L, free_swap);
+
+			target = max(target, swap_deficit);
+		}
+	}
+#endif
+
 	pending = pages_pending_free();
 	if (pending >= target)
 		return 0;
