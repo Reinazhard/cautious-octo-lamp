@@ -5308,6 +5308,21 @@ error:
 	destroy_workqueue(pca9468_chg->dc_wq);
 	mutex_destroy(&pca9468_chg->lock);
 	wakeup_source_unregister(pca9468_chg->monitor_wake_lock);
+	if (pca9468_chg->log)
+		logbuffer_unregister(pca9468_chg->log);
+	pps_free(&pca9468_chg->pps_data);
+	if (pca9468_chg->batt_psy) {
+		power_supply_put(pca9468_chg->batt_psy);
+		pca9468_chg->batt_psy = NULL;
+	}
+	if (pca9468_chg->pd) {
+		power_supply_put(pca9468_chg->pd);
+		pca9468_chg->pd = NULL;
+	}
+	if (pca9468_chg->wlc_psy) {
+		power_supply_put(pca9468_chg->wlc_psy);
+		pca9468_chg->wlc_psy = NULL;
+	}
 	return ret;
 }
 
@@ -5334,6 +5349,19 @@ static void pca9468_remove(struct i2c_client *client)
 	if (pca9468_chg->log)
 		logbuffer_unregister(pca9468_chg->log);
 	pps_free(&pca9468_chg->pps_data);
+
+	if (pca9468_chg->batt_psy) {
+		power_supply_put(pca9468_chg->batt_psy);
+		pca9468_chg->batt_psy = NULL;
+	}
+	if (pca9468_chg->pd) {
+		power_supply_put(pca9468_chg->pd);
+		pca9468_chg->pd = NULL;
+	}
+	if (pca9468_chg->wlc_psy) {
+		power_supply_put(pca9468_chg->wlc_psy);
+		pca9468_chg->wlc_psy = NULL;
+	}
 }
 
 static const struct i2c_device_id pca9468_id[] = {
