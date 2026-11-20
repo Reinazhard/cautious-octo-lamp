@@ -23,8 +23,12 @@
 /* Grace period in milliseconds for newly backgrounded apps */
 #define GRACE_PERIOD_MS 5000
 
-/* Kill up to this many victims per reclaim */
-#define MAX_VICTIMS 32
+/* Candidate buffer size and maximum victims dispatched per cycle */
+#define MAX_VICTIMS 16
+#define MAX_VICTIMS_PER_CYCLE 4
+
+/* Minimum cooldown between kill dispatches to allow allocator absorption */
+#define LMK_KILL_COOLDOWN_JIFFIES msecs_to_jiffies(50)
 
 /* Deadline in jiffies for reaping a stuck victim before giving up */
 #define REAP_RETRY_JIFFIES msecs_to_jiffies(CONFIG_ANDROID_SIMPLE_LMK_TIMEOUT_MSEC)
@@ -507,9 +511,11 @@ drain_remaining:
 	}
 }
 
+static unsigned long last_kill_jiffies;
+
 /*
- * Keep only as many victims as the deficit needs, releasing the rest. Making
- * the kill count agree with find_victims() means both use one target snapshot.
+ * Keep only as many victims as the deficit needs (up to MAX_VICTIMS_PER_CYCLE),
+ * releasing the rest. Sizing against one deficit snapshot prevents over-killing.
  */
 static int process_victims(int vlen, unsigned long target_pages)
 {
@@ -520,7 +526,7 @@ static int process_victims(int vlen, unsigned long target_pages)
 		struct victim_info *victim = &victims[i];
 		struct task_struct *vtsk = victim->tsk;
 
-		if (pages_found >= target_pages) {
+		if (pages_found >= target_pages || nr_to_kill >= MAX_VICTIMS_PER_CYCLE) {
 			if (victim->mm)
 				mmdrop(victim->mm);
 			put_task_struct(vtsk);
@@ -555,6 +561,10 @@ static void scan_and_kill(void)
 
 	/* The reaper still owns the array; PSI will re-fire if pressure holds */
 	if (READ_ONCE(reclaim_active))
+		return;
+
+	/* Cooldown: allow kernel allocator time to absorb freed memory */
+	if (last_kill_jiffies && time_before(jiffies, last_kill_jiffies + LMK_KILL_COOLDOWN_JIFFIES))
 		return;
 
 	stall_pct = measure_stall_pct(jiffies - stall_jiffies_last);
@@ -688,6 +698,7 @@ static void scan_and_kill(void)
 	spin_lock_irqsave(&victims_lock, flags);
 	sort(victims, nr_to_kill, sizeof(*victims), victim_cmp_size, victim_swap);
 	spin_unlock_irqrestore(&victims_lock, flags);
+	last_kill_jiffies = jiffies;
 	smp_wmb();
 	atomic_set(&needs_reap, 1);
 	atomic_set(&oom_attempts, 0);
