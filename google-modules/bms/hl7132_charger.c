@@ -4933,6 +4933,15 @@ error:
 	debugfs_remove(hl7132_chg->debug_root);
 	if (hl7132_chg->log)
 		logbuffer_unregister(hl7132_chg->log);
+	pps_free(&hl7132_chg->pps_data);
+	if (hl7132_chg->batt_psy) {
+		power_supply_put(hl7132_chg->batt_psy);
+		hl7132_chg->batt_psy = NULL;
+	}
+	if (hl7132_chg->pd) {
+		power_supply_put(hl7132_chg->pd);
+		hl7132_chg->pd = NULL;
+	}
 	mutex_destroy(&hl7132_chg->lock);
 	wakeup_source_unregister(hl7132_chg->monitor_wake_lock);
 	return ret;
@@ -4963,6 +4972,15 @@ static void hl7132_remove(struct i2c_client *client)
 		logbuffer_unregister(hl7132_chg->log);
 
 	pps_free(&hl7132_chg->pps_data);
+
+	if (hl7132_chg->batt_psy) {
+		power_supply_put(hl7132_chg->batt_psy);
+		hl7132_chg->batt_psy = NULL;
+	}
+	if (hl7132_chg->pd) {
+		power_supply_put(hl7132_chg->pd);
+		hl7132_chg->pd = NULL;
+	}
 }
 
 static const struct i2c_device_id hl7132_id[] = {
