@@ -65,6 +65,10 @@ static const int psi_thresholds[LMK_TIERS] = {
 #define LMK_TIER1_MIN_ADJ 500
 #define LMK_TIER2_MIN_ADJ 200
 
+#define LMK_TIER0_FLOOR_ADJ 701 /* Above PREVIOUS_APP_ADJ (700) */
+#define LMK_TIER1_FLOOR_ADJ 251 /* Above PERCEPTIBLE_LOW_APP_ADJ (250) */
+#define LMK_TIER2_FLOOR_ADJ 200 /* Absolute hard floor: PERCEPTIBLE_APP_ADJ */
+
 /*
  * Nothing below this adj is ever killed regardless of pressure: it is the
  * foreground/visible band. If RAM runs out under adj < 200 the core OOM killer
@@ -78,6 +82,12 @@ static const short tier_min_adj[LMK_TIERS] = {
 	LMK_TIER2_MIN_ADJ
 };
 
+static const short tier_floor_adj[LMK_TIERS] = {
+	LMK_TIER0_FLOOR_ADJ,
+	LMK_TIER1_FLOOR_ADJ,
+	LMK_TIER2_FLOOR_ADJ
+};
+
 struct victim_info {
 	struct task_struct *tsk;
 	struct mm_struct *mm;
@@ -85,6 +95,7 @@ struct victim_info {
 	unsigned long score;
 	/* Pages credited against the deficit once the kill is dispatched */
 	unsigned long pending;
+	short adj;
 };
 
 static struct victim_info victims[MAX_VICTIMS] __cacheline_aligned_in_smp;
@@ -222,20 +233,19 @@ static short tier_of_ceil(short ceil_adj)
  * Lowest adj a tier may reach given the measured stall. The tier's own
  * threshold is the reference: at it the tier is at exactly the pressure it was
  * defined for and stays at its ceiling, and each further multiple of it lets
- * the tier descend toward LMK_TIER_FLOOR_ADJ. A tier is selected only once its
- * trigger has fired, so the floor must not be reachable at the threshold: if
- * it is, every tier reaches the same depth and the ladder stops distinguishing
- * pressure levels.
+ * the tier descend toward its discrete floor.
  */
 static short tier_reach_adj(short tier_index, unsigned long stall_pct)
 {
 	unsigned long target_duty, span;
+	short floor;
 
 	if (tier_index < 0 || tier_index >= LMK_TIERS)
 		tier_index = LMK_TIERS - 1;
 
-	if (tier_min_adj[tier_index] <= LMK_TIER_FLOOR_ADJ)
-		return LMK_TIER_FLOOR_ADJ;
+	floor = tier_floor_adj[tier_index];
+	if (tier_min_adj[tier_index] <= floor)
+		return floor;
 
 	/* The tier threshold as a percentage of the sampling window */
 	target_duty = (unsigned long)psi_thresholds[tier_index] * 100 /
@@ -248,9 +258,9 @@ static short tier_reach_adj(short tier_index, unsigned long stall_pct)
 
 	/* One further multiple of it is where the tier bottoms out */
 	if (stall_pct >= 2 * target_duty)
-		return LMK_TIER_FLOOR_ADJ;
+		return floor;
 
-	span = tier_min_adj[tier_index] - LMK_TIER_FLOOR_ADJ;
+	span = tier_min_adj[tier_index] - floor;
 	return tier_min_adj[tier_index] -
 	       (short)(span * (stall_pct - target_duty) / target_duty);
 }
@@ -260,7 +270,15 @@ static int victim_cmp(const void *lhs_ptr, const void *rhs_ptr)
 	const struct victim_info *lhs = (typeof(lhs))lhs_ptr;
 	const struct victim_info *rhs = (typeof(rhs))rhs_ptr;
 
-	return rhs->score - lhs->score;
+	/* Primary sort: highest oom_score_adj first (least important process dies first) */
+	if (lhs->adj != rhs->adj)
+		return (int)rhs->adj - (int)lhs->adj;
+
+	/* Secondary sort: largest reclaimable size first within the same adj bracket */
+	if (lhs->size != rhs->size)
+		return rhs->size > lhs->size ? 1 : -1;
+
+	return 0;
 }
 
 static int victim_cmp_size(const void *lhs_ptr, const void *rhs_ptr)
@@ -268,7 +286,10 @@ static int victim_cmp_size(const void *lhs_ptr, const void *rhs_ptr)
 	const struct victim_info *lhs = (typeof(lhs))lhs_ptr;
 	const struct victim_info *rhs = (typeof(rhs))rhs_ptr;
 
-	return rhs->size - lhs->size;
+	if (lhs->size != rhs->size)
+		return rhs->size > lhs->size ? 1 : -1;
+
+	return 0;
 }
 
 static void victim_swap(void *lhs_ptr, void *rhs_ptr, int size)
@@ -307,6 +328,9 @@ static void find_victims(int *vindex, unsigned long *target_out,
 	unsigned long target_pages = get_target_free_pages();
 	struct task_struct *tsk;
 
+	if (limit_adj < LMK_TIER_FLOOR_ADJ)
+		limit_adj = LMK_TIER_FLOOR_ADJ;
+
 	*target_out = target_pages;
 
 	if (!target_pages)
@@ -324,7 +348,7 @@ static void find_victims(int *vindex, unsigned long *target_out,
 
 		sig = tsk->signal;
 		adj = READ_ONCE(sig->oom_score_adj);
-		if (adj < limit_adj || adj > ADJ_MAX ||
+		if (adj < limit_adj || adj < LMK_TIER_FLOOR_ADJ || adj > ADJ_MAX ||
 		    sig->flags & SIGNAL_GROUP_EXIT ||
 		    (thread_group_empty(tsk) && tsk->flags & PF_EXITING))
 			continue;
@@ -416,6 +440,7 @@ static void find_victims(int *vindex, unsigned long *target_out,
 			victims[*vindex].mm = vmm;
 			victims[*vindex].size = pages;
 			victims[*vindex].pending = 0;
+			victims[*vindex].adj = i;
 
 			pages_found += pages;
 
@@ -537,8 +562,8 @@ static void scan_and_kill(void)
 			       stall_pct),
 		target_pages, nr_found);
 
-	/* Kill the largest first, then stop once the target is met */
-	sort(victims, nr_found, sizeof(*victims), victim_cmp_size, victim_swap);
+	/* Sort candidates by adj descending, then by size descending */
+	sort(victims, nr_found, sizeof(*victims), victim_cmp, victim_swap);
 	nr_to_kill = process_victims(nr_found, target_pages);
 	if (unlikely(!nr_to_kill))
 		return;
@@ -632,7 +657,7 @@ static void scan_and_kill(void)
 
 	/* Reap the biggest victims first; the reaper takes it from here */
 	spin_lock_irqsave(&victims_lock, flags);
-	sort(victims, nr_to_kill, sizeof(*victims), victim_cmp, victim_swap);
+	sort(victims, nr_to_kill, sizeof(*victims), victim_cmp_size, victim_swap);
 	spin_unlock_irqrestore(&victims_lock, flags);
 	smp_wmb();
 	atomic_set(&needs_reap, 1);
