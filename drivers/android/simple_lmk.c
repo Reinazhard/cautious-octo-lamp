@@ -37,9 +37,6 @@
 /* Android oom_score_adj range is 0 to 1000 */
 #define ADJ_MAX 1000
 
-/* Idle cycles required before the kill target steps back toward Tier 0 */
-#define LMK_RELAX_CYCLES 3
-
 /*
  * PSI stall thresholds, one per kill tier. Full stall means every non-idle task
  * is blocked on memory, so the bound is a latency budget: 100 ms is about
@@ -256,36 +253,6 @@ static short tier_reach_adj(short tier_index, unsigned long stall_pct)
 	span = tier_min_adj[tier_index] - LMK_TIER_FLOOR_ADJ;
 	return tier_min_adj[tier_index] -
 	       (short)(span * (stall_pct - target_duty) / target_duty);
-}
-
-/*
- * Raise the target one tier after LMK_RELAX_CYCLES deficit-free cycles.
- * target_min_adj is only ever lowered elsewhere, so without this a single PSI
- * spike or uncaught OOM keeps the driver killing to adj 200 for the rest of
- * uptime, with the Tier 0 grace period disabled along with it.
- */
-static void relax_min_adj(void)
-{
-	static unsigned int idle_cycles;
-	short cur = atomic_read(&target_min_adj);
-	int i;
-
-	if (get_target_free_pages() != 0) {
-		idle_cycles = 0;
-		return;
-	}
-
-	if (++idle_cycles < LMK_RELAX_CYCLES)
-		return;
-
-	idle_cycles = 0;
-
-	for (i = 0; i < LMK_TIERS; i++) {
-		if (tier_min_adj[i] > cur) {
-			atomic_set(&target_min_adj, tier_min_adj[i]);
-			break;
-		}
-	}
 }
 
 static int victim_cmp(const void *lhs_ptr, const void *rhs_ptr)
@@ -536,8 +503,6 @@ static void scan_and_kill(void)
 	if (READ_ONCE(reclaim_active))
 		return;
 
-	relax_min_adj();
-
 	stall_pct = measure_stall_pct(jiffies - stall_jiffies_last);
 	stall_jiffies_last = jiffies;
 
@@ -575,6 +540,8 @@ static void scan_and_kill(void)
 	/* Kill the largest first, then stop once the target is met */
 	sort(victims, nr_found, sizeof(*victims), victim_cmp_size, victim_swap);
 	nr_to_kill = process_victims(nr_found, target_pages);
+	if (unlikely(!nr_to_kill))
+		return;
 
 	num_drop = 0;
 	spin_lock_irqsave(&victims_lock, flags);
@@ -766,6 +733,8 @@ static struct mm_struct *next_reap_victim(bool force)
 			smp_mb();
 			if (atomic_read(&needs_reclaim))
 				wake_up(&oom_waitq);
+			else
+				atomic_set(&target_min_adj, tier_min_adj[0]);
 		}
 	}
 
