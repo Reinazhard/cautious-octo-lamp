@@ -31,11 +31,11 @@ static struct device_node *ln8411_find_config(struct device_node *node)
 	struct device_node *temp;
 
 	if (!node)
-		return node;
+		return NULL;
 	temp = of_parse_phandle(node, "ln8411,google_cpm", 0);
 	if (temp)
-		node = temp;
-	return node;
+		return temp;
+	return of_node_get(node);
 }
 
 int ln8411_probe_pps(struct ln8411_charger *ln8411_chg)
@@ -63,12 +63,15 @@ int ln8411_probe_pps(struct ln8411_charger *ln8411_chg)
 	if (ret == 0) {
 		ln8411_chg->wlc_psy_name =
 			devm_kstrdup(ln8411_chg->dev, tmp_name, GFP_KERNEL);
-		if (!ln8411_chg->wlc_psy_name)
+		if (!ln8411_chg->wlc_psy_name) {
+			of_node_put(node);
 			return -ENOMEM;
+		}
 
 		pps_available |= true;
 	}
 
+	of_node_put(node);
 	return pps_available ? 0 : -ENODEV;
 }
 
