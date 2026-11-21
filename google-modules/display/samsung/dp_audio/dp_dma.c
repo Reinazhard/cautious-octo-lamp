@@ -1117,6 +1117,7 @@ static int samsung_display_adma_probe(struct platform_device *pdev)
 			return -ENODEV;
 		}
 		dp_ado_rmem = of_reserved_mem_lookup(np_tmp);
+		of_node_put(np_tmp);
 	}
 
 	if (!dp_ado_rmem) {
