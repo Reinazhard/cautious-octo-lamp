@@ -442,10 +442,14 @@ static u64 buffer_to_data_offset(u8 *buf, struct sbd_ring_buffer *rb)
 		offset = data - v_zmb + sl->zmb_offset;
 	} else {
 		mif_err("unexpected buff address : %lx\n", (unsigned long)virt_to_phys(buf));
-		return -EINVAL;
+		return (u64)-EINVAL;
 	}
 
 	dma_addr = dma_map_single(dev, buf, MIF_BUFF_DEFAULT_CELL_SIZE, DMA_FROM_DEVICE);
+	if (dma_mapping_error(dev, dma_addr)) {
+		mif_err("failed to dma map buff : %lx\n", (unsigned long)virt_to_phys(buf));
+		return (u64)-EIO;
+	}
 	kfifo_in_spinlocked(&zdptr->fifo, &dma_addr, sizeof(dma_addr), &zdptr->lock_kfifo);
 
 	return offset;
@@ -477,6 +481,11 @@ int allocate_data_in_advance(struct zerocopy_adaptor *zdptr)
 		}
 
 		offset = buffer_to_data_offset(buffer, rb);
+		if ((s64)offset < 0) {
+			free_mif_buff(mif_buff_mng, buffer);
+			spin_unlock_irqrestore(&zdptr->lock, flags);
+			return alloc_cnt ? alloc_cnt : (int)offset;
+		}
 
 		dst = rb->buff[*zdptr->wp] + rb->payload_offset;
 
