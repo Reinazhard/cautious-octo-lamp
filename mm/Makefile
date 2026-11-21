@@ -7,6 +7,7 @@ KASAN_SANITIZE_slab_common.o := n
 KASAN_SANITIZE_slub.o := n
 KASAN_SANITIZE_kmemleak.o := n
 KCSAN_SANITIZE_kmemleak.o := n
+KMSAN_SANITIZE_kmemleak.o := n
 
 # These produce frequent data race reports: most of them are due to races on
 # the same word but accesses to different bits of that word. Re-enable KCSAN
