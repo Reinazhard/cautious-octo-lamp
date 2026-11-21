@@ -1575,8 +1575,13 @@ static void decon_exit_hibernation(struct decon_device *decon)
 	DPU_ATRACE_BEGIN(__func__);
 	decon_debug(decon, "%s +\n", __func__);
 
-	if (pm_runtime_get_sync(decon->dev) < 0)
+	if (pm_runtime_get_sync(decon->dev) < 0) {
+		pm_runtime_put_noidle(decon->dev);
 		decon_err(decon, "%s: failed to pm_runtime_get_sync\n", __func__);
+		DPU_ATRACE_END(__func__);
+		DPU_EVENT_LOG(DPU_EVT_EXIT_HIBERNATION_OUT, decon->id, NULL);
+		return;
+	}
 
 	spin_lock_irqsave(&decon->slock, flags);
 	_decon_enable_locked(decon);

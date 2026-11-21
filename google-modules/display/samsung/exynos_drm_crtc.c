@@ -542,17 +542,16 @@ struct drm_atomic_commit
 	struct drm_atomic_commit *state, *suspend_state;
 	int ret, i;
 
-	suspend_state = exynos_duplicate_active_crtc_state(crtc, ctx);
-	if (IS_ERR_OR_NULL(suspend_state))
-		return suspend_state;
-
 	state = drm_atomic_commit_alloc(crtc->dev);
-	if (!state) {
-		drm_atomic_commit_put(suspend_state);
+	if (!state)
 		return ERR_PTR(-ENOMEM);
-	}
 	state->acquire_ctx = ctx;
 retry:
+	suspend_state = exynos_duplicate_active_crtc_state(crtc, ctx);
+	if (IS_ERR_OR_NULL(suspend_state)) {
+		drm_atomic_commit_put(state);
+		return suspend_state;
+	}
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (IS_ERR(crtc_state)) {
 		ret = PTR_ERR(crtc_state);
@@ -591,7 +590,7 @@ retry:
 out:
 	if (ret == -EDEADLK) {
 		drm_atomic_commit_clear(state);
-		drm_atomic_commit_clear(suspend_state);
+		drm_atomic_commit_put(suspend_state);
 		ret = drm_modeset_backoff(ctx);
 		if (!ret)
 			goto retry;
@@ -790,8 +789,7 @@ static int exynos_drm_crtc_get_property(struct drm_crtc *crtc,
 		*val = (exynos_crtc_state->partial) ?
 			exynos_crtc_state->partial->base.id : 0;
 	} else if (property == exynos_crtc->props.cgc_lut_fd) {
-		*val =  (exynos_crtc_state->cgc_gem) ?
-			dma_buf_fd(exynos_crtc_state->cgc_gem->dma_buf, 0) : 0;
+		*val = (exynos_crtc_state->cgc_gem) ? 1 : 0;
 	} else if (property == exynos_crtc->props.expected_present_time) {
 		*val = exynos_crtc_state->expected_present_time;
 	} else if (property == exynos_crtc->props.rcd_plane_id) {
