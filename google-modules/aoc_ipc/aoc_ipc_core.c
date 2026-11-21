@@ -57,6 +57,9 @@ static inline void _region_advance_tx(struct aoc_ipc_memory_region *r,
 	u32 tx = ioread32(&r->tx);
 	u32 wp = ioread32(&r->wp);
 
+	if (sz == 0)
+		return;
+
 	u32 updated_tx = (tx + amount);
 	u32 updated_wp = (wp + amount) % sz;
 
@@ -213,9 +216,12 @@ static u32 _aoc_ring_write_buffer(u8 *ring,
 				  size_t size)
 {
 	u32 wp = ioread32(&r->wp);
-	u32 sz = r->size;
+	u32 sz = ioread32(&r->size);
 
 	u32 to_write = size;
+
+	if (sz == 0 || wp >= sz)
+		return 0;
 
 	if (to_write > sz) {
 		/* Allow the write, but only commit the beginning */
@@ -662,8 +668,8 @@ bool aoc_service_read_message(aoc_service *service, void *base,
 		hdr = (struct aoc_ipc_message_header *)ptr;
 		ptr += sizeof(struct aoc_ipc_message_header);
 		u32 length = hdr->length;
-		/* Validate length */
-		if (*size < length)
+		/* Validate length against destination size and slot capacity */
+		if (*size < length || length > aoc_service_message_size(service, dir))
 			return false;
 
 		/* TODO: Length should always be little endian */
