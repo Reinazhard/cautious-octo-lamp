@@ -294,6 +294,7 @@ int xhci_goog_rmem_setup_latecall(struct device *dev)
 		}
 
 		rmem = of_reserved_mem_lookup(np);
+		of_node_put(np);
 		if (!rmem) {
 			dev_err(dev, "of_reserved_mem_lookup() failed\n");
 			break;
