@@ -683,7 +683,7 @@ static int parse_interrupts(struct lwis_device *lwis_dev)
 		u32 irq_reg_bitwidth = 32;
 		int32_t irq_type = REGULAR_INTERRUPT;
 		int j;
-		struct device_node *event_info = of_node_get(it.node);
+		struct device_node *event_info __free(device_node) = of_node_get(it.node);
 
 		ret = of_property_read_string(event_info, "irq-reg-space", &irq_reg_space);
 		if (ret) {
@@ -793,7 +793,6 @@ static int parse_interrupts(struct lwis_device *lwis_dev)
 			}
 		}
 
-		of_node_put(event_info);
 		i++;
 	}
 

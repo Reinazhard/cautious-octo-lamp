@@ -136,6 +136,7 @@ int lwis_buffer_alloc(struct lwis_client *lwis_client, struct lwis_alloc_buffer_
 		if (alloc_info->dma_fd < 0) {
 			pr_err("dma_buf_fd failed (%d)\n", alloc_info->dma_fd);
 			dma_buf_put(dma_buf);
+			dma_buf_put(dma_buf);
 			return alloc_info->dma_fd;
 		}
 
