@@ -106,7 +106,11 @@ static void __security_release_secctx(struct lsm_context *cp)
     security_release_secctx(cp->context, cp->len);
 }
 #else
-#define __security_secid_to_secctx security_secid_to_secctx
+static inline int __security_secid_to_secctx(u32 secid, struct lsm_context *cp)
+{
+    int ret = security_secid_to_secctx(secid, cp);
+    return ret < 0 ? ret : 0;
+}
 #define __security_release_secctx security_release_secctx
 #endif
 
