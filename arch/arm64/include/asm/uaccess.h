@@ -16,6 +16,7 @@
  */
 #include <linux/bitops.h>
 #include <linux/kasan-checks.h>
+#include <linux/kmsan-checks.h>
 #include <linux/string.h>
 
 #include <asm/asm-extable.h>
@@ -479,8 +480,12 @@ extern unsigned long __must_check __copy_user_flushcache(void *to, const void __
 
 static inline size_t copy_from_user_flushcache(void *dst, const void __user *src, size_t size)
 {
+	size_t ret;
+
 	kasan_check_write(dst, size);
-	return __copy_user_flushcache(dst, __uaccess_mask_ptr(src), size);
+	ret = __copy_user_flushcache(dst, __uaccess_mask_ptr(src), size);
+	kmsan_unpoison_memory(dst, size - ret);
+	return ret;
 }
 #endif
 

@@ -3,6 +3,7 @@
 
 #include <linux/compiler.h>
 #include <linux/kasan-checks.h>
+#include <linux/kmsan-checks.h>
 #include <linux/kernel.h>
 
 #include <net/checksum.h>
@@ -15,10 +16,11 @@ static u64 accumulate(u64 sum, u64 data)
 }
 
 /*
- * We over-read the buffer and this makes KASAN unhappy. Instead, disable
- * instrumentation and call kasan explicitly.
+ * We over-read the buffer and this makes KASAN/KMSAN unhappy. Instead, disable
+ * instrumentation and call kasan/kmsan checks explicitly.
  */
-unsigned int __no_sanitize_address do_csum(const unsigned char *buff, int len)
+unsigned int __no_sanitize_address __no_kmsan_checks
+do_csum(const unsigned char *buff, int len)
 {
 	unsigned int offset, shift, sum;
 	const u64 *ptr;
@@ -37,6 +39,7 @@ unsigned int __no_sanitize_address do_csum(const unsigned char *buff, int len)
 	 * compensate with an explicit check up-front.
 	 */
 	kasan_check_read(buff, len);
+	kmsan_check_memory(buff, len);
 	ptr = (u64 *)(buff - offset);
 	len = len + offset - 8;
 

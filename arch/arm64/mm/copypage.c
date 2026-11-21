@@ -71,6 +71,7 @@ void copy_user_highpage(struct page *to, struct page *from,
 			unsigned long vaddr, struct vm_area_struct *vma)
 {
 	copy_highpage(to, from);
+	kmsan_unpoison_memory(page_address(to), PAGE_SIZE);
 	flush_dcache_page(to);
 }
 EXPORT_SYMBOL_GPL(copy_user_highpage);

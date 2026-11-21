@@ -730,7 +730,7 @@ static inline void debug_switch_state(void)
 /*
  * Thread switching.
  */
-__notrace_funcgraph __sched
+__notrace_funcgraph __no_kmsan_checks __sched
 struct task_struct *__switch_to(struct task_struct *prev,
 				struct task_struct *next)
 {
