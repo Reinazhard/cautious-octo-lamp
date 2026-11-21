@@ -303,8 +303,8 @@ static int s2mpu_probe(struct platform_device *pdev)
 	}
 
 	info = s2mpu_lib_init(dev, base, ssmt_base, vid, sids, sidcount);
-	if (IS_ERR(info))
-		return PTR_ERR(info);
+	if (IS_ERR_OR_NULL(info))
+		return info ? PTR_ERR(info) : -ENOMEM;
 
 	/* register s2mpu fault handler interrupt */
 	irq_num = platform_get_irq(pdev, 0);
@@ -334,6 +334,13 @@ static void s2mpu_remove(struct platform_device *pdev)
 	struct s2mpu_info *info;
 
 	info = platform_get_drvdata(pdev);
+	if (!info)
+		return;
+
+	spin_lock(&s2mpu_driver_lock);
+	list_del(&info->list);
+	spin_unlock(&s2mpu_driver_lock);
+
 #ifdef S2MPU_TEST
 	debugfs_remove_recursive(info->debugfs_dentry);
 #endif

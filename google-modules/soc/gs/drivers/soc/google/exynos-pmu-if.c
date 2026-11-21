@@ -138,7 +138,7 @@ static int pmu_cpu_offset(unsigned int cpu)
 static int pmu_cpu_state(unsigned int cpu)
 {
 	unsigned int offset, val = 0;
-	if (pmu_cpu_offset_size > 0)
+	if (pmu_cpu_offset_size > 0 && cpu < pmu_cpu_offset_size)
 		offset = pmu_cpu_offset_table[cpu];
 	else
 		offset = pmu_cpu_offset(cpu);
@@ -389,6 +389,10 @@ static int exynos_pmu_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pmu_alive");
+	if (!res) {
+		dev_err(dev, "Failed to get pmu_alive resource\n");
+		return -EINVAL;
+	}
 	pmu_alive_pa = res->start;
 	spin_lock_init(&update_lock);
 
