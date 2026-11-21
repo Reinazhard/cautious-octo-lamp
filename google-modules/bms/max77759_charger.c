@@ -3452,12 +3452,13 @@ static int max77759_charger_probe(struct i2c_client *client)
 #if IS_ENABLED(CONFIG_GPIOLIB)
 	max77759_gpio_init(data);
 	data->gpio.parent = &client->dev;
-	struct device_node *dn = of_find_node_by_name(client->dev.of_node, data->gpio.label);
+	struct device_node *dn = of_get_child_by_name(client->dev.of_node, data->gpio.label);
 	if (!dn)
 		dev_err(&client->dev, "Failed to find %s DT node\n", data->gpio.label);
 	data->gpio.fwnode = of_fwnode_handle(dn);
 
 	ret = devm_gpiochip_add_data(&client->dev, &data->gpio, data);
+	of_node_put(dn);
 	dev_info(&client->dev, "%d GPIOs registered ret: %d\n", data->gpio.ngpio, ret);
 #endif
 
@@ -3529,6 +3530,10 @@ static void max77759_charger_remove(struct i2c_client *client)
 	device_init_wakeup(data->dev, false);
 	wakeup_source_unregister(data->usecase_wake_lock);
 	wakeup_source_unregister(data->otg_fccm_wake_lock);
+	if (data->wlc_psy) {
+		power_supply_put(data->wlc_psy);
+		data->wlc_psy = NULL;
+	}
 }
 
 

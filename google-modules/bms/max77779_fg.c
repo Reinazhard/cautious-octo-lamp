@@ -2409,7 +2409,7 @@ static struct device_node *max77779_fg_find_batt_node(struct max77779_fg_chip *c
 	u32 batt_id_kohm;
 	int ret;
 
-	config_node = of_find_node_by_name(dev->of_node, "max77779,config");
+	config_node = of_get_child_by_name(dev->of_node, "max77779,config");
 	if (!config_node) {
 		dev_warn(dev, "Failed to find max77779,config setting\n");
 		return NULL;
@@ -2420,10 +2420,13 @@ static struct device_node *max77779_fg_find_batt_node(struct max77779_fg_chip *c
 		if (ret != 0)
 			continue;
 
-		if (batt_id == batt_id_kohm)
+		if (batt_id == batt_id_kohm) {
+			of_node_put(config_node);
 			return child_node;
+		}
 	}
 
+	of_node_put(config_node);
 	return NULL;
 }
 
@@ -3662,10 +3665,12 @@ static int max77779_fg_init_chip(struct max77779_fg_chip *chip)
 	 * 1. The battery ID cannot be read.
 	 * 2. The battery ID is not in supported specifications.
 	 */
-	if (!chip->batt_id_defer_cnt || !max77779_fg_find_batt_node(chip)) {
+	struct device_node *test_node = max77779_fg_find_batt_node(chip);
+	if (!chip->batt_id_defer_cnt || !test_node) {
 		chip->batt_id = DEFAULT_BATTERY_ID;
 		dev_info(chip->dev, "default device battery ID = %d\n", chip->batt_id);
 	}
+	of_node_put(test_node);
 
 	/* TODO: b/283489811 - fix this */
 	/* do not request the interrupt if can't read battery or not present */
@@ -4158,9 +4163,9 @@ void max77779_fg_remove(struct max77779_fg_chip *chip)
 
 	if (chip->model_data)
 		max77779_free_data(chip->model_data);
-	cancel_delayed_work(&chip->init_work);
-	cancel_delayed_work(&chip->model_work);
-	cancel_delayed_work(&chip->stuck_monitor_work);
+	cancel_delayed_work_sync(&chip->init_work);
+	cancel_delayed_work_sync(&chip->model_work);
+	cancel_delayed_work_sync(&chip->stuck_monitor_work);
 
 	disable_irq_wake(chip->irq);
 	device_init_wakeup(chip->dev, false);
@@ -4171,6 +4176,7 @@ void max77779_fg_remove(struct max77779_fg_chip *chip)
 		power_supply_unregister(chip->psy);
 
 	maxfg_free_capture_buf(&chip->cb_lh);
+	of_node_put(chip->batt_node);
 }
 EXPORT_SYMBOL_GPL(max77779_fg_remove);
 

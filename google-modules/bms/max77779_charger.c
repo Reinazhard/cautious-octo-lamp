@@ -3835,12 +3835,13 @@ int max77779_charger_init(struct max77779_chgr_data *data)
 #if IS_ENABLED(CONFIG_GPIOLIB)
 	max77779_gpio_init(data);
 	data->gpio.parent = dev;
-	struct device_node *dn = of_find_node_by_name(dev->of_node, data->gpio.label);
+	struct device_node *dn = of_get_child_by_name(dev->of_node, data->gpio.label);
 	if (!dn)
 		dev_warn(dev, "Failed to find %s DT node\n", data->gpio.label);
 	data->gpio.fwnode = of_fwnode_handle(dn);
 
 	ret = devm_gpiochip_add_data(dev, &data->gpio, data);
+	of_node_put(dn);
 	dev_dbg(dev, "%d GPIOs registered ret: %d\n", data->gpio.ngpio, ret);
 #endif
 
@@ -3903,11 +3904,20 @@ EXPORT_SYMBOL_GPL(max77779_charger_init);
 
 void max77779_charger_remove(struct max77779_chgr_data *data)
 {
+	cancel_delayed_work_sync(&data->mode_rerun_work);
 	if (data->de)
 		debugfs_remove(data->de);
 	disable_irq_wake(data->irq_int);
 	device_init_wakeup(data->dev, false);
 	wakeup_source_unregister(data->usecase_wake_lock);
+	if (data->fg_psy) {
+		power_supply_put(data->fg_psy);
+		data->fg_psy = NULL;
+	}
+	if (data->wlc_psy) {
+		power_supply_put(data->wlc_psy);
+		data->wlc_psy = NULL;
+	}
 }
 EXPORT_SYMBOL_GPL(max77779_charger_remove);
 

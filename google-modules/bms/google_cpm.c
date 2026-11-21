@@ -3076,7 +3076,7 @@ mdis_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	lvl = gvotable_get_int_vote(el, MDIS_REASON_SETUP);
 
-	return sprintf(buf, "%d\n", lvl);
+	return sysfs_emit(buf, "%d\n", lvl);
 }
 
 static ssize_t
@@ -3265,6 +3265,7 @@ static int mdis_tdev_register(const char *of_name, const char *tcd_name,
 						 tcd_name,
 						 ctdev,
 						 ops);
+	of_node_put(cooling_node);
 	if (IS_ERR_OR_NULL(tcd)) {
 		const long err = PTR_ERR(tcd);
 

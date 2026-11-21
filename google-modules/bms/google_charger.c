@@ -5841,6 +5841,7 @@ chg_thermal_device_register(const char *of_name,
 							tcd_name,
 							ctdev,
 							ops);
+	of_node_put(cooling_node);
 
 	if (IS_ERR_OR_NULL(ctdev->tcd)) {
 		pr_err("error registering %s cooling device (%ld)\n",

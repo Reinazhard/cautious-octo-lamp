@@ -18,6 +18,7 @@
 #include <linux/bitops.h>
 #include <linux/completion.h>
 #include <linux/ctype.h>
+#include <linux/debugfs.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -98,10 +99,7 @@
 #define MAX77729_STORAGE_SIZE	8
 #define MAX77729_STORAGE_BASE	(MAX77729_AP_DATAOUT0 + MAX77729_STORAGE_SIZE)
 
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#endif
 
 #define MAX77729_INT_DEFAULT_MASK (MAX77729_UIC_INT_VBUSDETI |	\
 				   MAX77729_UIC_INT_APCMDRESI |	\
@@ -713,6 +711,8 @@ static void max77729_uic_remove(struct i2c_client *client)
 	 */
 	disable_irq(client->irq);
 	cancel_delayed_work_sync(&data->noautoibus_work);
+	if (data->de)
+		debugfs_remove_recursive(data->de);
 }
 
 static const struct of_device_id max77729_uic_of_match_table[] = {

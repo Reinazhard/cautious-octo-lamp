@@ -1330,7 +1330,7 @@ static int max77729_pmic_probe(struct i2c_client *client)
 		data->gpio.ngpio = MAX77759_NUM_GPIOS;
 		data->gpio.can_sleep = true;
 		data->gpio.base	= -1;
-		struct device_node *dn = of_find_node_by_name(dev->of_node, data->gpio.label);
+		struct device_node *dn = of_get_child_by_name(dev->of_node, data->gpio.label);
 		if (!dn)
 			dev_err(dev, "Failed to find %s DT node\n", data->gpio.label);
 		data->gpio.fwnode = of_fwnode_handle(dn);
@@ -1348,6 +1348,7 @@ static int max77729_pmic_probe(struct i2c_client *client)
 		girq->first = 0;
 
 		ret = devm_gpiochip_add_data(dev, &data->gpio, data);
+		of_node_put(dn);
 		if (ret)
 			dev_err(dev, "Failed to initialize gpio chip\n");
 

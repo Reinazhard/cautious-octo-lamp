@@ -159,8 +159,10 @@ struct device_node *gbms_batt_id_node(struct device_node *config_node)
 		if (ret != 0)
 			continue;
 
-		if (batt_id == gbatt_id)
+		if (batt_id == gbatt_id) {
+			of_node_put(child_node);
 			return child_node;
+		}
 	}
 
 	return config_node;
@@ -950,8 +952,8 @@ int gbms_init_aact_profile_internal(struct gbms_chg_profile *profile,
 						 cccm_array_size);
 	if (ret < 0) {
 		gbms_err(profile, "cannot read aact-cc-limits table, ret=%d\n", ret);
-		kfree(profile->cccm_limits);
-		profile->cccm_limits = 0;
+		kfree(profile->aact_cccm_limits);
+		profile->aact_cccm_limits = NULL;
 		return -EINVAL;
 	}
 

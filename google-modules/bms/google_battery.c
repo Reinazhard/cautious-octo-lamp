@@ -7872,24 +7872,32 @@ static ssize_t chg_profile_switch_store(struct device *dev,
 	if (batt_drv->chg_profile.debug_chg_profile == !!val)
 		return count;
 
+	mutex_lock(&batt_drv->chg_lock);
 	if (val)
-		node = of_find_node_by_name(batt_drv->device->of_node,
+		node = of_get_child_by_name(batt_drv->device->of_node,
 					    "google_debug_chg_profile");
 	else
-		node = batt_drv->device->of_node;
+		node = of_node_get(batt_drv->device->of_node);
 
-	if (!node)
+	if (!node) {
+		mutex_unlock(&batt_drv->chg_lock);
 		return count;
+	}
 
+	gbms_free_chg_profile(&batt_drv->chg_profile);
 	batt_drv->chg_profile.cccm_limits = 0;
 	ret = batt_init_chg_profile(batt_drv, node);
-	if (ret < 0)
+	of_node_put(node);
+	if (ret < 0) {
+		mutex_unlock(&batt_drv->chg_lock);
 		return ret;
+	}
 
 	pr_info("update debug_chg_profile:%d -> %d\n",
 		batt_drv->chg_profile.debug_chg_profile, (int)val);
 
 	batt_drv->chg_profile.debug_chg_profile = val;
+	mutex_unlock(&batt_drv->chg_lock);
 
 	return count;
 }
@@ -15000,6 +15008,11 @@ static void google_battery_remove(struct platform_device *pdev)
 		return;
 
 	power_supply_unreg_notifier(&batt_drv->fg_nb);
+
+	cancel_delayed_work_sync(&batt_drv->init_work);
+	cancel_delayed_work_sync(&batt_drv->batt_work);
+	cancel_delayed_work_sync(&batt_drv->power_metrics.work);
+	cancel_delayed_work_sync(&batt_drv->temp_filter.work);
 
 	if (batt_drv->ssoc_log)
 		logbuffer_unregister(batt_drv->ssoc_log);

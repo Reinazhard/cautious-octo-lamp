@@ -3675,7 +3675,7 @@ static struct device_node *max1720x_find_batt_node(struct max1720x_chip *chip)
 	u32 batt_id_range = 20, batt_id_kohm;
 	int ret;
 
-	config_node = of_find_node_by_name(dev->of_node, "maxim,config");
+	config_node = of_get_child_by_name(dev->of_node, "maxim,config");
 	if (!config_node) {
 		dev_warn(dev, "Failed to find maxim,config setting\n");
 		return NULL;
@@ -3703,13 +3703,18 @@ static struct device_node *max1720x_find_batt_node(struct max1720x_chip *chip)
 				continue;
 		}
 
-		if (!batt_id_range && batt_id == batt_id_kohm)
+		if (!batt_id_range && batt_id == batt_id_kohm) {
+			of_node_put(config_node);
 			return child_node;
+		}
 		if ((batt_id < (batt_id_kohm * (100 + batt_id_range) / 100)) &&
-		    (batt_id > (batt_id_kohm * (100 - batt_id_range) / 100)))
+		    (batt_id > (batt_id_kohm * (100 - batt_id_range) / 100))) {
+			of_node_put(config_node);
 			return child_node;
+		}
 	}
 
+	of_node_put(config_node);
 	return NULL;
 }
 
@@ -5657,11 +5662,16 @@ static int max1720x_init_chip(struct max1720x_chip *chip)
 	 * 1. The battery ID cannot be read.
 	 * 2. The battery ID is not in supported specifications.
 	 */
+	struct device_node *test_node = NULL;
+
+	if (chip->gauge_type == MAX_M5_GAUGE_TYPE)
+		test_node = max1720x_find_batt_node(chip);
 	if (!chip->batt_id_defer_cnt ||
-	   (chip->gauge_type == MAX_M5_GAUGE_TYPE && !max1720x_find_batt_node(chip))) {
+	   (chip->gauge_type == MAX_M5_GAUGE_TYPE && !test_node)) {
 		chip->batt_id = DEFAULT_BATTERY_ID;
 		dev_info(chip->dev, "default device battery ID = %d\n", chip->batt_id);
 	}
+	of_node_put(test_node);
 
 	if (chip->batt_id == DEFAULT_BATTERY_ID || chip->batt_id == DUMMY_BATTERY_ID) {
 		ret = REGMAP_WRITE(&chip->regmap, MAX_M5_CONFIG2, 0x0);
@@ -6859,6 +6869,7 @@ static void max1720x_remove(struct i2c_client *client)
 		i2c_unregister_device(chip->secondary);
 
 	maxfg_free_capture_buf(&chip->cb_lh);
+	of_node_put(chip->batt_node);
 }
 
 static const struct of_device_id max1720x_of_match[] = {

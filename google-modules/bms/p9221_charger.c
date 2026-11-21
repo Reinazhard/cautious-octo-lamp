@@ -8774,13 +8774,14 @@ static int p9221_charger_probe(struct i2c_client *client)
 	    charger->pdata->chip_id == RA9530_CHIP_ID) {
 		p9xxx_gpio_init(charger);
 		charger->gpio.parent = &client->dev;
-		struct device_node *dn = of_find_node_by_name(client->dev.of_node, charger->gpio.label);
+		struct device_node *dn = of_get_child_by_name(client->dev.of_node, charger->gpio.label);
 		if (!dn)
 			dev_err(&client->dev, "Failed to find %s DT node\n",
 				charger->gpio.label);
 		charger->gpio.fwnode = of_fwnode_handle(dn);
 
 		ret = devm_gpiochip_add_data(&client->dev, &charger->gpio, charger);
+		of_node_put(dn);
 		dev_info(&client->dev, "%d GPIOs registered ret:%d\n",
 			 charger->gpio.ngpio, ret);
 
@@ -8836,8 +8837,13 @@ static void p9221_charger_remove(struct i2c_client *client)
 	disable_irq_wake(charger->pdata->irq_int);
 	device_init_wakeup(charger->dev, false);
 	cancel_delayed_work_sync(&charger->notifier_work);
+	cancel_delayed_work_sync(&charger->soc_work);
 	if (!IS_ERR_OR_NULL(charger->batt_psy))
 		power_supply_put(charger->batt_psy);
+	if (!IS_ERR_OR_NULL(charger->dc_psy))
+		power_supply_put(charger->dc_psy);
+	if (charger->debug_entry)
+		debugfs_remove_recursive(charger->debug_entry);
 	mutex_destroy(&charger->io_lock);
 	mutex_destroy(&charger->stats_lock);
 	mutex_destroy(&charger->chg_features.feat_lock);

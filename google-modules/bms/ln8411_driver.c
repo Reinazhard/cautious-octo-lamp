@@ -5623,12 +5623,13 @@ static int ln8411_probe(struct i2c_client *client)
 #if IS_ENABLED(CONFIG_GPIOLIB)
 	ln8411_gpio_init(ln8411_charger);
 	ln8411_charger->gpio.parent = &client->dev;
-	struct device_node *dn = of_find_node_by_name(client->dev.of_node, ln8411_charger->gpio.label);
+	struct device_node *dn = of_get_child_by_name(client->dev.of_node, ln8411_charger->gpio.label);
 	if (!dn)
 		dev_err(&client->dev, "Failed to find %s DT node\n", ln8411_charger->gpio.label);
 	ln8411_charger->gpio.fwnode = of_fwnode_handle(dn);
 
 	ret = devm_gpiochip_add_data(&client->dev, &ln8411_charger->gpio, ln8411_charger);
+	of_node_put(dn);
 	dev_info(&client->dev, "%d GPIOs registered ret: %d\n", ln8411_charger->gpio.ngpio, ret);
 #endif
 
@@ -5654,6 +5655,7 @@ static int ln8411_probe(struct i2c_client *client)
 	return 0;
 
 error:
+	cancel_delayed_work_sync(&ln8411_charger->init_hw_work);
 	destroy_workqueue(ln8411_charger->dc_wq);
 	mutex_destroy(&ln8411_charger->lock);
 	wakeup_source_unregister(ln8411_charger->monitor_wake_lock);
@@ -5679,6 +5681,7 @@ static void ln8411_remove(struct i2c_client *client)
 {
 	struct ln8411_charger *ln8411_charger = i2c_get_clientdata(client);
 
+	cancel_delayed_work_sync(&ln8411_charger->init_hw_work);
 	/* stop charging if it is active */
 	ln8411_stop_charging(ln8411_charger);
 

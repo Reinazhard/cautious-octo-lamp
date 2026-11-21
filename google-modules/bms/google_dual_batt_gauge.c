@@ -1100,8 +1100,10 @@ static int gdbatt_init_chg_profile(struct dual_fg_drv *dual_fg_drv)
 		return 0;
 
 	ret = gbms_init_chg_profile(profile, node);
-	if (ret < 0)
+	if (ret < 0) {
+		of_node_put(node);
 		return -EINVAL;
+	}
 
 	ret = of_property_read_u32(node, "google,chg-battery-capacity",
 				   &dual_fg_drv->battery_capacity);
@@ -1121,10 +1123,13 @@ static int gdbatt_init_chg_profile(struct dual_fg_drv *dual_fg_drv)
 	gbms_init_chg_table(profile, node, dual_fg_drv->battery_capacity);
 	ret = gdbatt_init_pack_chg_profile(&dual_fg_drv->base_profile, dual_fg_node, profile,
 					   dual_fg_drv->base_capacity);
-	if (ret < 0)
+	if (ret < 0) {
+		of_node_put(node);
 		return ret;
+	}
 	ret = gdbatt_init_pack_chg_profile(&dual_fg_drv->sec_profile, dual_fg_node, profile,
 					   dual_fg_drv->sec_capacity);
+	of_node_put(node);
 	if (ret < 0)
 		return ret;
 
@@ -1443,6 +1448,16 @@ static void google_dual_batt_gauge_remove(struct platform_device *pdev)
 		return;
 
 	power_supply_unreg_notifier(&dual_fg_drv->fg_nb);
+	cancel_delayed_work_sync(&dual_fg_drv->init_work);
+	cancel_delayed_work_sync(&dual_fg_drv->gdbatt_work);
+
+	if (dual_fg_drv->first_fg_psy)
+		power_supply_put(dual_fg_drv->first_fg_psy);
+	if (dual_fg_drv->second_fg_psy)
+		power_supply_put(dual_fg_drv->second_fg_psy);
+	if (dual_fg_drv->batt_psy)
+		power_supply_put(dual_fg_drv->batt_psy);
+
 	gbms_free_chg_profile(&dual_fg_drv->chg_profile);
 	kfree(dual_fg_drv->base_profile.cccm_limits);
 	kfree(dual_fg_drv->sec_profile.cccm_limits);

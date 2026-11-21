@@ -2096,13 +2096,14 @@ static int rt9471_probe(struct i2c_client *client)
 	if (chip->dev_id == RT9470_DEVID) {
 		rt9471_gpio_init(chip);
 		chip->gpio.parent = chip->dev;
-		struct device_node *dn = of_find_node_by_name(client->dev.of_node, chip->gpio.label);
+		struct device_node *dn = of_get_child_by_name(client->dev.of_node, chip->gpio.label);
 		if (!dn)
 			dev_warn(chip->dev, "Failed to find %s DT node\n",
 				chip->gpio.label);
 		chip->gpio.fwnode = of_fwnode_handle(dn);
 
 		ret = devm_gpiochip_add_data(chip->dev, &chip->gpio, chip);
+		of_node_put(dn);
 		dev_info(chip->dev, "%d GPIOs registered ret:%d\n",
 			 chip->gpio.ngpio, ret);
 	}
@@ -2116,7 +2117,6 @@ static int rt9471_probe(struct i2c_client *client)
 
 err_init_irq:
 err_register_irq:
-	power_supply_unregister(chip->psy);
 err_psy:
 err_init:
 err_register_rm:
@@ -2145,6 +2145,9 @@ static void rt9471_remove(struct i2c_client *client)
 	dev_info(chip->dev, "%s\n", __func__);
 	disable_irq(chip->irq);
 	disable_irq_wake(chip->irq);
+	cancel_work_sync(&chip->init_work);
+	cancel_delayed_work_sync(&chip->buck_dwork);
+	device_remove_file(chip->dev, &dev_attr_registers_dump);
 	mutex_destroy(&chip->io_lock);
 	mutex_destroy(&chip->bc12_lock);
 	mutex_destroy(&chip->hidden_mode_lock);
