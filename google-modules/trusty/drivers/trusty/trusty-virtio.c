@@ -451,6 +451,14 @@ static const struct virtio_config_ops trusty_virtio_config_ops = {
 	.bus_name = trusty_virtio_bus_name,
 };
 
+static void trusty_virtio_dev_release(struct device *dev)
+{
+	struct virtio_device *vdev = dev_to_virtio(dev);
+	struct trusty_vdev *tvdev = vdev_to_tvdev(vdev);
+
+	kfree(tvdev);
+}
+
 static int trusty_virtio_add_device(struct trusty_ctx *tctx,
 				    struct fw_rsc_vdev *vdev_descr,
 				    struct fw_rsc_vdev_vring *vr_descr,
@@ -467,6 +475,7 @@ static int trusty_virtio_add_device(struct trusty_ctx *tctx,
 	/* setup vdev */
 	tvdev->tctx = tctx;
 	tvdev->vdev.dev.parent = tctx->dev;
+	tvdev->vdev.dev.release = trusty_virtio_dev_release;
 	tvdev->vdev.id.device  = vdev_descr->id;
 	tvdev->vdev.config = &trusty_virtio_config_ops;
 	tvdev->vdev_descr = vdev_descr;
@@ -598,7 +607,6 @@ static void _remove_devices_locked(struct trusty_ctx *tctx)
 	list_for_each_entry_safe(tvdev, next, &tctx->vdev_list, node) {
 		list_del(&tvdev->node);
 		unregister_virtio_device(&tvdev->vdev);
-		kfree(tvdev);
 	}
 }
 

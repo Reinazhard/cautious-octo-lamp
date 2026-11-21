@@ -403,6 +403,8 @@ int trusty_transfer_memory(struct device *dev, u64 *id,
 	count = dma_map_sg(dev, sglist, nents, DMA_BIDIRECTIONAL);
 	if (count != nents) {
 		dev_err(s->dev, "failed to dma map sg_table\n");
+		if (count > 0)
+			dma_unmap_sg(dev, sglist, nents, DMA_BIDIRECTIONAL);
 		return -EINVAL;
 	}
 
