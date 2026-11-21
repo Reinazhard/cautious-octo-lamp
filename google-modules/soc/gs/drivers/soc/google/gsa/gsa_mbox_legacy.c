@@ -464,7 +464,7 @@ static int gsa_data_xfer_prepare_locked(struct gsa_mbox *mb)
 	++mb->wake_ref_cnt;
 
 	/* resume gsa s2mpu */
-	ret = pm_runtime_get_sync(mb->s2mpu);
+	ret = pm_runtime_resume_and_get(mb->s2mpu);
 	if (ret < 0) {
 		dev_err(mb->s2mpu, "failed to resume s2mpu (%d)\n", ret);
 		goto err_s2mpu_resume;
