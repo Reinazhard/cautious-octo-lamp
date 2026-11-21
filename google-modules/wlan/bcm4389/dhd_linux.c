@@ -6798,8 +6798,8 @@ exit:
 	if (!dhd_download_fw_on_driverload &&
 		(dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT) &&
 		(skip_reset == false)) {
-		DHD_OS_WAKE_LOCK_DESTROY(dhd);
 		dhd->dhd_state &= ~DHD_ATTACH_STATE_WAKELOCKS_INIT;
+		DHD_OS_WAKE_LOCK_DESTROY(dhd);
 	}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0) && defined(DHD_TCP_LIMIT_OUTPUT)
@@ -14510,6 +14510,7 @@ void dhd_detach(dhd_pub_t *dhdp)
 #endif /* CONFIG_HAS_WAKELOCK */
 	if (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT) {
 		DHD_TRACE(("wd wakelock count:%d\n", dhd->wakelock_wd_counter));
+		dhd->dhd_state &= ~DHD_ATTACH_STATE_WAKELOCKS_INIT;
 		DHD_OS_WAKE_LOCK_DESTROY(dhd);
 	}
 
@@ -18290,9 +18291,9 @@ int dhd_os_wake_lock(dhd_pub_t *pub)
 
 void dhd_event_wake_lock(dhd_pub_t *pub)
 {
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+	dhd_info_t *dhd = pub ? (dhd_info_t *)(pub->info) : NULL;
 
-	if (dhd) {
+	if (dhd && (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
 #ifdef CONFIG_HAS_WAKELOCK
 		dhd_wake_lock(dhd->wl_evtwake);
 #elif defined(BCMSDIO)
@@ -18305,9 +18306,9 @@ void
 dhd_pm_wake_lock_timeout(dhd_pub_t *pub, int val)
 {
 #ifdef CONFIG_HAS_WAKELOCK
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+	dhd_info_t *dhd = pub ? (dhd_info_t *)(pub->info) : NULL;
 
-	if (dhd) {
+	if (dhd && (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
 		dhd_wake_lock_timeout(dhd->wl_pmwake, msecs_to_jiffies(val));
 	}
 #endif /* CONFIG_HAS_WAKE_LOCK */
@@ -18317,9 +18318,9 @@ void
 dhd_nan_wake_lock_timeout(dhd_pub_t *pub, int val)
 {
 #ifdef CONFIG_HAS_WAKELOCK
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+	dhd_info_t *dhd = pub ? (dhd_info_t *)(pub->info) : NULL;
 
-	if (dhd) {
+	if (dhd && (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
 		dhd_wake_lock_timeout(dhd->wl_nanwake, msecs_to_jiffies(val));
 	}
 #endif /* CONFIG_HAS_WAKE_LOCK */
@@ -18367,9 +18368,9 @@ int dhd_os_wake_unlock(dhd_pub_t *pub)
 
 void dhd_event_wake_unlock(dhd_pub_t *pub)
 {
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+	dhd_info_t *dhd = pub ? (dhd_info_t *)(pub->info) : NULL;
 
-	if (dhd) {
+	if (dhd && (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
 #ifdef CONFIG_HAS_WAKELOCK
 		dhd_wake_unlock(dhd->wl_evtwake);
 #elif defined(BCMSDIO)
@@ -18381,9 +18382,9 @@ void dhd_event_wake_unlock(dhd_pub_t *pub)
 void dhd_pm_wake_unlock(dhd_pub_t *pub)
 {
 #ifdef CONFIG_HAS_WAKELOCK
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+	dhd_info_t *dhd = pub ? (dhd_info_t *)(pub->info) : NULL;
 
-	if (dhd) {
+	if (dhd && (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
 		/* if wl_pmwake is active, unlock it */
 		if (dhd_wake_lock_active(dhd->wl_pmwake)) {
 			dhd_wake_unlock(dhd->wl_pmwake);
@@ -18395,9 +18396,9 @@ void dhd_pm_wake_unlock(dhd_pub_t *pub)
 void dhd_txfl_wake_unlock(dhd_pub_t *pub)
 {
 #ifdef CONFIG_HAS_WAKELOCK
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+	dhd_info_t *dhd = pub ? (dhd_info_t *)(pub->info) : NULL;
 
-	if (dhd) {
+	if (dhd && (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
 		/* if wl_txflwake is active, unlock it */
 		if (dhd_wake_lock_active(dhd->wl_txflwake)) {
 			dhd_wake_unlock(dhd->wl_txflwake);
@@ -18409,9 +18410,9 @@ void dhd_txfl_wake_unlock(dhd_pub_t *pub)
 void dhd_nan_wake_unlock(dhd_pub_t *pub)
 {
 #ifdef CONFIG_HAS_WAKELOCK
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+	dhd_info_t *dhd = pub ? (dhd_info_t *)(pub->info) : NULL;
 
-	if (dhd) {
+	if (dhd && (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
 		/* if wl_nanwake is active, unlock it */
 		if (dhd_wake_lock_active(dhd->wl_nanwake)) {
 			dhd_wake_unlock(dhd->wl_nanwake);
@@ -18563,9 +18564,9 @@ void
 dhd_os_oob_irq_wake_lock_timeout(dhd_pub_t *pub, int val)
 {
 #ifdef CONFIG_HAS_WAKELOCK
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+	dhd_info_t *dhd = pub ? (dhd_info_t *)(pub->info) : NULL;
 
-	if (dhd) {
+	if (dhd && (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
 		dhd_wake_lock_timeout(dhd->wl_intrwake, msecs_to_jiffies(val));
 	}
 #endif /* CONFIG_HAS_WAKELOCK */
@@ -18575,9 +18576,9 @@ void
 dhd_os_oob_irq_wake_unlock(dhd_pub_t *pub)
 {
 #ifdef CONFIG_HAS_WAKELOCK
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+	dhd_info_t *dhd = pub ? (dhd_info_t *)(pub->info) : NULL;
 
-	if (dhd) {
+	if (dhd && (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
 		/* if wl_intrwake is active, unlock it */
 		if (dhd_wake_lock_active(dhd->wl_intrwake)) {
 			dhd_wake_unlock(dhd->wl_intrwake);
@@ -18592,9 +18593,9 @@ void
 dhd_os_scan_wake_lock_timeout(dhd_pub_t *pub, int val)
 {
 #ifdef CONFIG_HAS_WAKELOCK
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+	dhd_info_t *dhd = pub ? (dhd_info_t *)(pub->info) : NULL;
 
-	if (dhd) {
+	if (dhd && (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
 		dhd_wake_lock_timeout(dhd->wl_scanwake, msecs_to_jiffies(val));
 	}
 #endif /* CONFIG_HAS_WAKELOCK */
@@ -18604,9 +18605,9 @@ void
 dhd_os_scan_wake_unlock(dhd_pub_t *pub)
 {
 #ifdef CONFIG_HAS_WAKELOCK
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+	dhd_info_t *dhd = pub ? (dhd_info_t *)(pub->info) : NULL;
 
-	if (dhd) {
+	if (dhd && (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
 		/* if wl_scanwake is active, unlock it */
 		if (dhd_wake_lock_active(dhd->wl_scanwake)) {
 			dhd_wake_unlock(dhd->wl_scanwake);

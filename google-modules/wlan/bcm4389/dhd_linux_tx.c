@@ -1116,9 +1116,9 @@ void
 dhd_txfl_wake_lock_timeout(dhd_pub_t *pub, int val)
 {
 #ifdef CONFIG_HAS_WAKELOCK
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+	dhd_info_t *dhd = pub ? (dhd_info_t *)(pub->info) : NULL;
 
-	if (dhd) {
+	if (dhd && (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
 		dhd_wake_lock_timeout(dhd->wl_txflwake, msecs_to_jiffies(val));
 	}
 #endif /* CONFIG_HAS_WAKE_LOCK */
