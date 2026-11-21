@@ -160,10 +160,12 @@ int kbase_device_pcm_dev_init(struct kbase_device *const kbdev)
 			if (!pcm_dev) {
 				dev_info(kbdev->dev, "Priority control manager is not ready");
 				err = -EPROBE_DEFER;
+				put_device(&pdev->dev);
 			} else if (!try_module_get(pcm_dev->owner)) {
 				dev_err(kbdev->dev,
 					"Failed to get priority control manager module");
 				err = -ENODEV;
+				put_device(&pdev->dev);
 			} else {
 				dev_info(kbdev->dev,
 					 "Priority control manager successfully loaded");
@@ -180,6 +182,7 @@ int kbase_device_pcm_dev_init(struct kbase_device *const kbdev)
 							kbdev->dev,
 							"Failed to register for changes in prioritized processes");
 				}
+				put_device(&pdev->dev);
 			}
 		}
 		of_node_put(prio_ctrl_node);

@@ -347,8 +347,11 @@ static ssize_t trigger_fw_fault_store(struct device *dev, struct device_attribut
 
 	/* Make this a no-op on -user builds. */
 	if ((!dpm) || of_property_read_string(dpm, "variant", &variant) ||
-	    (!strcmp(variant, "user")))
+	    (!strcmp(variant, "user"))) {
+		of_node_put(dpm);
 		return count;
+	}
+	of_node_put(dpm);
 
 	(void)attr, (void)buf;
 

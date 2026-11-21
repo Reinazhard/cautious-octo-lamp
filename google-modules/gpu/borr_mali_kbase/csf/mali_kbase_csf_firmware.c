@@ -3335,6 +3335,9 @@ void kbase_csf_firmware_mcu_shared_mapping_term(struct kbase_device *kbdev,
 						struct kbase_csf_mapping *csf_mapping)
 {
 	if (csf_mapping->va_reg) {
+		kbase_mmu_teardown_pages(kbdev, &kbdev->csf.mcu_mmu,
+					 csf_mapping->va_reg->start_pfn,
+					 csf_mapping->num_pages);
 		mutex_lock(&kbdev->csf.reg_lock);
 		kbase_remove_va_region(kbdev, csf_mapping->va_reg);
 		kbase_free_alloced_region(csf_mapping->va_reg);

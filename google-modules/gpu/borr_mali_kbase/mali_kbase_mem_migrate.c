@@ -327,8 +327,10 @@ static int kbasep_migrate_page_allocated_mapped(struct page *old_page, struct pa
 
 	/* Create a new dma map for the new page */
 	new_dma_addr = dma_map_page(kbdev->dev, new_page, 0, PAGE_SIZE, DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(kbdev->dev, new_dma_addr))
+	if (dma_mapping_error(kbdev->dev, new_dma_addr)) {
+		fput(filp);
 		return -ENOMEM;
+	}
 
 	/* Synchronize with the VM fault() function and then
 	 * unmap the old physical range. After that, we can

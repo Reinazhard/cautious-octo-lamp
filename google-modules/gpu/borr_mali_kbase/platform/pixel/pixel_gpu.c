@@ -154,11 +154,19 @@ static int gpu_s2mpu_init(struct kbase_device *kbdev)
 done:
 	return ret;
 }
+
+static void gpu_s2mpu_term(struct kbase_device *kbdev)
+{
+	if (kbdev->s2mpu_dev) {
+		put_device(kbdev->s2mpu_dev);
+		kbdev->s2mpu_dev = NULL;
+	}
+}
 #endif /* CONFIG_MALI_PM_RUNTIME_S2MPU_CONTROL */
 
 static const struct kbase_device_init dev_init[] = {
 #ifdef CONFIG_MALI_PM_RUNTIME_S2MPU_CONTROL
-	{ gpu_s2mpu_init, NULL, "S2MPU init failed" },
+	{ gpu_s2mpu_init, gpu_s2mpu_term, "S2MPU init failed" },
 #endif /* CONFIG_MALI_PM_RUNTIME_S2MPU_CONTROL */
 	{ gpu_pm_init, gpu_pm_term, "PM init failed" },
 #ifdef CONFIG_MALI_MIDGARD_DVFS

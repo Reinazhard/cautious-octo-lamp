@@ -326,11 +326,13 @@ int kbase_pbha_read_dtb(struct kbase_device *kbdev)
 		return 0;
 
 	err = kbase_pbha_read_int_id_override_property(kbdev, pbha_node);
-
-	if (err < 0)
+	if (err < 0) {
+		of_node_put(pbha_node);
 		return err;
+	}
 
 	err = kbase_pbha_read_propagate_bits_property(kbdev, pbha_node);
+	of_node_put(pbha_node);
 	return err;
 #else
 	return 0;

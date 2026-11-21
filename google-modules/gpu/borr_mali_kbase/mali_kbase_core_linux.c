@@ -4625,8 +4625,10 @@ static bool kbase_is_pm_enabled(const struct device_node *gpu_node)
 	if (!power_model_node)
 		power_model_node = of_get_child_by_name(gpu_node, "power_model");
 
-	if (power_model_node)
+	if (power_model_node) {
 		is_pm_enable = true;
+		of_node_put(power_model_node);
+	}
 
 	cooling_cells_node = of_get_property(gpu_node, "#cooling-cells", NULL);
 	if (cooling_cells_node)

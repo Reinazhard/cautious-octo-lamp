@@ -2089,6 +2089,10 @@ static int delete_queue(struct kbase_context *kctx, u32 id)
 
 		mutex_unlock(&queue->lock);
 
+		del_timer_sync(&queue->fence_signal_timeout);
+#if IS_ENABLED(CONFIG_MALI_FENCE_DEBUG)
+		del_timer_sync(&queue->fence_timeout);
+#endif
 		kthread_cancel_work_sync(&queue->timeout_work);
 
 		/*
