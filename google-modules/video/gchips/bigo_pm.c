@@ -146,7 +146,7 @@ static inline void update_mif_floor(struct bigo_core *core)
 		list_for_each_entry(inst, &core->instances, list) {
 			if (inst->idle)
 				continue;
-			curr_load = inst->width * inst->height * inst->fps * inst->bpp / 1024;
+			curr_load = (u32)((u64)inst->width * inst->height * inst->fps * inst->bpp / 1024);
 			load += curr_load;
 		}
 	}

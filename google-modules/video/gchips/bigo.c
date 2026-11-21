@@ -118,8 +118,8 @@ static inline int on_first_instance_open(struct bigo_core *core)
 		goto exit;
 	}
 #if IS_ENABLED(CONFIG_PM)
-	rc = pm_runtime_get_sync(core->dev);
-	if (rc)
+	rc = pm_runtime_resume_and_get(core->dev);
+	if (rc < 0)
 		pr_err("failed to resume: %d\n", rc);
 #endif
 
