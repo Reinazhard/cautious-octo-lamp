@@ -836,6 +836,7 @@ static int eusb_repeater_parse_dt(struct device *dev, struct eusb_repeater_data 
 	tune_node = of_parse_phandle(dev->of_node, "repeater_tune_param", 0);
 	if (tune_node != NULL) {
 		ret = eusb_repeater_fill_tune_param(tud, tune_node);
+		of_node_put(tune_node);
 		if (ret < 0) {
 			dev_err(dev, "can't fill repeater tuning param\n");
 			return -EINVAL;
