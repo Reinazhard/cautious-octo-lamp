@@ -241,6 +241,7 @@ static int usb_audio_offload_init(struct xhci_hcd *xhci)
 		}
 
 		rmem = of_reserved_mem_lookup(np);
+		of_node_put(np);
 		if (!rmem) {
 			dev_err(dev, "rmem lookup failed.\n");
 			ret = -ENOMEM;
@@ -294,6 +295,7 @@ unmap_iommu:
 				continue;
 
 			rmem = of_reserved_mem_lookup(np);
+			of_node_put(np);
 			if (!rmem)
 				continue;
 
@@ -362,6 +364,7 @@ static void usb_audio_offload_cleanup(struct xhci_hcd *xhci)
 		}
 
 		rmem = of_reserved_mem_lookup(np);
+		of_node_put(np);
 		if (!rmem) {
 			dev_err(dev, "rmem lookup failed.\n");
 			continue;
