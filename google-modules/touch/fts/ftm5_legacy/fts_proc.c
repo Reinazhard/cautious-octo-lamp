@@ -623,7 +623,7 @@ static int fts_driver_test_open(struct inode *inode, struct file *file)
 	struct fts_ts_info *info = pde_data(inode);
 
 	if (!info) {
-		dev_err(info->dev, "%s: Unable to access driver data\n", __func__);
+		pr_err("%s: Unable to access driver data\n", __func__);
 		retval = -ENODEV;
 		goto exit;
 	}
@@ -667,7 +667,7 @@ static int fts_driver_test_release(struct inode *inode, struct file *file)
 	if (info)
 		mutex_lock(&info->diag_cmd_lock);
 	else
-		dev_err(info->dev, "%s: Unable to access driver data\n", __func__);
+		pr_err("%s: Unable to access driver data\n", __func__);
 
 	retval = seq_release(inode, file);
 
@@ -745,7 +745,7 @@ static ssize_t fts_driver_test_write(struct file *file, const char __user *buf,
 	const char *limits_file = info->board->limits_name;
 
 	if (!info) {
-		dev_err(info->dev, "%s: Unable to access driver data\n", __func__);
+		pr_err("%s: Unable to access driver data\n", __func__);
 		count =  -ENODEV;
 		goto exit;
 	}
@@ -798,10 +798,9 @@ static ssize_t fts_driver_test_write(struct file *file, const char __user *buf,
 	/*for(temp = 0; temp<count; temp++){
 	  *      dev_err(info->dev, "p[%d] = %02X\n", temp, p[temp]);
 	  * }*/
-	if (access_ok(buf, count) < OK ||
-	    copy_from_user(pbuf, buf, count) != 0) {
+	if (copy_from_user(pbuf, buf, count) != 0) {
 		res = ERROR_ALLOC;
-		goto END;
+		goto ERROR;
 	}
 
 	maxNum_cmd = count;
@@ -3790,7 +3789,7 @@ int fts_proc_init(struct fts_ts_info *info)
 	}
 	return OK;
 badfile:
-	remove_proc_entry("fts", NULL);
+	proc_remove(info->fts_dir);
 out:
 	return retval;
 }
@@ -3802,7 +3801,6 @@ out:
   */
 int fts_proc_remove(struct fts_ts_info *info)
 {
-	remove_proc_entry(DRIVER_TEST_FILE_NODE, info->fts_dir);
-	remove_proc_entry("fts", NULL);
+	proc_remove(info->fts_dir);
 	return OK;
 }

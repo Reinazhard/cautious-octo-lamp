@@ -341,8 +341,10 @@ static ssize_t sec_ts_regread_show(struct device *dev,
 	mutex_lock(&ts->device_mutex);
 
 	read_lv1_buff = kzalloc(lv1_readsize, GFP_KERNEL);
-	if (!read_lv1_buff)
+	if (!read_lv1_buff) {
+		ret = -ENOMEM;
 		goto malloc_err;
+	}
 
 	ret = ts->sec_ts_read_heap(ts, lv1cmd, read_lv1_buff, lv1_readsize);
 	if (ret < 0) {
@@ -363,7 +365,7 @@ malloc_err:
 	lv1_readremain = 0;
 	enable_irq(ts->client->irq);
 
-	return lv1_readsize;
+	return ret < 0 ? ret : lv1_readsize;
 }
 
 static ssize_t sec_ts_gesture_status_show(struct device *dev,
@@ -389,6 +391,9 @@ static ssize_t sec_ts_regreadsize_store(struct device *dev,
 					const char *buf, size_t size)
 {
 	struct sec_ts_data *ts = dev_get_drvdata(dev);
+
+	if (size < 5)
+		return -EINVAL;
 
 	mutex_lock(&ts->device_mutex);
 

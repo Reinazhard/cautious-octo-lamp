@@ -463,24 +463,15 @@ int parseBinFile(struct fts_ts_info *info, u8 *fw_data, int fw_size,
 
 		/* if (!keep_cx) */
 		/* { */
-		dimension = fwData->sec0_size + fwData->sec1_size +
-			    fwData->sec2_size + fwData->sec3_size;
-		temp = fw_size;
-		/*} else
-		 * {
-		 *      dimension = fwData->sec0_size + fwData->sec1_size;
-		 *      temp = fw_size - fwData->sec2_size - fwData->sec3_size;
-		 *      fwData->sec2_size = 0;
-		 *      fwData->sec3_size = 0;
-		 * }*/
-
-		if (dimension + FW_HEADER_SIZE + FW_BYTES_ALIGN != temp) {
-			dev_err(info->dev, "parseBinFile: Read only %d instead of %d... ERROR %08X\n",
-				fw_size, dimension + FW_HEADER_SIZE +
-				FW_BYTES_ALIGN, ERROR_FILE_PARSE);
+		u64 total_dim = (u64)fwData->sec0_size + fwData->sec1_size +
+				fwData->sec2_size + fwData->sec3_size;
+		if (total_dim > INT_MAX || total_dim + FW_HEADER_SIZE + FW_BYTES_ALIGN != fw_size) {
+			dev_err(info->dev, "parseBinFile: Read only %d instead of %llu... ERROR %08X\n",
+				fw_size, total_dim + FW_HEADER_SIZE + FW_BYTES_ALIGN, ERROR_FILE_PARSE);
 			res = ERROR_FILE_PARSE;
 			goto END;
 		}
+		dimension = (int)total_dim;
 
 		fwData->data = (u8 *)kmalloc(dimension * sizeof(u8),
 					     GFP_KERNEL);
@@ -492,7 +483,7 @@ int parseBinFile(struct fts_ts_info *info, u8 *fw_data, int fw_size,
 
 		index += FW_BYTES_ALIGN;
 		memcpy(fwData->data, &fw_data[index], dimension);
-		if (fwData->sec2_size != 0) {
+		if (fwData->sec2_size >= FW_CX_AFE_VERSION + 1) {
 			u8ToU16(&fwData->data[fwData->sec0_size +
 					     fwData->sec1_size +
 					FW_CX_VERSION], &fwData->cx_ver);
@@ -505,7 +496,7 @@ int parseBinFile(struct fts_ts_info *info, u8 *fw_data, int fw_size,
 			fwData->cx_ver = info->systemInfo.u16_cxVer;
 			fwData->cx_afe_ver = info->systemInfo.u8_cxAfeVer;
 		}
-		if (fwData->sec1_size != 0)
+		if (fwData->sec1_size >= FW_CFG_AFE_VERSION + 1)
 			fwData->cfg_afe_ver = fwData->data[fwData->sec0_size +
 						FW_CFG_AFE_VERSION];
 		else {

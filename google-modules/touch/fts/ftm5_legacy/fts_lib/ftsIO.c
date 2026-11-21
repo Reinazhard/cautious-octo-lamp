@@ -478,7 +478,12 @@ int fts_write(struct fts_ts_info *info, u8 *cmd, int cmdLength)
 
 int fts_write_heap(struct fts_ts_info *info, u8 *cmd, int cmdLength)
 {
-	return fts_write_internal(info, cmd, cmdLength, true);
+	int ret;
+
+	mutex_lock(&info->io_mutex);
+	ret = fts_write_internal(info, cmd, cmdLength, true);
+	mutex_unlock(&info->io_mutex);
+	return ret;
 }
 
 int fts_writeFwCmd(struct fts_ts_info *info, u8 *cmd, int cmdLength)

@@ -1099,7 +1099,7 @@ static int sec_ts_firmware_update(struct sec_ts_data *ts, const u8 *data,
 
 int sec_ts_firmware_update_bl(struct sec_ts_data *ts)
 {
-	const struct firmware *fw_entry;
+	const struct firmware *fw_entry = NULL;
 	char fw_path[SEC_TS_MAX_FW_PATH];
 	int result = -1;
 
@@ -1185,7 +1185,7 @@ err:
 
 int sec_ts_firmware_update_on_probe(struct sec_ts_data *ts, bool force_update)
 {
-	const struct firmware *fw_entry;
+	const struct firmware *fw_entry = NULL;
 	char fw_path[SEC_TS_MAX_FW_PATH];
 	int result = -1, restore_cal = 0;
 	int ii = 0;
@@ -1351,7 +1351,7 @@ err_request_fw:
 
 static int sec_ts_load_fw_from_bin(struct sec_ts_data *ts)
 {
-	const struct firmware *fw_entry;
+	const struct firmware *fw_entry = NULL;
 	char fw_path[SEC_TS_MAX_FW_PATH];
 	int error = 0;
 
@@ -1398,7 +1398,7 @@ err_request_fw:
 
 static int sec_ts_load_fw_from_ffu(struct sec_ts_data *ts)
 {
-	const struct firmware *fw_entry;
+	const struct firmware *fw_entry = NULL;
 	const char *fw_path = SEC_TS_DEFAULT_FFU_FW;
 	int result = -1, restore_cal = 0;
 

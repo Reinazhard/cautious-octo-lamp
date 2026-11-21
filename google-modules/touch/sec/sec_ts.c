@@ -5017,10 +5017,6 @@ error_alloc_workqueue:
 error_allocate_mem:
 	if (gpio_is_valid(pdata->irq_gpio))
 		gpio_free(pdata->irq_gpio);
-	if (gpio_is_valid(pdata->tsp_id))
-		gpio_free(pdata->tsp_id);
-	if (gpio_is_valid(pdata->tsp_icid))
-		gpio_free(pdata->tsp_icid);
 	if (gpio_is_valid(pdata->switch_gpio))
 		gpio_free(pdata->switch_gpio);
 	if (gpio_is_valid(pdata->reset_gpio))
@@ -5443,7 +5439,7 @@ static void sec_ts_remove(struct spi_device *client)
 	fw_update_cancelled = cancel_delayed_work_sync(&ts->fw_update_work);
 	destroy_workqueue(ts->fw_update_wq);
 #endif
-	if (!fw_update_cancelled)
+	if (!fw_update_cancelled && ts->panel_bridge.dev)
 		unregister_panel_bridge(&ts->panel_bridge);
 
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_OFFLOAD)
@@ -5805,7 +5801,7 @@ static void sec_ts_suspend_work(struct work_struct *work)
 		input_err(true, &ts->client->dev,
 			"%s: write clear event failed\n", __func__);
 
-	disable_irq_nosync(ts->client->irq);
+	disable_irq(ts->client->irq);
 	sec_ts_locked_release_all_finger(ts);
 
 	if (ts->plat_data->enable_sync)

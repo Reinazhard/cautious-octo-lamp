@@ -4534,10 +4534,8 @@ static irqreturn_t fts_interrupt_handler(int irq, void *handle)
 	/* It is possible that interrupts were disabled while the handler is
 	 * executing, before acquiring the mutex. If so, simply return.
 	 */
-	if (fts_set_bus_ref(info, FTS_BUS_REF_IRQ, true) < 0) {
-		fts_set_bus_ref(info, FTS_BUS_REF_IRQ, false);
+	if (fts_set_bus_ref(info, FTS_BUS_REF_IRQ, true) < 0)
 		return IRQ_HANDLED;
-	}
 
 	/* prevent CPU from entering deep sleep */
 	cpu_latency_qos_update_request(&info->pm_qos_req, 100);
@@ -7014,7 +7012,13 @@ ProbeErrorExit_7:
 	if(info->touchsim.wq)
 		destroy_workqueue(info->touchsim.wq);
 
-	unregister_panel_bridge(&info->panel_bridge);
+	if (info->panel_bridge.dev)
+		unregister_panel_bridge(&info->panel_bridge);
+
+	if (info->fwu_workqueue) {
+		cancel_delayed_work_sync(&info->fwu_work);
+		destroy_workqueue(info->fwu_workqueue);
+	}
 
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_OFFLOAD)
 	touch_offload_cleanup(&info->offload);
@@ -7025,7 +7029,8 @@ ProbeErrorExit_7:
 #endif
 
 ProbeErrorExit_6:
-	cpu_latency_qos_remove_request(&info->pm_qos_req);
+	if (cpu_latency_qos_request_active(&info->pm_qos_req))
+		cpu_latency_qos_remove_request(&info->pm_qos_req);
 	input_unregister_device(info->input_dev);
 
 ProbeErrorExit_5_1:
@@ -7036,7 +7041,6 @@ ProbeErrorExit_5:
 	destroy_workqueue(info->event_wq);
 
 ProbeErrorExit_4:
-	/* destroy_workqueue(info->fwu_workqueue); */
 	wakeup_source_unregister(info->wakesrc);
 
 ProbeErrorExit_3:
@@ -7056,7 +7060,7 @@ ProbeErrorExit_1:
 
 ProbeErrorExit_0:
 	if (error != -EPROBE_DEFER)
-		dev_err(info->dev, "Probe Failed!\n");
+		dev_err(&client->dev, "Probe Failed!\n");
 
 	return error;
 }
@@ -7143,6 +7147,7 @@ static void fts_remove(struct spi_device *client)
 	 */
 	cancel_work_sync(&info->suspend_work);
 	cancel_work_sync(&info->resume_work);
+	cancel_delayed_work_sync(&info->palm_data_dump_work);
 	flush_workqueue(info->event_wq);
 
 	/* Remove the work thread */
