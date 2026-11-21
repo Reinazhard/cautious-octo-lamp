@@ -367,13 +367,13 @@ int slc_init_data(struct slc_data *data, struct device* dev)
 		/* Obtain a handle to the ACPM provided GPU partition signal */
 		if ((ret = acpm_ipc_get_buffer("GPU_SIGNAL", &data->signal, &size))) {
 			dev_err(data->dev, "failed to retrieve SLC GPU signal: %d", ret);
-			goto err_exit;
+			goto pt_init_err_exit;
 		}
 
 		/* Validate the signal buffer size */
 		if (size != sizeof(u64)) {
 			dev_err(data->dev, "SLC GPU signal size incorrect: %d", size);
-			goto err_exit;
+			goto pt_init_err_exit;
 		}
 	}
 

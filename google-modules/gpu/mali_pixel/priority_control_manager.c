@@ -117,7 +117,7 @@ static int priority_control_manager_probe(struct platform_device *pdev)
 {
 	struct priority_control_manager_device *pcm_dev;
 
-	pcm_dev = kzalloc(sizeof(*pcm_dev), GFP_KERNEL);
+	pcm_dev = devm_kzalloc(&pdev->dev, sizeof(*pcm_dev), GFP_KERNEL);
 	if (!pcm_dev)
 		return -ENOMEM;
 
