@@ -278,9 +278,15 @@ static int process_transaction(struct lwis_client *client, struct lwis_transacti
 	 * If there is still time remaining before this transaction can be executed, sleep for the
 	 * remaining duration.
 	 */
-	if (delayed_execution_remaining_us > 0)
-		usleep_range(delayed_execution_remaining_us,
-			     delayed_execution_remaining_us + USLEEP_RANGE_DELTA);
+	if (delayed_execution_remaining_us > 0) {
+		if (WARN_ON_ONCE(run_in_irq_context || in_interrupt() || in_atomic() || irqs_disabled())) {
+			if (delayed_execution_remaining_us <= 1000)
+				udelay(delayed_execution_remaining_us);
+		} else {
+			usleep_range(delayed_execution_remaining_us,
+				     delayed_execution_remaining_us + USLEEP_RANGE_DELTA);
+		}
+	}
 
 	if (lwis_transaction_debug)
 		process_timestamp = ktime_to_ns(lwis_get_time());
@@ -877,7 +883,7 @@ int lwis_trigger_event_add_weak_transaction(struct lwis_client *client, int64_t 
 	struct lwis_transaction *weak_transaction;
 	struct lwis_transaction_event_list *event_list;
 
-	weak_transaction = kmalloc(sizeof(struct lwis_transaction), GFP_ATOMIC);
+	weak_transaction = kzalloc(sizeof(struct lwis_transaction), GFP_ATOMIC);
 	if (!weak_transaction)
 		return -ENOMEM;
 
@@ -1134,7 +1140,7 @@ new_repeating_transaction_iteration(struct lwis_client *client,
 	struct lwis_transaction *new_instance;
 	uint8_t *resp_buf;
 
-	new_instance = kmalloc(sizeof(struct lwis_transaction), GFP_ATOMIC);
+	new_instance = kzalloc(sizeof(struct lwis_transaction), GFP_ATOMIC);
 	if (!new_instance)
 		return NULL;
 
@@ -1143,7 +1149,7 @@ new_repeating_transaction_iteration(struct lwis_client *client,
 	if (new_instance->bundle)
 		atomic_inc(&new_instance->bundle->refcount);
 
-	resp_buf = kmalloc(sizeof(struct lwis_transaction_response_header) +
+	resp_buf = kzalloc(sizeof(struct lwis_transaction_response_header) +
 				   transaction->resp->results_size_bytes,
 			   GFP_ATOMIC);
 	if (!resp_buf) {
