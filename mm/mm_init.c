@@ -2682,14 +2682,17 @@ void __init mm_core_init(void)
 	pgtable_cache_init();
 	debug_objects_mem_init();
 	vmalloc_init();
-	/* If no deferred init page_ext now, as vmap is fully initialized */
-	if (!deferred_struct_pages)
-		page_ext_init();
 	/* Should be run before the first non-init thread is created */
 	init_espfix_bsp();
 	/* Should be run after espfix64 is set up. */
 	pti_init();
 	kmsan_init_runtime();
+	/*
+	 * If no deferred init, initialize page_ext now that vmap and KMSAN are
+	 * initialized, so vzalloc_node() fallback allocates KMSAN metadata.
+	 */
+	if (!deferred_struct_pages)
+		page_ext_init();
 	mm_cache_init();
 	execmem_init();
 }
