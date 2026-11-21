@@ -817,6 +817,8 @@ static void nitrous_lpm_cleanup(struct nitrous_bt_lpm *lpm)
 	nitrous_lpm_runtime_disable(lpm);
 	lpm->irq_host_wake = 0;
 	if (lpm->timesync_state) {
+		if (lpm->timesync_state == TIMESYNC_ENABLED && lpm->irq_timesync > 0)
+			devm_free_irq(lpm->dev, lpm->irq_timesync, lpm);
 		lpm->irq_timesync = 0;
 		kfifo_free(&lpm->timestamp_queue);
 	}
@@ -1112,10 +1114,10 @@ static int nitrous_probe(struct platform_device *pdev)
 
 err_rfkill_init:
 	nitrous_rfkill_cleanup(lpm);
-err_netlink_init:
-	nitrous_netlink_exit(lpm);
 err_lpm_init:
 	nitrous_lpm_cleanup(lpm);
+err_netlink_init:
+	nitrous_netlink_exit(lpm);
 	if (lpm->log)
 		logbuffer_unregister(lpm->log);
 	for (i = 0; i < NUM_WAKELOCK_LOGS; i++) {
