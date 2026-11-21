@@ -442,7 +442,7 @@ static int aocc_open(struct inode *inode, struct file *file)
 	pr_debug("attempt to open major:%d minor:%d\n", MAJOR(inode->i_rdev),
 		 MINOR(inode->i_rdev));
 
-	prvdata = kmalloc(sizeof(struct file_prvdata), GFP_KERNEL);
+	prvdata = kzalloc(sizeof(struct file_prvdata), GFP_KERNEL);
 	if (!prvdata) {
 		rc = -ENOMEM;
 		goto err_kmalloc;
