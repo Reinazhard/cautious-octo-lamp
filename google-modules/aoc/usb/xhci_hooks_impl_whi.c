@@ -288,19 +288,17 @@ static int usb_audio_offload_init(struct xhci_hcd *xhci)
 	return 0;
 #if IS_ENABLED(CONFIG_USB_XHCI_GOOG_DMA)
 unmap_iommu:
-	if (i > 0) {
-		for (i = 0; i < count - 1; i++) {
-			np = of_parse_phandle(dev->of_node, "memory-region", i);
-			if (!np)
-				continue;
+	while (--i >= 0) {
+		np = of_parse_phandle(dev->of_node, "memory-region", i);
+		if (!np)
+			continue;
 
-			rmem = of_reserved_mem_lookup(np);
-			of_node_put(np);
-			if (!rmem)
-				continue;
+		rmem = of_reserved_mem_lookup(np);
+		of_node_put(np);
+		if (!rmem)
+			continue;
 
-			iommu_unmap(domain, rmem->base, rmem->size);
-		}
+		iommu_unmap(domain, rmem->base, rmem->size);
 	}
 
 release_rmem:

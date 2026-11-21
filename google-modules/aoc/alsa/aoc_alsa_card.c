@@ -1057,8 +1057,9 @@ static int of_parse_dai_platform(struct device *dev,
 		of_node = of_parse_phandle(np, "of_drv", 0);
 		if (!of_node) {
 			pr_err("%s: no of_drv for %s", __func__,
-				of_node->name);
+				np->name);
 			ret = -EINVAL;
+			of_node_put(np);
 			break;
 		}
 
@@ -1281,6 +1282,7 @@ static int aoc_of_parse_dai_link(struct device_node *node,
 	for_each_available_child_of_node (np_dai, np) {
 		if (count >= card->num_links) {
 			pr_err("%s: dai link num is full %u", __func__, count);
+			of_node_put(np);
 			break;
 		}
 
@@ -1391,6 +1393,7 @@ static int aoc_of_parse_codec_conf(struct device_node *node,
 	for_each_available_child_of_node (np_cfg, np) {
 		if (count >= card->num_configs) {
 			pr_err("%s: conf num is full %u", __func__, count);
+			of_node_put(np);
 			break;
 		}
 
@@ -1437,6 +1440,7 @@ static int aoc_of_parse_hs_jack(struct device_node *node,
 	}
 
 	pdata->has_jack = true;
+	of_node_put(np_cfg);
 	return 0;
 
 err_exit:
@@ -1486,6 +1490,7 @@ static int aoc_of_parse_clk(struct device_node *np_clk,
 			pr_err("%s: %s clk number overflow %d %d\n",
 				__func__, np->name, *clk_num, count);
 			ret = -EINVAL;
+			of_node_put(np);
 			goto err_exit;
 		}
 
@@ -1880,8 +1885,10 @@ static int snd_aoc_init(struct aoc_chip *chip)
 	spin_lock_init(&chip->audio_lock);
 
 	aoc_node = of_find_compatible_node(NULL, NULL, "google,aoc");
-	if (!aoc_node)
+	if (!aoc_node) {
 		pr_err("Cannot find aoc device node\n");
+		return -ENODEV;
+	}
 
 	chip->hotword_supported = of_property_read_bool(aoc_node, "hotword-supported");
 	chip->chre_supported = of_property_read_bool(aoc_node, "chre-supported");
