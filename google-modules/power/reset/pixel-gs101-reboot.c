@@ -163,7 +163,7 @@ static int pixel_reboot_handler(struct notifier_block *nb, unsigned long mode, v
 	if (ret < 0)
 		pr_err("%s(): failed to read gbms storage: %d(%d)\n", __func__, GBMS_TAG_RSBM, ret);
 
-	rsbm_supported = ret != -ENOENT;
+	rsbm_supported = (ret >= 0);
 
 	pixel_reboot_parse(cmd);
 
