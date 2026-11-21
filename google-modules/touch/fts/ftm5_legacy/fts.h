@@ -990,6 +990,16 @@ struct fts_ts_info {
 	/* Preallocated i/o extra write buffer */
 	u8 io_extra_write_buf[WRITE_CHUNK + BITS_64 + DUMMY_FIFO];
 
+	/* Preallocated frame buffers to prevent heap churn in interrupt hot-path */
+	short *ms_node_data;
+	int ms_node_data_size;
+	short *ss_force_data;
+	int ss_force_data_size;
+	short *ss_sense_data;
+	int ss_sense_data_size;
+	u8 *frame_data_buf;
+	int frame_data_buf_size;
+
 };
 
 /* DSI display function used to read panel extinfo */

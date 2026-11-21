@@ -4171,6 +4171,9 @@ static int fts_enable_grip(struct fts_ts_info *info, bool enable)
 		{0xC0, 0x03, 0x21, 0x00/* unit: px */, 0x00, 0x00, 0x00, 0x5F, 0x09};
 	int res;
 
+	if (info->sensor_sleep || info->bus_refmask == 0)
+		return -ENODEV;
+
 	if (enable) {
 		if (info->board->fw_grip_area) {
 			left_size_cmd[3] = info->board->fw_grip_area;
@@ -4201,6 +4204,9 @@ static void fts_offload_resume_work(struct work_struct *work)
 						  work);
 	struct fts_ts_info *info = container_of(dwork, struct fts_ts_info,
 						offload_resume_work);
+
+	if (info->sensor_sleep || info->bus_refmask == 0)
+		return;
 
 	if (info->offload.config.filter_grip == 1)
 		fts_enable_grip(info, false);
@@ -4315,6 +4321,9 @@ static void fts_populate_mutual_channel(struct fts_ts_info *info,
 		TOUCH_OFFLOAD_FRAME_SIZE_2D(mutual_strength->rx_size,
 					    mutual_strength->tx_size);
 
+	if (info->ms_node_data)
+		ms_frame.node_data = info->ms_node_data;
+
 	result = getMSFrame3(info, data_type, &ms_frame);
 	if (result <= 0) {
 		dev_err(info->dev, "getMSFrame3 failed with result=0x%08X.\n",
@@ -4356,7 +4365,8 @@ static void fts_populate_mutual_channel(struct fts_ts_info *info,
 		    (int16_t *) mutual_strength->data);
 	}
 
-	kfree(ms_frame.node_data);
+	if (ms_frame.node_data != info->ms_node_data)
+		kfree(ms_frame.node_data);
 }
 
 static void fts_populate_self_channel(struct fts_ts_info *info,
@@ -4395,6 +4405,12 @@ static void fts_populate_self_channel(struct fts_ts_info *info,
 		data_type = SS_BASELINE;
 		break;
 	}
+
+	if (info->ss_force_data && info->ss_sense_data) {
+		ss_frame.force_data = info->ss_force_data;
+		ss_frame.sense_data = info->ss_sense_data;
+	}
+
 	result = getSSFrame3(info, data_type, &ss_frame);
 	if (result <= 0) {
 		dev_err(info->dev, "getSSFrame3 failed with result=0x%08X.\n",
@@ -4431,8 +4447,11 @@ static void fts_populate_self_channel(struct fts_ts_info *info,
 			memcpy(rx_dst, rx_src, 2 * self_strength->rx_size);
 		}
 	}
-	kfree(ss_frame.force_data);
-	kfree(ss_frame.sense_data);
+
+	if (ss_frame.force_data != info->ss_force_data)
+		kfree(ss_frame.force_data);
+	if (ss_frame.sense_data != info->ss_sense_data)
+		kfree(ss_frame.sense_data);
 }
 
 static void fts_populate_driver_status_channel(struct fts_ts_info *info,
@@ -6624,6 +6643,24 @@ static int fts_probe(struct spi_device *client)
 
 	info->client = client;
 	info->dev = &info->client->dev;
+
+	/* Preallocate frame buffers to prevent heap churn in interrupt hot-path */
+	info->ms_node_data_size = 4096;
+	info->ms_node_data = devm_kmalloc_array(&client->dev,
+						info->ms_node_data_size,
+						sizeof(short), GFP_KERNEL);
+	info->frame_data_buf_size = 8192;
+	info->frame_data_buf = devm_kmalloc(&client->dev,
+					    info->frame_data_buf_size,
+					    GFP_KERNEL);
+	info->ss_force_data_size = 256;
+	info->ss_force_data = devm_kmalloc_array(&client->dev,
+						 info->ss_force_data_size,
+						 sizeof(short), GFP_KERNEL);
+	info->ss_sense_data_size = 256;
+	info->ss_sense_data = devm_kmalloc_array(&client->dev,
+						 info->ss_sense_data_size,
+						 sizeof(short), GFP_KERNEL);
 
 #ifdef DYNAMIC_REFRESH_RATE
 	/* Set default display refresh rate */

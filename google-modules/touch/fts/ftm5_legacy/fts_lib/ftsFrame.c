@@ -79,18 +79,26 @@ int getChannelsLength(struct fts_ts_info *info)
 int getFrameData(struct fts_ts_info *info, u16 address, int size, short *frame)
 {
 	int i, j, ret;
-	u8 *data = (u8 *)kmalloc(size * sizeof(u8), GFP_KERNEL);
+	u8 *data;
+	bool allocated = false;
 
-	if (data == NULL) {
-		dev_err(info->dev, "getFrameData: ERROR %08X\n", ERROR_ALLOC);
-		return ERROR_ALLOC;
+	if (info->frame_data_buf && info->frame_data_buf_size >= size) {
+		data = info->frame_data_buf;
+	} else {
+		data = (u8 *)kmalloc(size * sizeof(u8), GFP_KERNEL);
+		if (data == NULL) {
+			dev_err(info->dev, "getFrameData: ERROR %08X\n", ERROR_ALLOC);
+			return ERROR_ALLOC;
+		}
+		allocated = true;
 	}
 
 	ret = fts_writeReadU8UX(info, FTS_CMD_FRAMEBUFFER_R, BITS_16, address,
 				data, size, DUMMY_FRAMEBUFFER);
 	if (ret < OK) {
 		dev_err(info->dev, "getFrameData: ERROR %08X\n", ERROR_BUS_R);
-		kfree(data);
+		if (allocated)
+			kfree(data);
 		return ERROR_BUS_R;
 	}
 	j = 0;
@@ -98,7 +106,8 @@ int getFrameData(struct fts_ts_info *info, u16 address, int size, short *frame)
 		frame[j] = (short)((data[i + 1] << 8) + data[i]);
 		j++;
 	}
-	kfree(data);
+	if (allocated)
+		kfree(data);
 	return OK;
 }
 
@@ -146,8 +155,6 @@ int getMSFrame3(struct fts_ts_info *info, MSFrameType type,
 
 	force_len = getForceLen(info);
 	sense_len = getSenseLen(info);
-
-	frame->node_data = NULL;
 
 	dev_dbg(info->dev, "%s: Starting to get frame %02X\n", __func__,
 		 type);
@@ -224,15 +231,20 @@ LOAD_FRC:
 	frame->header.sense_node = sense_len;
 	frame->header.type = type;
 
+	bool allocated = false;
+
 	dev_dbg(info->dev, "%s: Force_len = %d Sense_len = %d Offset = %04X\n",
 		__func__, force_len, sense_len, offset);
 
-	frame->node_data = (short *)kmalloc(frame->node_data_size *
-					    sizeof(short), GFP_KERNEL);
 	if (frame->node_data == NULL) {
-		dev_err(info->dev, "%s: ERROR %08X\n", __func__,
-			ERROR_ALLOC | ERROR_GET_FRAME);
-		return ERROR_ALLOC | ERROR_GET_FRAME;
+		frame->node_data = (short *)kmalloc(frame->node_data_size *
+						    sizeof(short), GFP_KERNEL);
+		if (frame->node_data == NULL) {
+			dev_err(info->dev, "%s: ERROR %08X\n", __func__,
+				ERROR_ALLOC | ERROR_GET_FRAME);
+			return ERROR_ALLOC | ERROR_GET_FRAME;
+		}
+		allocated = true;
 	}
 
 	ret = getFrameData(info, offset,
@@ -240,8 +252,10 @@ LOAD_FRC:
 			   (frame->node_data));
 	if (ret < OK) {
 		dev_err(info->dev, "%s: ERROR %08X\n", __func__, ERROR_GET_FRAME_DATA);
-		kfree(frame->node_data);
-		frame->node_data = NULL;
+		if (allocated) {
+			kfree(frame->node_data);
+			frame->node_data = NULL;
+		}
 		return ret | ERROR_GET_FRAME_DATA | ERROR_GET_FRAME;
 	}
 	/* if you want to access one node i,j,
@@ -265,9 +279,6 @@ int getSSFrame3(struct fts_ts_info *info, SSFrameType type, SelfSenseFrame *fram
 	int ret;
 	SysInfo systemInfo;
 	memcpy(&systemInfo, &info->systemInfo, sizeof(systemInfo));
-
-	frame->force_data = NULL;
-	frame->sense_data = NULL;
 
 	frame->header.force_node = getForceLen(info);	/* use getForce/SenseLen
 							 * because introduce
@@ -389,27 +400,38 @@ int getSSFrame3(struct fts_ts_info *info, SSFrameType type, SelfSenseFrame *fram
 
 	frame->header.type = type;
 
+	bool allocated_force = false;
+	bool allocated_sense = false;
+
 	dev_dbg(info->dev, "%s: Force_len = %d Sense_len = %d Offset_force = %04X Offset_sense = %04X\n",
 		__func__, frame->header.force_node,
 		frame->header.sense_node,
 		offset_force, offset_sense);
 
-	frame->force_data = (short *)kmalloc(frame->header.force_node *
-					     sizeof(short), GFP_KERNEL);
 	if (frame->force_data == NULL) {
-		dev_err(info->dev, "%s: can not allocate force_data ERROR %08X\n",
-			__func__, ERROR_ALLOC | ERROR_GET_FRAME);
-		return ERROR_ALLOC | ERROR_GET_FRAME;
+		frame->force_data = (short *)kmalloc(frame->header.force_node *
+						     sizeof(short), GFP_KERNEL);
+		if (frame->force_data == NULL) {
+			dev_err(info->dev, "%s: can not allocate force_data ERROR %08X\n",
+				__func__, ERROR_ALLOC | ERROR_GET_FRAME);
+			return ERROR_ALLOC | ERROR_GET_FRAME;
+		}
+		allocated_force = true;
 	}
 
-	frame->sense_data = (short *)kmalloc(frame->header.sense_node *
-					     sizeof(short), GFP_KERNEL);
 	if (frame->sense_data == NULL) {
-		kfree(frame->force_data);
-		frame->force_data = NULL;
-		dev_err(info->dev, "%s: can not allocate sense_data ERROR %08X\n",
-			__func__, ERROR_ALLOC | ERROR_GET_FRAME);
-		return ERROR_ALLOC | ERROR_GET_FRAME;
+		frame->sense_data = (short *)kmalloc(frame->header.sense_node *
+						     sizeof(short), GFP_KERNEL);
+		if (frame->sense_data == NULL) {
+			if (allocated_force) {
+				kfree(frame->force_data);
+				frame->force_data = NULL;
+			}
+			dev_err(info->dev, "%s: can not allocate sense_data ERROR %08X\n",
+				__func__, ERROR_ALLOC | ERROR_GET_FRAME);
+			return ERROR_ALLOC | ERROR_GET_FRAME;
+		}
+		allocated_sense = true;
 	}
 
 	ret = getFrameData(info, offset_force, frame->header.force_node *
@@ -417,10 +439,14 @@ int getSSFrame3(struct fts_ts_info *info, SSFrameType type, SelfSenseFrame *fram
 	if (ret < OK) {
 		dev_err(info->dev, "%s: error while reading force data ERROR %08X\n",
 			__func__, ERROR_GET_FRAME_DATA);
-		kfree(frame->force_data);
-		frame->force_data = NULL;
-		kfree(frame->sense_data);
-		frame->sense_data = NULL;
+		if (allocated_force) {
+			kfree(frame->force_data);
+			frame->force_data = NULL;
+		}
+		if (allocated_sense) {
+			kfree(frame->sense_data);
+			frame->sense_data = NULL;
+		}
 		return ret | ERROR_GET_FRAME_DATA | ERROR_GET_FRAME;
 	}
 
@@ -429,10 +455,14 @@ int getSSFrame3(struct fts_ts_info *info, SSFrameType type, SelfSenseFrame *fram
 	if (ret < OK) {
 		dev_err(info->dev, "%s: error while reading sense data ERROR %08X\n",
 			__func__, ERROR_GET_FRAME_DATA);
-		kfree(frame->force_data);
-		frame->force_data = NULL;
-		kfree(frame->sense_data);
-		frame->sense_data = NULL;
+		if (allocated_force) {
+			kfree(frame->force_data);
+			frame->force_data = NULL;
+		}
+		if (allocated_sense) {
+			kfree(frame->sense_data);
+			frame->sense_data = NULL;
+		}
 		return ret | ERROR_GET_FRAME_DATA | ERROR_GET_FRAME;
 	}
 	/* if you want to access one node i,j,
