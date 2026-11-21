@@ -1007,13 +1007,15 @@ static int gs_tmu_initialize(struct platform_device *pdev)
 	struct thermal_zone_device *tz = data->tzd;
 	enum thermal_trip_type type;
 	int i, temp, ret = 0;
+	int num_trips;
 	unsigned char threshold[8] = {0, };
 	unsigned char hysteresis[8] = {0, };
 	unsigned char inten = 0;
 
 	mutex_lock(&data->lock);
 
-	for (i = (tz->num_trips - 1); i >= 0; i--) {
+	num_trips = min_t(int, tz->num_trips, 8);
+	for (i = num_trips - 1; i >= 0; i--) {
 		const struct thermal_trip *trip = gs_thermal_zone_get_trip(tz, i);
 
 		if (IS_ERR(trip))
@@ -1182,7 +1184,7 @@ static int gs_tmu_set_trip_temp(struct thermal_zone_device *tz,
 		return 0;
 
 	/* Rebuild all thresholds, replacing the target trip's temperature. */
-	for (i = 0; i < tz->num_trips; i++) {
+	for (i = 0; i < min_t(int, tz->num_trips, 8); i++) {
 		tmp = gs_thermal_zone_get_trip(tz, i);
 		if (IS_ERR(tmp))
 			continue;
@@ -5536,7 +5538,7 @@ static int gs_tmu_probe(struct platform_device *pdev)
 	ret = gs_tmu_initialize(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize TMU\n");
-		goto err_sensor;
+		goto err_dtm_dev_list;
 	}
 
 	if (!acpm_gov_common.turn_on) {
@@ -5544,13 +5546,13 @@ static int gs_tmu_probe(struct platform_device *pdev)
 				       dev_name(&pdev->dev), data);
 		if (ret) {
 			dev_err(&pdev->dev, "Failed to request irq: %d\n", data->irq);
-			goto err_sensor;
+			goto err_dtm_dev_list;
 		}
 
 		ret = gs_tmu_irq_work_init(pdev);
 		if (ret) {
 			dev_err(&pdev->dev, "cannot gs tmu interrupt work initialize\n");
-			goto err_sensor;
+			goto err_dtm_dev_list;
 		}
 
 		if (data->use_pi_thermal)
@@ -5711,6 +5713,7 @@ static int gs_tmu_probe(struct platform_device *pdev)
 err_dtm_dev_list:
 	spin_lock(&dev_list_spinlock);
 	list_del(&data->node);
+	num_of_devices--;
 	spin_unlock(&dev_list_spinlock);
 err_sensor:
 	return ret;
