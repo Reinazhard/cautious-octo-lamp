@@ -108,8 +108,10 @@ static int edgetpu_platform_setup_fw_region(struct edgetpu_mobile_platform_dev *
 					    EDGETPU_REMAPPED_DATA_SIZE, MEMREMAP_WC);
 	if (!etmdev->shared_mem_vaddr) {
 		dev_err(dev, "Shared memory remap failed");
-		if (etmdev->gsa_dev)
+		if (etmdev->gsa_dev) {
 			put_device(etmdev->gsa_dev);
+			etmdev->gsa_dev = NULL;
+		}
 		return -EINVAL;
 	}
 	etmdev->shared_mem_paddr = r.start + EDGETPU_REMAPPED_DATA_OFFSET;
@@ -122,6 +124,7 @@ static void edgetpu_platform_cleanup_fw_region(struct edgetpu_mobile_platform_de
 	if (etmdev->gsa_dev) {
 		gsa_unload_tpu_fw_image(etmdev->gsa_dev);
 		put_device(etmdev->gsa_dev);
+		etmdev->gsa_dev = NULL;
 	}
 	if (!etmdev->shared_mem_vaddr)
 		return;

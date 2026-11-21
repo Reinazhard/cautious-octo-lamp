@@ -67,11 +67,10 @@ static int mobile_pwr_state_init(struct device *dev)
 	curr_state = exynos_acpm_get_rate(TPU_ACPM_DOMAIN, 0);
 
 	if (curr_state > TPU_OFF) {
-		ret = pm_runtime_get_sync(dev);
-		if (ret) {
-			pm_runtime_put_noidle(dev);
+		ret = pm_runtime_resume_and_get(dev);
+		if (ret < 0) {
 			pm_runtime_disable(dev);
-			dev_err(dev, "pm_runtime_get_sync returned %d\n", ret);
+			dev_err(dev, "pm_runtime_resume_and_get returned %d\n", ret);
 			return ret;
 		}
 	}
@@ -242,10 +241,9 @@ static int mobile_pwr_state_set_locked(struct edgetpu_mobile_platform_dev *etmde
 	dev_dbg(dev, "Power state %d -> %llu\n", curr_state, val);
 
 	if (curr_state == TPU_OFF && val > TPU_OFF) {
-		ret = pm_runtime_get_sync(dev);
-		if (ret) {
-			pm_runtime_put_noidle(dev);
-			dev_err(dev, "pm_runtime_get_sync returned %d\n", ret);
+		ret = pm_runtime_resume_and_get(dev);
+		if (ret < 0) {
+			dev_err(dev, "pm_runtime_resume_and_get returned %d\n", ret);
 			return ret;
 		}
 	}
