@@ -1319,11 +1319,12 @@ static int  samsung_sysmmu_get_resv_regions_by_node(struct device_node *np, stru
 
 static void samsung_sysmmu_get_resv_regions(struct device *dev, struct list_head *head)
 {
-	struct device_node *curr_node, *target_node, *node;
+	struct device_node *target_node __free(device_node) =
+		of_parse_phandle(dev->of_node, "samsung,iommu-group", 0);
+	struct device_node *curr_node, *node;
 	struct platform_device *pdev;
 	int ret;
 
-	target_node = of_parse_phandle(dev->of_node, "samsung,iommu-group", 0);
 	if (!target_node) {
 		dev_err(dev, "doesn't have iommu-group property\n");
 		return;
@@ -1347,15 +1348,14 @@ static void samsung_sysmmu_get_resv_regions(struct device *dev, struct list_head
 		put_device(&pdev->dev);
 		of_node_put(curr_node);
 
-		if (ret)
+		if (ret) {
+			of_node_put(node);
 			goto err;
+		}
 	}
-
-	of_node_put(target_node);
 
 	return;
 err:
-	of_node_put(target_node);
 	samsung_sysmmu_put_resv_regions(dev, head);
 	INIT_LIST_HEAD(head);
 }

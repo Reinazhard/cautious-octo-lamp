@@ -951,7 +951,7 @@ user_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
 	if (!cpufreq_cdev)
 		return -ENODEV;
 
-	return sprintf(buf, "%lu\n", cpufreq_cdev->sysfs_req);
+	return sysfs_emit(buf, "%lu\n", cpufreq_cdev->sysfs_req);
 }
 
 static ssize_t

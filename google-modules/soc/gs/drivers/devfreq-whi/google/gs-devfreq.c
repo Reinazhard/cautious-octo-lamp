@@ -865,18 +865,17 @@ static ssize_t time_in_state_show(struct device *dev,
 	int i, err;
 	unsigned int max_state = devfreq->profile->max_state;
 
-	mutex_lock(&data->lock);
+	guard(mutex)(&data->lock);
 	err = exynos_devfreq_update_status(data);
 	if (err)
 		return 0;
 
 	for (i = 0; i < max_state; i++) {
-		len += sprintf(buf + len, "%8lu",
+		len += sysfs_emit_at(buf, len, "%8lu",
 				devfreq->profile->freq_table[i]);
-		len += sprintf(buf + len, "%10u\n",
-			jiffies_to_msecs(data->time_in_state[i]));
+		len += sysfs_emit_at(buf, len, "%10u\n",
+				jiffies_to_msecs(data->time_in_state[i]));
 	}
-	mutex_unlock(&data->lock);
 	return len;
 }
 static DEVICE_ATTR_RO(time_in_state);
@@ -2407,8 +2406,10 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 
 #if IS_ENABLED(CONFIG_ECT)
 	if (of_property_read_string(data->dev->of_node, "devfreq_domain_name",
-				    &devfreq_domain_name))
-		return -ENODEV;
+				    &devfreq_domain_name)) {
+		ret = -ENODEV;
+		goto err_reboot_reg;
+	}
 
 	// Register cooling device
 	data->cooling_dev = devm_thermal_of_child_cooling_device_register(data->dev,
@@ -2430,6 +2431,8 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 
 	return ret;
 
+err_reboot_reg:
+	unregister_reboot_notifier(&data->reboot_notifier);
 err_reboot_noti:
 	devfreq_unregister_opp_notifier(data->dev, data->devfreq);
 err_opp_noti:

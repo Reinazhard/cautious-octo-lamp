@@ -34,19 +34,20 @@ int exynos_acpm_read_reg(struct device_node *acpm_mfd_node, u8 channel,
 		ret = acpm_ipc_send_data(channel_num, &config);
 		if (ret) {
 			pr_err("%s - acpm_ipc_send_data fail.\n", __func__);
-			return ret;
+			goto release_ch;
 		}
 
 		*dest = read_protocol(config.cmd[1], DEST);
 		ret = read_protocol(config.cmd[1], RETURN);
 		if (ret) {
 			pr_err("%s - APM's speedy_rx fail.\n", __func__);
-			return ret;
+			goto release_ch;
 		}
 
 		ACPM_MFD_PRINT("%s - data = 0x%02x ret = 0x%02x\n",
 			       __func__, *dest, ret);
 
+release_ch:
 		acpm_ipc_release_channel(acpm_mfd_node, channel_num);
 	} else {
 		pr_err("%s ipc request_channel fail, id:%u, size:%u\n",
@@ -142,18 +143,19 @@ int exynos_acpm_write_reg(struct device_node *acpm_mfd_node, u8 channel,
 		if (ret) {
 			pr_err("%s - acpm_ipc_send_data fail\n",
 			       __func__);
-			return ret;
+			goto release_ch;
 		}
 
 		ret = read_protocol(config.cmd[1], RETURN);
 		if (ret) {
 			pr_err("%s - APM's speedy_tx fail.\n",
 			       __func__);
-			return ret;
+			goto release_ch;
 		}
 
 		ACPM_MFD_PRINT("%s - read(ret) val: 0x%02x\n", __func__, ret);
 
+release_ch:
 		acpm_ipc_release_channel(acpm_mfd_node, channel_num);
 	} else {
 		pr_err("%s ipc request_channel fail, id:%u, size:%u\n",
@@ -250,7 +252,7 @@ int exynos_acpm_update_reg(struct device_node *acpm_mfd_node, u8 channel,
 		ret = acpm_ipc_send_data(channel_num, &config);
 		if (ret) {
 			pr_err("%s - acpm_ipc_send_data fail.\n", __func__);
-			return ret;
+			goto release_ch;
 		}
 
 		ret = read_protocol(config.cmd[1], RETURN);
@@ -259,9 +261,10 @@ int exynos_acpm_update_reg(struct device_node *acpm_mfd_node, u8 channel,
 				pr_err("%s - APM's speedy_rx fail.\n", __func__);
 			else if (ret == 2)
 				pr_err("%s - APM's speedy_tx fail.\n", __func__);
-			return ret;
+			goto release_ch;
 		}
 
+release_ch:
 		acpm_ipc_release_channel(acpm_mfd_node, channel_num);
 	} else {
 		pr_err("%s ipc request_channel fail, id:%u, size:%u\n",

@@ -75,9 +75,9 @@ struct gsa_log *gsa_log_init(struct platform_device *pdev)
 
 	/* map main log region */
 	log->base_main = devm_ioremap(dev, rmem->base, rmem->size);
-	if (IS_ERR(log->base_main)) {
-		dev_err(dev, "ioremap failed (%d)\n", (int)PTR_ERR(log->base_main));
-		return log->base_main;
+	if (!log->base_main) {
+		dev_err(dev, "ioremap failed\n");
+		return ERR_PTR(-ENOMEM);
 	}
 
 	/* map intermediate reset log region */
