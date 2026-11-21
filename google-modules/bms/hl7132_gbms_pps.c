@@ -31,11 +31,11 @@ static struct device_node *hl7132_find_config(struct device_node *node)
 	struct device_node *temp;
 
 	if (!node)
-		return node;
+		return NULL;
 	temp = of_parse_phandle(node, "hl7132,google_cpm", 0);
 	if (temp)
-		node = temp;
-	return node;
+		return temp;
+	return of_node_get(node);
 }
 
 int hl7132_probe_pps(struct hl7132_charger *hl7132_chg)
@@ -50,6 +50,7 @@ int hl7132_probe_pps(struct hl7132_charger *hl7132_chg)
 
 	ret = of_property_read_u32(node, "google,tcpm-power-supply",
 				   &hl7132_chg->tcpm_phandle);
+	of_node_put(node);
 	if (ret < 0)
 		dev_warn(hl7132_chg->dev,
 			"hl7132: google,tcpm-power-supply not defined\n");
