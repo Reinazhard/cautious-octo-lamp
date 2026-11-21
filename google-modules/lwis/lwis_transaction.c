@@ -135,10 +135,11 @@ static void deferred_fence_release_work(struct irq_work *work)
 {
 	struct lwis_pending_transaction_id *pend_id, *pend_id_tmp;
 	LIST_HEAD(local);
+	unsigned long flags;
 
-	spin_lock(&deferred_fence_release_lock);
+	spin_lock_irqsave(&deferred_fence_release_lock, flags);
 	list_splice_init(&deferred_fence_release, &local);
-	spin_unlock(&deferred_fence_release_lock);
+	spin_unlock_irqrestore(&deferred_fence_release_lock, flags);
 
 	list_for_each_entry_safe(pend_id, pend_id_tmp, &local, node) {
 		list_del(&pend_id->node);

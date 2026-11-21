@@ -550,6 +550,8 @@ static int lwis_top_device_probe(struct platform_device *plat_dev)
 		kthread_worker_fn, &top_dev->subscribe_worker, LWIS_SUBSCRIBER_THREAD_NAME);
 	if (IS_ERR_OR_NULL(top_dev->subscribe_worker_thread)) {
 		dev_err(top_dev->base_dev.dev, "subscribe kthread_run failed\n");
+		ret = top_dev->subscribe_worker_thread ? PTR_ERR(top_dev->subscribe_worker_thread) : -ENOMEM;
+		lwis_base_unprobe(&top_dev->base_dev);
 		return ret;
 	}
 

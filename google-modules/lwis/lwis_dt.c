@@ -256,6 +256,7 @@ static int parse_regulators(struct lwis_device *lwis_dev)
 	for (i = 0; i < count; ++i) {
 		dev_node_reg = of_parse_phandle(dev_node, "regulators", i);
 		of_property_read_string(dev_node_reg, "regulator-name", &name);
+		of_node_put(dev_node_reg);
 		voltage = 0;
 		if (i < voltage_count)
 			of_property_read_u32_index(dev_node, "regulator-voltages", i, &voltage);
@@ -1358,6 +1359,7 @@ int lwis_i2c_device_parse_dt(struct lwis_i2c_device *i2c_dev)
 	}
 
 	i2c_dev->adapter = of_find_i2c_adapter_by_node(dev_node_i2c);
+	of_node_put(dev_node_i2c);
 	if (!i2c_dev->adapter) {
 		dev_err(i2c_dev->base_dev.dev, "Cannot find i2c adapter\n");
 		return -ENODEV;

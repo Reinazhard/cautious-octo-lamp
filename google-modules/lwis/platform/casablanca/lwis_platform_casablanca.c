@@ -133,6 +133,7 @@ int lwis_platform_device_enable(struct lwis_device *lwis_dev)
 	/* Upref the runtime power management controls for the platform dev */
 	ret = pm_runtime_get_sync(lwis_dev->k_dev);
 	if (ret < 0) {
+		pm_runtime_put_noidle(lwis_dev->k_dev);
 		pr_err("Unable to enable platform device\n");
 		return ret;
 	}
@@ -143,6 +144,7 @@ int lwis_platform_device_enable(struct lwis_device *lwis_dev)
 							  lwis_dev);
 		if (ret < 0) {
 			pr_err("Failed to register fault handler for the device: %d\n", ret);
+			pm_runtime_put_sync(lwis_dev->k_dev);
 			return ret;
 		}
 	}
@@ -151,6 +153,7 @@ int lwis_platform_device_enable(struct lwis_device *lwis_dev)
 		lwis_dev->bts_scenario = bts_get_scenindex(lwis_dev->bts_scenario_name);
 		if (!lwis_dev->bts_scenario) {
 			dev_err(lwis_dev->dev, "Failed to get default camera BTS scenario.\n");
+			pm_runtime_put_sync(lwis_dev->k_dev);
 			return -EINVAL;
 		}
 		bts_add_scenario(lwis_dev->bts_scenario);

@@ -229,16 +229,18 @@ int lwis_buffer_enroll(struct lwis_client *lwis_client, struct lwis_enrolled_buf
 		dma_buf_map_attachment(buffer->dma_buf_attachment, buffer->dma_direction);
 	LWIS_ATRACE_FUNC_END(lwis_client->lwis_dev, trace_name);
 	if (IS_ERR_OR_NULL(buffer->sg_table)) {
+		int ret = buffer->sg_table ? PTR_ERR(buffer->sg_table) : -ENOMEM;
+
 		dev_err(lwis_client->lwis_dev->dev,
-			"Could not map dma attachment for fd: %d (errno: %ld)", buffer->info.fd,
-			PTR_ERR(buffer->sg_table));
-		if (PTR_ERR(buffer->sg_table) == -ENOMEM) {
+			"Could not map dma attachment for fd: %d (errno: %d)", buffer->info.fd,
+			ret);
+		if (ret == -ENOMEM) {
 			lwis_device_info_dump("Enroll buffer sizes",
 					      dump_total_enrolled_buffer_size);
 		}
 		dma_buf_detach(buffer->dma_buf, buffer->dma_buf_attachment);
 		dma_buf_put(buffer->dma_buf);
-		return PTR_ERR(buffer->sg_table);
+		return ret;
 	}
 
 	buffer->info.dma_vaddr = sg_dma_address(buffer->sg_table->sgl);
