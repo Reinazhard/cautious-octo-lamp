@@ -11,6 +11,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/dma-resv.h>
 
 #include "mfc_rm.h"
 

@@ -12,6 +12,7 @@
 
 #include <linux/property.h>
 #include <linux/dma-buf.h>
+#include <linux/dma-resv.h>
 #include <linux/iommu.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/dma-heap.h>
