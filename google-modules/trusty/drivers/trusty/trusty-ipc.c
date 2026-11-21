@@ -827,14 +827,14 @@ int tipc_chan_connect(struct tipc_chan *chan, const char *name)
 	msg->type = TIPC_CTRL_MSGTYPE_CONN_REQ;
 	msg->body_len  = sizeof(*body);
 
-	strscpy(body->name, name, sizeof(body->name));
+	strscpy_pad(body->name, name, sizeof(body->name));
 	body->name[sizeof(body->name)-1] = '\0';
 
 	mutex_lock(&chan->lock);
 	switch (chan->state) {
 	case TIPC_DISCONNECTED:
 		/* save service name we are connecting to */
-		strcpy(chan->srv_name, body->name);
+		strscpy(chan->srv_name, body->name, sizeof(chan->srv_name));
 
 		fill_msg_hdr(txbuf, chan->local, TIPC_CTRL_ADDR);
 		err = vds_queue_txbuf(chan->vds, txbuf);
