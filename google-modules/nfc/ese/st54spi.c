@@ -823,21 +823,21 @@ static long st54spi_compat_ioctl(struct file *filp, unsigned int cmd,
 
 static int st54spi_open(struct inode *inode, struct file *filp)
 {
-	struct st54spi_data *st54spi;
+	struct st54spi_data *entry, *st54spi = NULL;
 	int status = -ENXIO;
 
 	mutex_lock(&device_list_lock);
 
-	list_for_each_entry (st54spi, &device_list, device_entry) {
-		if (st54spi->devt == inode->i_rdev) {
+	list_for_each_entry (entry, &device_list, device_entry) {
+		if (entry->devt == inode->i_rdev) {
+			st54spi = entry;
 			status = 0;
 			break;
 		}
 	}
 
-	if (status) {
-		dev_dbg(&st54spi->spi->dev, "st54spi: nothing for minor %d\n",
-			iminor(inode));
+	if (!st54spi) {
+		pr_debug("st54spi: nothing for minor %d\n", iminor(inode));
 		goto err_find_dev;
 	}
 
