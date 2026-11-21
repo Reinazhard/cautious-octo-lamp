@@ -42,6 +42,7 @@ int cpboot_spi_load_cp_image(struct link_device *ld, struct io_device *iod, unsi
 	ret = copy_from_user(&img, (const void __user *)arg, sizeof(struct cp_image));
 	if (ret) {
 		mif_err("copy_from_user() arg error:%d\n", ret);
+		ret = -EFAULT;
 		goto exit;
 	}
 
@@ -65,6 +66,7 @@ int cpboot_spi_load_cp_image(struct link_device *ld, struct io_device *iod, unsi
 	ret = copy_from_user(buff, (const void __user *)img.binary, img.size);
 	if (ret) {
 		mif_err("copy_from_user() buff error:%d\n", ret);
+		ret = -EFAULT;
 		goto exit;
 	}
 

@@ -545,6 +545,7 @@ static inline struct sk_buff *recv_data(struct sbd_ring_buffer *rb, u16 out)
 	if (unlikely(len > space)) {
 		mif_err("ERR! {id:%d ch:%d} size %d > space %d\n",
 			rb->id, rb->ch, len, space);
+		*rb->rp = circ_new_ptr(rb->len, out, 1);
 		return NULL;
 	}
 

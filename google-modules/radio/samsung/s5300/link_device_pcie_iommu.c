@@ -98,7 +98,8 @@ void cpif_pcie_iommu_reset(struct pktproc_queue *q)
 				do_unmap = false;
 		}
 
-		page_frag_free(ioc->pf_buf[idx]);
+		if (ioc->pf_buf[idx])
+			page_frag_free(ioc->pf_buf[idx]);
 		idx = circ_new_ptr(q->num_desc, idx, 1);
 	}
 
@@ -153,6 +154,7 @@ void *cpif_pcie_iommu_map_va(struct pktproc_queue *q, unsigned long src_pa,
 		if (ret) {
 			mif_err("map failure idx:%u src_pa:0x%lX va:0x%p size:0x%lX\n",
 				ioc->map_idx, ioc->map_src_pa, ioc->map_page_va, map_size);
+			page_frag_free(addr_des);
 			return NULL;
 		}
 		ioc->mapped_cnt++;

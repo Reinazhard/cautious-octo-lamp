@@ -52,7 +52,9 @@ static int vnet_open(struct net_device *ndev)
 			}
 		}
 	}
+	spin_lock(&iod->msd->active_list_lock);
 	list_add(&iod->node_ndev, &iod->msd->activated_ndev_list);
+	spin_unlock(&iod->msd->active_list_lock);
 
 	netif_start_queue(ndev);
 
@@ -134,7 +136,7 @@ static netdev_tx_t vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 		break;
 		default:
 			mif_err("protocol error %d\n", ld->protocol);
-			return -EINVAL;
+			goto drop;
 		}
 		if (ld->aligned)
 			tailroom = ld->calc_padding_size(headroom + count);
@@ -189,7 +191,7 @@ static netdev_tx_t vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 		break;
 		default:
 			mif_err("protocol error %d\n", ld->protocol);
-			return -EINVAL;
+			goto drop;
 		}
 	}
 #endif

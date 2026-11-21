@@ -190,7 +190,7 @@ static long bootdump_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 		ret = copy_from_user(&mode, uarg, sizeof(mode));
 		if (ret) {
 			mif_err("copy_from_user() error:%d\n", ret);
-			return ret;
+			return -EFAULT;
 		}
 
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
@@ -273,7 +273,7 @@ static long bootdump_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 		ret = copy_from_user(&mode, uarg, sizeof(mode));
 		if (ret) {
 			mif_err("copy_from_user() error:%d\n", ret);
-			return ret;
+			return -EFAULT;
 		}
 
 		switch (mode.idx) {
@@ -412,7 +412,7 @@ static long bootdump_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 		ret = copy_to_user((void __user *)arg, &version, sizeof(version));
 		if (ret) {
 			mif_err("copy_to_user() error:%d\n", ret);
-			return ret;
+			return -EFAULT;
 		}
 
 		return 0;
@@ -449,9 +449,11 @@ static long bootdump_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 		mif_debug("%s: IOCTL_GET_OPENED_STATUS\n", iod->name);
 		value = atomic_read(&iod->opened);
 		ret = copy_to_user((void __user *)arg, &value, sizeof(value));
-		if (ret)
+		if (ret) {
 			mif_err("IOCTL_GET_OPENED_STATUS error: %d\n", ret);
-		return ret;
+			return -EFAULT;
+		}
+		return 0;
 
 	default:
 		 /* If you need to handle the ioctl for specific link device,

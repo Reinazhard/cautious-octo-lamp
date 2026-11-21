@@ -2240,7 +2240,7 @@ int s5100_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 		if (mc->ws_wrst == NULL) {
 			mif_err("s5100_wake_lock: wakeup_source_register fail\n");
 			ret = -EINVAL;
-			goto err_wake_lock_register;
+			goto err_wrst_wake_lock_register;
 		}
 	}
 
@@ -2366,9 +2366,10 @@ err_pm_notifier:
 err_crash_wq:
 	destroy_workqueue(mc->wakeup_wq);
 err_irq_get_chip:
-	cpif_wake_lock_unregister(mc->ws);
 	if (pdata->mif_off_during_volte)
 		cpif_wake_lock_unregister(mc->ws_wrst);
+err_wrst_wake_lock_register:
+	cpif_wake_lock_unregister(mc->ws);
 err_wake_lock_register:
 err_dt_parse:
 	g_mc = NULL;
@@ -2380,6 +2381,7 @@ void s5100_uninit_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata
 	struct device *dev = mc->dev;
 
 	device_remove_file(dev, &dev_attr_s5100_wake_lock);
+	device_remove_file(dev, &dev_attr_s5100_wrst_wake_lock);
 	sysfs_remove_group(&dev->kobj, &modem_group);
 	sysfs_remove_group(&dev->kobj, &sim_group);
 	unregister_modem_force_crash_handler(&mc->force_crash_nb);

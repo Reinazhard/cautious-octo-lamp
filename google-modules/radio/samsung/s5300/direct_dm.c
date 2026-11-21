@@ -202,6 +202,13 @@ static void direct_dm_rx_func(unsigned long arg)
 
 		paddr = curr_desc.cp_buff_paddr -
 			dc->buff_rgn_offset - dc->cp_ddm_pbase + dc->buff_pbase;
+		if (paddr < dc->buff_pbase ||
+		    paddr + curr_desc.length > dc->buff_pbase + dc->buff_rgn_size) {
+			mif_err_limited("paddr 0x%lx out of range [0x%lx, 0x%lx)\n",
+					paddr, dc->buff_pbase, dc->buff_pbase + dc->buff_rgn_size);
+			dc->stat.err_length++;
+			break;
+		}
 		addr = phys_to_virt(paddr);
 
 		if (dc->buff_rgn_cached && !dc->hw_iocc)

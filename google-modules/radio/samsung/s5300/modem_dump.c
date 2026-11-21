@@ -82,7 +82,7 @@ int cp_get_log_dump(struct io_device *iod, struct link_device *ld, unsigned long
 	ret = copy_from_user(&log_dump, uarg, sizeof(log_dump));
 	if (ret) {
 		mif_err("copy_from_user() error:%d\n", ret);
-		return ret;
+		return -EFAULT;
 	}
 	log_dump.name[sizeof(log_dump.name) - 1] = '\0';
 	mif_info("%s log name:%s index:%d\n", iod->name, log_dump.name, log_dump.idx);
@@ -166,7 +166,7 @@ int cp_get_log_dump(struct io_device *iod, struct link_device *ld, unsigned long
 	ret = copy_to_user(uarg, &log_dump, sizeof(log_dump));
 	if (ret) {
 		mif_err("copy_to_user() error:%d\n", ret);
-		return ret;
+		return -EFAULT;
 	}
 
 	return save_log_dump(iod, ld, base, size);

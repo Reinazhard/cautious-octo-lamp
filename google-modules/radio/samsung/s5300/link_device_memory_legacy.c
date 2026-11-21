@@ -349,7 +349,7 @@ struct sk_buff *recv_from_legacy_link(struct mem_link_device *mld,
 	/* Make sure out pointer is within bounds. This pointer is read
 	 * from CP shared memory and must be validated before
 	 * circ_read below. */
-	if (out > qsize) {
+	if (out >= qsize) {
 		mif_err("OOB err! out:%u, qsize:%u\n", out, qsize);
 		if (ld->link_trigger_cp_crash) {
 			ld->link_trigger_cp_crash(mld,
