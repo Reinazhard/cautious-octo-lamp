@@ -3501,6 +3501,7 @@ static int __init aoc_init(void)
 		goto err_aoc_driver;
 	}
 
+	spin_lock_init(&sscd_dev.dev.driver_override.lock);
 	if (device_set_driver_override(&sscd_dev.dev, SSCD_NAME)) {
 		pr_err("failed to set driver override\n");
 		goto err_aoc_coredump;
