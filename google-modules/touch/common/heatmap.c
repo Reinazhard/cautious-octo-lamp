@@ -80,6 +80,7 @@ void heatmap_read(struct v4l2_heatmap *v4l2, uint64_t timestamp)
 	int total_bytes = v4l2->format.sizeimage;
 	bool read_success;
 	char index_tag[32] = {0};
+	unsigned long flags;
 
 	if (v4l2->frame_index_enabled)
 		scnprintf(index_tag, sizeof(index_tag), "IDX=%llu", v4l2->frame_index);
@@ -90,16 +91,16 @@ void heatmap_read(struct v4l2_heatmap *v4l2, uint64_t timestamp)
 	}
 
 	/* heatmap_remove() may already have freed v4l2->frame */
-	spin_lock(&v4l2->heatmap_lock);
+	spin_lock_irqsave(&v4l2->heatmap_lock, flags);
 	if (v4l2->removed) {
-		spin_unlock(&v4l2->heatmap_lock);
+		spin_unlock_irqrestore(&v4l2->heatmap_lock, flags);
 		return;
 	}
-	spin_unlock(&v4l2->heatmap_lock);
+	spin_unlock_irqrestore(&v4l2->heatmap_lock, flags);
 
 	/* Optimization */
 	if (consecutive_frames_dropped >= NUM_BUFFERS_BEFORE_DROP) {
-		spin_lock(&v4l2->heatmap_lock);
+		spin_lock_irqsave(&v4l2->heatmap_lock, flags);
 		if (list_empty(&v4l2->heatmap_buffer_list)) {
 			/*
 			 * Already dropped some frames, and still don't have
@@ -107,10 +108,10 @@ void heatmap_read(struct v4l2_heatmap *v4l2, uint64_t timestamp)
 			 * during read_frame(..), but given that we already
 			 * dropped some frames, this is unlikely.
 			 */
-			spin_unlock(&v4l2->heatmap_lock);
+			spin_unlock_irqrestore(&v4l2->heatmap_lock, flags);
 			return; /* Drop the frame */
 		}
-		spin_unlock(&v4l2->heatmap_lock);
+		spin_unlock_irqrestore(&v4l2->heatmap_lock, flags);
 	}
 
 	/* This is a potentially slow operation */
@@ -119,7 +120,7 @@ void heatmap_read(struct v4l2_heatmap *v4l2, uint64_t timestamp)
 		return;
 
 	/* Copy the data into the buffer */
-	spin_lock(&v4l2->heatmap_lock);
+	spin_lock_irqsave(&v4l2->heatmap_lock, flags);
 	if (list_empty(&v4l2->heatmap_buffer_list)) {
 		/*
 		 * If streaming is off, then there would
@@ -132,7 +133,7 @@ void heatmap_read(struct v4l2_heatmap *v4l2, uint64_t timestamp)
 		if (consecutive_frames_dropped == 0)
 			dev_warn(v4l2->parent_dev, "v4l2: No buffers available %s\n", index_tag);
 		consecutive_frames_dropped++;
-		spin_unlock(&v4l2->heatmap_lock);
+		spin_unlock_irqrestore(&v4l2->heatmap_lock, flags);
 		return;
 	}
 	if (consecutive_frames_dropped > 1) {
@@ -149,7 +150,7 @@ void heatmap_read(struct v4l2_heatmap *v4l2, uint64_t timestamp)
 	if (!data) {
 		dev_err(v4l2->parent_dev, "v4l2: Error acquiring frame pointer\n");
 		vb2_buffer_done(vb2_buf, VB2_BUF_STATE_ERROR);
-		spin_unlock(&v4l2->heatmap_lock);
+		spin_unlock_irqrestore(&v4l2->heatmap_lock, flags);
 		return;
 	}
 
@@ -157,7 +158,7 @@ void heatmap_read(struct v4l2_heatmap *v4l2, uint64_t timestamp)
 	vb2_set_plane_payload(vb2_buf, /* plane number */ 0, total_bytes);
 	vb2_buf->timestamp = timestamp;
 	vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
-	spin_unlock(&v4l2->heatmap_lock);
+	spin_unlock_irqrestore(&v4l2->heatmap_lock, flags);
 }
 EXPORT_SYMBOL_GPL(heatmap_read);
 
@@ -165,10 +166,11 @@ static void heatmap_buffer_queue(struct vb2_buffer *vb)
 {
 	struct v4l2_heatmap *v4l2 = vb2_get_drv_priv(vb->vb2_queue);
 	struct heatmap_vb2_buffer *heatmap_buffer = to_heatmap_vb2_buffer(vb);
+	unsigned long flags;
 
-	spin_lock(&v4l2->heatmap_lock);
+	spin_lock_irqsave(&v4l2->heatmap_lock, flags);
 	list_add_tail(&heatmap_buffer->list, &v4l2->heatmap_buffer_list);
-	spin_unlock(&v4l2->heatmap_lock);
+	spin_unlock_irqrestore(&v4l2->heatmap_lock, flags);
 }
 
 static int heatmap_queue_setup(struct vb2_queue *vq,
@@ -191,13 +193,14 @@ static void return_all_buffers(struct v4l2_heatmap *v4l2,
 	enum vb2_buffer_state state)
 {
 	struct heatmap_vb2_buffer *buf, *node;
+	unsigned long flags;
 
-	spin_lock(&v4l2->heatmap_lock);
+	spin_lock_irqsave(&v4l2->heatmap_lock, flags);
 	list_for_each_entry_safe(buf, node, &v4l2->heatmap_buffer_list, list) {
 		vb2_buffer_done(&buf->v4l2_vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
-	spin_unlock(&v4l2->heatmap_lock);
+	spin_unlock_irqrestore(&v4l2->heatmap_lock, flags);
 }
 
 /*

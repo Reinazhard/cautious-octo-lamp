@@ -5426,6 +5426,10 @@ static void sec_ts_remove(struct spi_device *client)
 
 	power_supply_unreg_notifier(&ts->psy_nb);
 
+	disable_irq_nosync(ts->client->irq);
+	free_irq(ts->client->irq, ts);
+	input_info(true, &ts->client->dev, "%s: irq disabled\n", __func__);
+
 	cancel_work_sync(&ts->suspend_work);
 	cancel_work_sync(&ts->resume_work);
 #ifdef USE_CHARGER_WORK
@@ -5441,10 +5445,6 @@ static void sec_ts_remove(struct spi_device *client)
 #endif
 	if (!fw_update_cancelled)
 		unregister_panel_bridge(&ts->panel_bridge);
-
-	disable_irq_nosync(ts->client->irq);
-	free_irq(ts->client->irq, ts);
-	input_info(true, &ts->client->dev, "%s: irq disabled\n", __func__);
 
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_OFFLOAD)
 	touch_offload_cleanup(&ts->offload);
@@ -5517,6 +5517,11 @@ static void sec_ts_remove(struct spi_device *client)
 #ifdef USE_STIM_PAD
 	kfree(ts->gainTable);
 #endif
+	if (ts->wireless_psy)
+		power_supply_put(ts->wireless_psy);
+	if (ts->usb_psy)
+		power_supply_put(ts->usb_psy);
+
 	kfree(ts->pFrameSS);
 	kfree(ts->pFrame);
 	kfree(ts);

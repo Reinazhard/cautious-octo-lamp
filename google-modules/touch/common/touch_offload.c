@@ -505,15 +505,11 @@ static long touch_offload_ioctl(struct file *file, unsigned int ioctl_num,
 		if (err != 0) {
 			pr_err("%s: copy_from_user failed with err=0x%08lX",
 			       __func__, err);
-			return err;
+			return -EFAULT;
 		}
 
 		/* TODO: stop any active streaming */
 
-		/* Purge any previously-allocated buffers */
-		touch_offload_free_buffers(context);
-
-		memset(&context->config, 0, sizeof(context->config));
 		if ((configure.config.continuous_reporting &&
 		     !context->caps.continuous_reporting) ||
 		    (configure.config.noise_reporting &&
@@ -568,6 +564,9 @@ static long touch_offload_ioctl(struct file *file, unsigned int ioctl_num,
 			return err;
 		}
 
+		/* Purge any previously-allocated buffers */
+		touch_offload_free_buffers(context);
+
 		/* Copy sanitized config */
 		memcpy(&context->config, &configure.config,
 		       sizeof(context->config));
@@ -592,7 +591,7 @@ static long touch_offload_ioctl(struct file *file, unsigned int ioctl_num,
 		if (err != 0) {
 			pr_err("%s: copy_from_user failed with err=0x%08lx.\n",
 			       __func__, err);
-			return err;
+			return -EFAULT;
 		}
 
 		/*
