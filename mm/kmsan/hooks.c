@@ -9,6 +9,7 @@
  *
  */
 
+#include <asm/tlbflush.h>
 #include <linux/cacheflush.h>
 #include <linux/dma-direction.h>
 #include <linux/gfp.h>
@@ -163,6 +164,34 @@ void kmsan_vunmap_range_noflush(unsigned long start, unsigned long end)
 	flush_cache_vmap(origin, origin + size);
 }
 
+static void kmsan_iounmap_pages(unsigned long start, unsigned long end)
+{
+	unsigned long shadow_start = vmalloc_shadow(start);
+	unsigned long shadow_end = shadow_start + (end - start);
+	unsigned long origin_start = vmalloc_origin(start);
+	unsigned long origin_end = origin_start + (end - start);
+	unsigned long v_shadow = shadow_start;
+	unsigned long v_origin = origin_start;
+	struct page *shadow, *origin;
+	int nr = (end - start) / PAGE_SIZE;
+
+	for (int i = 0; i < nr;
+	     i++, v_shadow += PAGE_SIZE, v_origin += PAGE_SIZE) {
+		shadow = kmsan_vmalloc_to_page_or_null((void *)v_shadow);
+		origin = kmsan_vmalloc_to_page_or_null((void *)v_origin);
+		if (shadow)
+			__free_page(shadow);
+		if (origin)
+			__free_page(origin);
+	}
+	__vunmap_range_noflush(shadow_start, shadow_end);
+	__vunmap_range_noflush(origin_start, origin_end);
+	flush_tlb_kernel_range(shadow_start, shadow_end);
+	flush_tlb_kernel_range(origin_start, origin_end);
+	flush_cache_vmap(shadow_start, shadow_end);
+	flush_cache_vmap(origin_start, origin_end);
+}
+
 /*
  * This function creates new shadow/origin pages for the physical pages mapped
  * into the virtual memory. If those physical pages already had shadow/origin,
@@ -174,6 +203,7 @@ int kmsan_ioremap_page_range(unsigned long start, unsigned long end,
 {
 	gfp_t gfp_mask = GFP_KERNEL | __GFP_ZERO;
 	struct page *shadow, *origin;
+	unsigned long shadow_start, origin_start, size;
 	unsigned long off = 0;
 	int nr, err = 0, clean = 0, mapped;
 
@@ -182,7 +212,14 @@ int kmsan_ioremap_page_range(unsigned long start, unsigned long end,
 	if (!has_vmalloc_meta(start))
 		return 0;
 
-	nr = (end - start) / PAGE_SIZE;
+	/*
+	 * Shadow and origin pages are Normal RAM read/written with ordinary
+	 * kernel accesses. Never inherit the caller's Device/NC pgprot_t,
+	 * which faults on unaligned accesses and mismatches __GFP_ZERO.
+	 */
+	prot = PAGE_KERNEL;
+	size = end - start;
+	nr = size / PAGE_SIZE;
 	kmsan_enter_runtime();
 	for (int i = 0; i < nr; i++, off += PAGE_SIZE, clean = i) {
 		shadow = alloc_page(gfp_mask);
@@ -220,60 +257,34 @@ ret:
 	if (clean > 0) {
 		/*
 		 * Something went wrong. Clean up shadow/origin pages allocated
-		 * on the last loop iteration, then delete mappings created
-		 * during the previous iterations.
+		 * on the last loop iteration, then delete mappings and pages
+		 * created during the previous iterations.
 		 */
 		if (shadow)
 			__free_page(shadow);
 		if (origin)
 			__free_page(origin);
-		__vunmap_range_noflush(
-			vmalloc_shadow(start),
-			vmalloc_shadow(start) + clean * PAGE_SIZE);
-		__vunmap_range_noflush(
-			vmalloc_origin(start),
-			vmalloc_origin(start) + clean * PAGE_SIZE);
+		kmsan_iounmap_pages(start, start + clean * PAGE_SIZE);
 	}
-	flush_cache_vmap(vmalloc_shadow(start),
-			 vmalloc_shadow(start) + (end - start));
-	flush_cache_vmap(vmalloc_origin(start),
-			 vmalloc_origin(start) + (end - start));
+	shadow_start = vmalloc_shadow(start);
+	origin_start = vmalloc_origin(start);
+	flush_tlb_kernel_range(shadow_start, shadow_start + size);
+	flush_tlb_kernel_range(origin_start, origin_start + size);
+	flush_cache_vmap(shadow_start, shadow_start + size);
+	flush_cache_vmap(origin_start, origin_start + size);
 	kmsan_leave_runtime();
 	return err;
 }
 
 void kmsan_iounmap_page_range(unsigned long start, unsigned long end)
 {
-	unsigned long shadow_start = vmalloc_shadow(start),
-		      shadow_end = shadow_start + (end - start);
-	unsigned long origin_start = vmalloc_origin(start),
-		      origin_end = origin_start + (end - start);
-	unsigned long v_shadow, v_origin;
-	struct page *shadow, *origin;
-	int nr;
-
 	if (!kmsan_enabled || kmsan_in_runtime())
 		return;
 	if (!has_vmalloc_meta(start))
 		return;
 
-	nr = (end - start) / PAGE_SIZE;
 	kmsan_enter_runtime();
-	v_shadow = shadow_start;
-	v_origin = origin_start;
-	for (int i = 0; i < nr;
-	     i++, v_shadow += PAGE_SIZE, v_origin += PAGE_SIZE) {
-		shadow = kmsan_vmalloc_to_page_or_null((void *)v_shadow);
-		origin = kmsan_vmalloc_to_page_or_null((void *)v_origin);
-		if (shadow)
-			__free_page(shadow);
-		if (origin)
-			__free_page(origin);
-	}
-	__vunmap_range_noflush(shadow_start, shadow_end);
-	__vunmap_range_noflush(origin_start, origin_end);
-	flush_cache_vmap(shadow_start, shadow_end);
-	flush_cache_vmap(origin_start, origin_end);
+	kmsan_iounmap_pages(start, end);
 	kmsan_leave_runtime();
 }
 

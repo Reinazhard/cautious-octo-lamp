@@ -226,6 +226,33 @@ void kmsan_free_page(struct page *page, unsigned int order)
 	kmsan_leave_runtime();
 }
 
+/*
+ * Lazily attach zeroed metadata pages to physical pages that lack them, e.g.
+ * MEMBLOCK_NOMAP carved-out regions mapped into vmalloc space via vmap().
+ */
+static int kmsan_vmap_attach_page_meta(struct page *page, gfp_t gfp_mask)
+{
+	struct page *shadow = shadow_page_for(page);
+	struct page *origin = origin_page_for(page);
+
+	if (!shadow) {
+		shadow = alloc_page(gfp_mask | __GFP_ZERO);
+		if (!shadow)
+			return -ENOMEM;
+		set_no_shadow_origin_page(shadow);
+		shadow_page_for(page) = shadow;
+	}
+	if (!origin) {
+		origin = alloc_page(gfp_mask | __GFP_ZERO);
+		if (!origin)
+			return -ENOMEM;
+		set_no_shadow_origin_page(origin);
+		origin_page_for(page) = origin;
+	}
+
+	return 0;
+}
+
 int kmsan_vmap_pages_range_noflush(unsigned long start, unsigned long end,
 				   pgprot_t prot, struct page **pages,
 				   unsigned int page_shift, gfp_t gfp_mask)
@@ -255,8 +282,17 @@ int kmsan_vmap_pages_range_noflush(unsigned long start, unsigned long end,
 		goto ret;
 	}
 	for (int i = 0; i < nr; i++) {
+		if (!shadow_page_for(pages[i]) || !origin_page_for(pages[i])) {
+			err = kmsan_vmap_attach_page_meta(pages[i], gfp_mask);
+			if (err)
+				goto ret;
+		}
 		s_pages[i] = shadow_page_for(pages[i]);
 		o_pages[i] = origin_page_for(pages[i]);
+		if (page_shift > PAGE_SHIFT && i > 0 &&
+		    (s_pages[i] != s_pages[i - 1] + 1 ||
+		     o_pages[i] != o_pages[i - 1] + 1))
+			page_shift = PAGE_SHIFT;
 	}
 	prot = PAGE_KERNEL;
 
@@ -304,6 +340,8 @@ void __init kmsan_init_alloc_meta_for_range(void *start, void *end)
 
 	for (u64 addr = 0; addr < size; addr += PAGE_SIZE) {
 		page = virt_to_page_or_null((char *)start + addr);
+		if (!page)
+			continue;
 		shadow_p = virt_to_page((char *)shadow + addr);
 		set_no_shadow_origin_page(shadow_p);
 		shadow_page_for(page) = shadow_p;
