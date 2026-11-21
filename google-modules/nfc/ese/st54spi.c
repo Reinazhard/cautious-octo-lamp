@@ -533,10 +533,10 @@ static long st54spi_ioctl(struct file *filp, unsigned int cmd,
 	spi = spi_dev_get(st54spi->spi);
 	spin_unlock_irq(&st54spi->spi_lock);
 
-	dev_dbg(&st54spi->spi->dev, "st54spi ioctl cmd %d\n", cmd);
-
 	if (spi == NULL)
 		return -ESHUTDOWN;
+
+	dev_dbg(&spi->dev, "st54spi ioctl cmd %d\n", cmd);
 
 	/* use the buffer lock here for triple duty:
 	 *  - prevent I/O (from us) so calling spi_setup() is safe;
@@ -698,10 +698,9 @@ static long st54spi_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	}
 
+	dev_dbg(&spi->dev, "st54spi ioctl retval %d\n", retval);
 	mutex_unlock(&st54spi->buf_lock);
 	spi_dev_put(spi);
-
-	dev_dbg(&st54spi->spi->dev, "st54spi ioctl retval %d\n", retval);
 
 	return retval;
 }

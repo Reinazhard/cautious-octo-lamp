@@ -664,6 +664,9 @@ static long st21nfc_dev_ioctl(struct file *filp, unsigned int cmd,
 		if (ret) {
 			dev_err(&st21nfc_dev->client->dev, "irq gpiod_direction_input failed\n");
 			ret = -ENODEV;
+		} else {
+			ret = st21nfc_loc_set_polaritymode(st21nfc_dev,
+							   st21nfc_dev->polarity_mode);
 		}
 		break;
 	case ST21NFC_CLK_ENABLE:
