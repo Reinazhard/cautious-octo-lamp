@@ -90,6 +90,7 @@ static int direct_dm_send_to_upper_layer(struct direct_dm_ctrl *dc,
 		break;
 	default:
 		mif_err_limited("protocol error:%d\n", dc->ld->protocol);
+		kfree_skb(skb);
 		return -EINVAL;
 	}
 

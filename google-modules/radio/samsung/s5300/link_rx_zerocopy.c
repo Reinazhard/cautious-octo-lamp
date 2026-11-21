@@ -491,17 +491,15 @@ int allocate_data_in_advance(struct zerocopy_adaptor *zdptr)
 
 		memcpy(dst, &offset, sizeof(offset));
 
-		barrier();
+		/* Ensure descriptor payload is visible before updating write pointer */
+		smp_wmb();
 
 		*zdptr->wp = circ_new_ptr(qlen, *zdptr->wp, 1);
 
 		alloc_cnt++;
 
 	}
-	barrier();
 	spin_unlock_irqrestore(&zdptr->lock, flags);
 
-	/* Commit the item before incrementing the head */
-	smp_mb();
 	return alloc_cnt;
 }

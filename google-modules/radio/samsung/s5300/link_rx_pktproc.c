@@ -1349,8 +1349,8 @@ static int pktproc_poll(struct napi_struct *napi, int budget)
 		goto poll_retry;
 
 	if (rcvd < budget) {
-		napi_complete_done(napi, rcvd);
-		q->enable_irq(q);
+		if (napi_complete_done(napi, rcvd))
+			q->enable_irq(q);
 
 		return rcvd;
 	}

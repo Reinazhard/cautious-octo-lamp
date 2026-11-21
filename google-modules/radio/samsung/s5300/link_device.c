@@ -2557,8 +2557,8 @@ static int mld_rx_int_poll(struct napi_struct *napi, int budget)
 #endif
 
 	if (total_ps_rcvd < total_budget) {
-		napi_complete_done(napi, total_ps_rcvd);
-		ld->enable_rx_int(ld);
+		if (napi_complete_done(napi, total_ps_rcvd))
+			ld->enable_rx_int(ld);
 		return total_ps_rcvd;
 	}
 

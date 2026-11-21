@@ -394,6 +394,7 @@ static ssize_t ipc_write(struct file *filp, const char __user *data,
 				break;
 			default:
 				mif_err("protocol error %d\n", ld->protocol);
+				dev_kfree_skb_any(skb);
 				return -EINVAL;
 			}
 		}
