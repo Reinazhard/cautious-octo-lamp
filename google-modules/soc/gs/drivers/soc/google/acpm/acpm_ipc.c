@@ -1143,6 +1143,7 @@ int acpm_ipc_probe(struct platform_device *pdev)
 	update_log_wq = create_workqueue("acpm_log");
 	if (!update_log_wq) {
 		dev_err(&pdev->dev, "failed to create workqueue\n");
+		return -ENOMEM;
 	}
 	INIT_DELAYED_WORK(&acpm_debug->acpm_log_work, acpm_log_work_fn);
 	acpm_fw_set_log_level(acpm_debug->debug_log_level);
