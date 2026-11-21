@@ -3265,7 +3265,6 @@ static int mdis_tdev_register(const char *of_name, const char *tcd_name,
 						 tcd_name,
 						 ctdev,
 						 ops);
-	of_node_put(cooling_node);
 	if (IS_ERR_OR_NULL(tcd)) {
 		const long err = PTR_ERR(tcd);
 

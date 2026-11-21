@@ -159,10 +159,8 @@ struct device_node *gbms_batt_id_node(struct device_node *config_node)
 		if (ret != 0)
 			continue;
 
-		if (batt_id == gbatt_id) {
-			of_node_put(child_node);
+		if (batt_id == gbatt_id)
 			return child_node;
-		}
 	}
 
 	return config_node;
