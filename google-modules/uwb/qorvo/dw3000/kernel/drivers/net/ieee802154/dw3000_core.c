@@ -7079,6 +7079,8 @@ int dw3000_transfers_init(struct dw3000 *dw)
 					DW3000_MAX_QUEUED_SPI_XFER *
 						sizeof(struct spi_transfer),
 				GFP_KERNEL);
+	if (!dw->msg_queue)
+		goto alloc_err;
 	return 0;
 
 alloc_err:

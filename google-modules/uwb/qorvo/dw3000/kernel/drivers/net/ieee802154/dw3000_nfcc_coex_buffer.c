@@ -165,8 +165,10 @@ int dw3000_nfcc_coex_write_buffer(struct dw3000 *dw,
 	if (rc)
 		return rc;
 	rc = dw3000_nfcc_coex_write_scratch_ram(dw, buffer, len);
-	if (rc)
+	if (rc) {
+		dw3000_nfcc_coex_release_spi1(dw);
 		return rc;
+	}
 	dw->nfcc_coex.tx_seq_num++;
 	/* Trigger IRQ2 to inform NFCC. */
 	return dw3000_nfcc_coex_release_spi1(dw);
