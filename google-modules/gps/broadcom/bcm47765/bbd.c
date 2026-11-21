@@ -797,7 +797,7 @@ struct bbd_device *bbd_init(struct device *dev, bool legacy_patch)
 		/* Let it show in FS */
 		bbd_cdev->dev = device_create(bbd->class, NULL,
 				bbd_cdev->devno, bbd, "%s", bbd_dev_name[minor]);
-		if (IS_ERR_OR_NULL(dev)) {
+		if (IS_ERR_OR_NULL(bbd_cdev->dev)) {
 			pr_err("failed to device_create() \"%s\", ret = %d",
 					bbd_dev_name[minor], ret);
 			unregister_chrdev_region(bbd_cdev->devno, 1);
@@ -861,6 +861,8 @@ void bbd_exit(struct device *dev)
 {
 	struct bbd_device *bbd = dev_get_drvdata(dev);
 	int minor;
+
+	unregister_pm_notifier(&bbd->notifier);
 
 #if IS_ENABLED(CONFIG_SENSORS_SSP)
 	/* Shutdown SSP first*/

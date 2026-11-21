@@ -1284,10 +1284,12 @@ static int bcm_spi_suspend(struct device *dev)
 
 	/* Disable irq */
 	spin_lock_irqsave(&priv->irq_lock, flags);
-	if (atomic_xchg(&priv->irq_enabled, 0))
-		disable_irq_nosync(spi->irq);
-
-	spin_unlock_irqrestore(&priv->irq_lock, flags);
+	if (atomic_xchg(&priv->irq_enabled, 0)) {
+		spin_unlock_irqrestore(&priv->irq_lock, flags);
+		disable_irq(spi->irq);
+	} else {
+		spin_unlock_irqrestore(&priv->irq_lock, flags);
+	}
 
 	if (priv->serial_wq)
 		flush_workqueue(priv->serial_wq);
@@ -1328,10 +1330,12 @@ static void bcm_spi_shutdown(struct spi_device *spi)
 
 	/* Disable irq */
 	spin_lock_irqsave(&priv->irq_lock, flags);
-	if (atomic_xchg(&priv->irq_enabled, 0))
-		disable_irq_nosync(spi->irq);
-
-	spin_unlock_irqrestore(&priv->irq_lock, flags);
+	if (atomic_xchg(&priv->irq_enabled, 0)) {
+		spin_unlock_irqrestore(&priv->irq_lock, flags);
+		disable_irq(spi->irq);
+	} else {
+		spin_unlock_irqrestore(&priv->irq_lock, flags);
+	}
 
 	flush_workqueue(priv->serial_wq);
 	destroy_workqueue(priv->serial_wq);
@@ -1559,10 +1563,12 @@ static void bcm_spi_remove(struct spi_device *spi)
 
 	/* Disable irq */
 	spin_lock_irqsave(&priv->irq_lock, flags);
-	if (atomic_xchg(&priv->irq_enabled, 0))
-		disable_irq_nosync(spi->irq);
-
-	spin_unlock_irqrestore(&priv->irq_lock, flags);
+	if (atomic_xchg(&priv->irq_enabled, 0)) {
+		spin_unlock_irqrestore(&priv->irq_lock, flags);
+		disable_irq(spi->irq);
+	} else {
+		spin_unlock_irqrestore(&priv->irq_lock, flags);
+	}
 
 	/* Flush work */
 	flush_workqueue(priv->serial_wq);
