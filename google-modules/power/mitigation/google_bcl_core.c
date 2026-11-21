@@ -512,12 +512,18 @@ struct bcl_device *google_retrieve_bcl_handle(void)
 	struct bcl_device *bcl_dev;
 
 	np = of_find_node_by_name(NULL, "google,mitigation");
-	if (!np || !of_device_is_available(np))
+	if (!np)
 		return NULL;
+	if (!of_device_is_available(np)) {
+		of_node_put(np);
+		return NULL;
+	}
 	pdev = of_find_device_by_node(np);
+	of_node_put(np);
 	if (!pdev)
 		return NULL;
 	bcl_dev = platform_get_drvdata(pdev);
+	put_device(&pdev->dev);
 	if (IS_ERR_OR_NULL(bcl_dev))
 		return NULL;
 
@@ -1048,6 +1054,7 @@ static void google_bcl_setup_main_odpm(struct work_struct *work) {
 				i++;
 			}
 		}
+		of_node_put(p_np);
 	}
 #endif
 
@@ -1106,6 +1113,7 @@ static void google_bcl_setup_sub_odpm(struct work_struct *work) {
 				i++;
 			}
 		}
+		of_node_put(p_np);
 	}
 #endif
 
@@ -1174,13 +1182,13 @@ static int google_set_sub_pmic(struct bcl_device *bcl_dev)
 	p_np = of_parse_phandle(np, "google,sub-power", 0);
 	if (p_np) {
 		i2c = of_find_i2c_device_by_node(p_np);
+		of_node_put(p_np);
 		if (!i2c) {
 			dev_err(bcl_dev->device, "Cannot find sub-power I2C\n");
 			return -ENODEV;
 		}
 		sub_dev = i2c_get_clientdata(i2c);
 	}
-	of_node_put(p_np);
 	if (!sub_dev) {
 		dev_err(bcl_dev->device, "SUB PMIC device not found\n");
 		return -ENODEV;
@@ -1284,6 +1292,7 @@ static void google_bcl_parse_qos(struct bcl_device *bcl_dev)
 					 &bcl_dev->zone[idx]->bcl_qos->tpu_limit) != 0)
 			bcl_dev->zone[idx]->bcl_qos->tpu_limit = INT_MAX;
 	}
+	of_node_put(p_np);
 	bcl_dev->throttle = false;
 }
 
@@ -1925,13 +1934,13 @@ static int google_set_main_pmic(struct bcl_device *bcl_dev)
 	p_np = of_parse_phandle(np, "google,main-power", 0);
 	if (p_np) {
 		i2c = of_find_i2c_device_by_node(p_np);
+		of_node_put(p_np);
 		if (!i2c) {
 			dev_err(bcl_dev->device, "Cannot find main-power I2C\n");
 			return -ENODEV;
 		}
 		main_dev = i2c_get_clientdata(i2c);
 	}
-	of_node_put(p_np);
 	if (!main_dev) {
 		dev_err(bcl_dev->device, "Main PMIC device not found\n");
 		return -ENODEV;
@@ -2199,8 +2208,10 @@ static void google_bcl_parse_irq_config(struct bcl_device *bcl_dev)
 	/* This enables BATOILO2 as well */
 	irq_config(bcl_dev->zone[SMPL_WARN], of_property_read_bool(child, "irq,smpl_warn"));
 	irq_config(bcl_dev->zone[BATOILO2], of_property_read_bool(child, "irq,batoilo2"));
-	if (bcl_dev->ifpmic == MAX77779)
+	if (bcl_dev->ifpmic == MAX77779) {
+		of_node_put(child);
 		return;
+	}
 	irq_config(bcl_dev->zone[BATOILO], of_property_read_bool(child, "irq,batoilo"));
 	irq_config(bcl_dev->zone[OCP_WARN_CPUCL1], of_property_read_bool(child, "irq,ocp_cpu1"));
 	irq_config(bcl_dev->zone[OCP_WARN_CPUCL2], of_property_read_bool(child, "irq,ocp_cpu2"));
@@ -2214,6 +2225,7 @@ static void google_bcl_parse_irq_config(struct bcl_device *bcl_dev)
 		   of_property_read_bool(child, "irq,soft_ocp_tpu"));
 	irq_config(bcl_dev->zone[SOFT_OCP_WARN_GPU],
 		   of_property_read_bool(child, "irq,soft_ocp_gpu"));
+	of_node_put(child);
 
 }
 
@@ -2322,6 +2334,7 @@ static void google_bcl_parse_dtree(struct bcl_device *bcl_dev)
 				i++;
 			}
 		}
+		of_node_put(p_np);
 	}
 
 	/* parse ODPM sub mitigation module */
@@ -2338,6 +2351,7 @@ static void google_bcl_parse_dtree(struct bcl_device *bcl_dev)
 				i++;
 			}
 		}
+		of_node_put(p_np);
 	}
 
 	/* parse and init non-monitored modules */

@@ -14,7 +14,7 @@
 int max77759_get_irq(struct bcl_device *bcl_dev, u8 *irq_val)
 {
 	u8 chg_int;
-	u8 ret;
+	int ret;
 	u8 clr_bcl_irq_mask;
 
 	clr_bcl_irq_mask = (MAX77759_CHG_INT2_BAT_OILO_I | MAX77759_CHG_INT2_SYS_UVLO1_I |

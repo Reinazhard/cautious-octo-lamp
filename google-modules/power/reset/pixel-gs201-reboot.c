@@ -157,8 +157,10 @@ static int pixel_reboot_probe(struct platform_device *pdev)
 
 	if (of_address_to_resource(syscon_np, 0, &res)) {
 		dev_err(dev, "failed to get syscon base address\n");
+		of_node_put(syscon_np);
 		return -ENOMEM;
 	}
+	of_node_put(syscon_np);
 
 	pmu_alive_base = res.start;
 

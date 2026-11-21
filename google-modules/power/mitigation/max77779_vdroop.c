@@ -71,7 +71,7 @@ int max77779_adjust_batoilo_lvl(struct bcl_device *bcl_dev, u8 lower_enable, u8 
 int max77779_get_irq(struct bcl_device *bcl_dev, u8 *irq_val)
 {
 	u8 vdroop_int;
-	u8 ret;
+	int ret;
 	u8 clr_bcl_irq_mask;
 
 	clr_bcl_irq_mask = (MAX77779_PMIC_VDROOP_INT_BAT_OILO2_INT_MASK |
