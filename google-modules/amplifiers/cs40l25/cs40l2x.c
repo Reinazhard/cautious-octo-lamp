@@ -11528,6 +11528,7 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client)
 	ret = device_init_wakeup(cs40l2x->dev, true);
 	if (ret) {
 		dev_err(dev, "Failed to initialize wakeup source\n");
+		destroy_workqueue(cs40l2x->vibe_workqueue);
 		return ret;
 	}
 

@@ -1014,7 +1014,7 @@ static struct regmap_config drv2624_i2c_regmap = {
 	.precious_reg = drv2624_is_precious_reg,
 	.writeable_reg = drv2624_is_writeable_reg,
 	.max_register = DRV2624_REG_RAM_DATA,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.can_multi_write = true,
 };
 
@@ -1790,7 +1790,8 @@ static int drv2624_i2c_probe(struct i2c_client *client)
 	return 0;
 
 drv2624_i2c_probe_err:
-
+	if (drv2624->drv2624_wq)
+		destroy_workqueue(drv2624->drv2624_wq);
 	dev_err(drv2624->dev, "%s failed, err=%d\n", __func__, err);
 	return err;
 }
@@ -1799,13 +1800,18 @@ static void drv2624_i2c_remove(struct i2c_client *client)
 {
 	struct drv2624_data *drv2624 = i2c_get_clientdata(client);
 
+	if (drv2624->irq > 0)
+		devm_free_irq(&client->dev, drv2624->irq, drv2624);
+
 	cancel_work_sync(&drv2624->vibrator_work);
 	cancel_work_sync(&drv2624->work);
+	cancel_work_sync(&drv2624->stop_work);
 
 	devm_led_classdev_unregister(drv2624->dev, &drv2624->led_dev);
-	sysfs_remove_group (&drv2624->dev->kobj, &drv2624_fs_attr_group);
+	sysfs_remove_group(&drv2624->dev->kobj, &drv2624_fs_attr_group);
 
-	destroy_workqueue(drv2624->drv2624_wq);
+	if (drv2624->drv2624_wq)
+		destroy_workqueue(drv2624->drv2624_wq);
 	mutex_destroy(&drv2624->lock);
 }
 

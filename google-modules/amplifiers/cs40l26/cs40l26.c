@@ -2011,10 +2011,12 @@ int cs40l26_num_ram_waves(struct cs40l26_private *cs40l26)
 	u32 num_of_waves, reg;
 	int error;
 
-	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_VIBEGEN_ALGO_ID))
-		return 0;
-
 	mutex_lock(&cs40l26->cl_dsp_lock);
+	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_VIBEGEN_ALGO_ID)) {
+		mutex_unlock(&cs40l26->cl_dsp_lock);
+		return 0;
+	}
+
 	error = cl_dsp_get_reg(cs40l26->dsp, "NUM_OF_WAVES", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
 	mutex_unlock(&cs40l26->cl_dsp_lock);
@@ -2034,10 +2036,12 @@ int cs40l26_num_owt_waves(struct cs40l26_private *cs40l26)
 	u32 owt_num_of_waves, reg;
 	int error;
 
-	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_VIBEGEN_ALGO_ID))
-		return 0;
-
 	mutex_lock(&cs40l26->cl_dsp_lock);
+	if (!cl_dsp_algo_is_present(cs40l26->dsp, CS40L26_VIBEGEN_ALGO_ID)) {
+		mutex_unlock(&cs40l26->cl_dsp_lock);
+		return 0;
+	}
+
 	error = cl_dsp_get_reg(cs40l26->dsp, "OWT_NUM_OF_WAVES_XM", CL_DSP_XM_UNPACKED_TYPE,
 			CS40L26_VIBEGEN_ALGO_ID, &reg);
 	mutex_unlock(&cs40l26->cl_dsp_lock);
@@ -5687,8 +5691,8 @@ EXPORT_SYMBOL(cs40l26_add_codec_devices);
 
 int cs40l26_remove(struct cs40l26_private *cs40l26)
 {
-	struct regulator *vp_consumer = cs40l26->reg_supplies[CS40L26_VP_SUPPLY].consumer;
-	struct regulator *va_consumer = cs40l26->reg_supplies[CS40L26_VA_SUPPLY].consumer;
+	struct regulator *vp_consumer = cs40l26->reg_supplies ? cs40l26->reg_supplies[CS40L26_VP_SUPPLY].consumer : NULL;
+	struct regulator *va_consumer = cs40l26->reg_supplies ? cs40l26->reg_supplies[CS40L26_VA_SUPPLY].consumer : NULL;
 	int error;
 
 	if (cs40l26->vibe_init_success)
@@ -5698,10 +5702,10 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 		input_unregister_device(cs40l26->input);
 
 	disable_irq(cs40l26->irq);
-	mutex_destroy(&cs40l26->lock);
-	mutex_destroy(&cs40l26->cl_dsp_lock);
 
 	cs40l26_pm_runtime_teardown(cs40l26);
+
+	cancel_work_sync(&cs40l26->reset_work);
 
 	if (cs40l26->vibe_workqueue) {
 		cancel_work_sync(&cs40l26->vibe_start_work);
@@ -5713,6 +5717,9 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 	}
 
 	timer_delete_sync(&cs40l26->hibernate_timer);
+
+	mutex_destroy(&cs40l26->lock);
+	mutex_destroy(&cs40l26->cl_dsp_lock);
 
 	/*
 	 * Clear the wave-sequence terminator while the device is still

@@ -453,7 +453,7 @@ static const struct regmap_config tas25xx_i2c_regmap = {
 	.max_register = 256 * 128,
 	.ranges = tas25xx_ranges,
 	.num_ranges = ARRAY_SIZE(tas25xx_ranges),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 #define TEST_HW_RESET 0

@@ -135,6 +135,7 @@ struct cs35l41_private {
 	const char *dt_name;
 	unsigned int gpi_global_en;
 	bool enabled;
+	bool is_nop;
 };
 
 int cs35l41_probe(struct cs35l41_private *cs35l41,

@@ -55,7 +55,9 @@ static int cs40l26_i2c_probe(struct i2c_client *client)
 
 	error = cs40l26_probe(cs40l26);
 	if ((error != 0) && (error != -ENOMEM)) {
-		if (++cs40l26_probed_retry_count[cs40l26->device_id] ==
+		if (cs40l26->device_id >= 0 &&
+		    cs40l26->device_id < CS40L26_MAX_DEVICES &&
+		    ++cs40l26_probed_retry_count[cs40l26->device_id] ==
 				CS40L26_MAX_PROBE_RETRY) {
 			dev_err(&client->dev, "Failed to probe.\n");
 			cs40l26->cs40l26_not_probed = true;

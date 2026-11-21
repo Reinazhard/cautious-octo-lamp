@@ -353,7 +353,9 @@ static int cs40l2x_vol_get(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	pm_runtime_get_sync(priv->dev);
+	ret = pm_runtime_resume_and_get(priv->dev);
+	if (ret < 0)
+		return ret;
 
 	ret = regmap_read(regmap, reg, &val);
 	if (ret)
@@ -401,7 +403,9 @@ static int cs40l2x_vol_put(struct snd_kcontrol *kcontrol,
 	else
 		val *= (CS40L2X_VOL_LVL_MAX / CS40L2X_VOL_LVL_MAX_STEPS);
 
-	pm_runtime_get_sync(priv->dev);
+	ret = pm_runtime_resume_and_get(priv->dev);
+	if (ret < 0)
+		return ret;
 
 	ret = regmap_write(regmap, reg, val);
 
@@ -470,7 +474,9 @@ static int cs40l2x_delay_get(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	pm_runtime_get_sync(priv->dev);
+	ret = pm_runtime_resume_and_get(priv->dev);
+	if (ret < 0)
+		return ret;
 
 	ret = regmap_read(regmap, reg, &val);
 	if (!ret)
@@ -506,7 +512,9 @@ static int cs40l2x_delay_put(struct snd_kcontrol *kcontrol,
 
 	val = ucontrol->value.integer.value[0];
 
-	pm_runtime_get_sync(priv->dev);
+	ret = pm_runtime_resume_and_get(priv->dev);
+	if (ret < 0)
+		return ret;
 
 	ret = regmap_write(regmap, reg, val);
 

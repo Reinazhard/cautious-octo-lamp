@@ -711,7 +711,7 @@ static int cs35l41_do_fast_switch(struct cs35l41_private *cs35l41)
 	}
 
 	/* Parse number of data words in file */
-	for (i = 0, j = 0; (char)fw->data[i] != ','; i++) {
+	for (i = 0, j = 0; i < fw->size && (char)fw->data[i] != ','; i++) {
 		if ((char)fw->data[i] == ' ') {
 			/* Skip white space */
 		} else {
@@ -726,19 +726,25 @@ static int cs35l41_do_fast_switch(struct cs35l41_private *cs35l41)
 			}
 		}
 	}
+	if (i >= fw->size) {
+		dev_err(cs35l41->dev, "No delimiter found in firmware\n");
+		ret = -EINVAL;
+		goto exit;
+	}
 	/* points to beginning of next number */
 	i++;
 	val_str[j] = '\0';
 	ret = kstrtos32(val_str, 10, &data_ctl_len);
-	if (ret < 0) {
+	if (ret < 0 || data_ctl_len <= 0) {
 		dev_err(cs35l41->dev, "kstrtos32 failed (%d) val_str:%s\n",
 			ret, val_str);
+		ret = -EINVAL;
 		goto exit;
 	}
 
 	dev_dbg(cs35l41->dev, "data_ctl_len:%u\n", data_ctl_len);
 
-	data_ctl_buf = kcalloc(1, data_ctl_len * sizeof(s32), GFP_KERNEL);
+	data_ctl_buf = kcalloc(data_ctl_len, sizeof(s32), GFP_KERNEL);
 	if (!data_ctl_buf) {
 		ret = -ENOMEM;
 		goto exit;
@@ -760,6 +766,11 @@ static int cs35l41_do_fast_switch(struct cs35l41_private *cs35l41)
 				dev_err(cs35l41->dev,
 					"kstrtos32 failed (%d) val_str:%s\n",
 					ret, val_str);
+				goto exit;
+			}
+			if (k >= data_ctl_len) {
+				dev_err(cs35l41->dev, "Too many parameters in firmware\n");
+				ret = -EINVAL;
 				goto exit;
 			}
 			data_ctl_buf[k] = cpu_to_be32(val);
@@ -2211,7 +2222,7 @@ static int cs35l41_hibernate(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		cancel_delayed_work(&cs35l41->hb_work);
+		cancel_delayed_work_sync(&cs35l41->hb_work);
 		mutex_lock(&cs35l41->hb_lock);
 		ret = cs35l41_exit_hibernate(cs35l41);
 		mutex_unlock(&cs35l41->hb_lock);
@@ -4440,7 +4451,10 @@ err_codec:
 err_dsp:
 	wm_adsp2_remove(&cs35l41->dsp);
 err_otp:
-	destroy_workqueue(cs35l41->vol_ctl.ramp_wq);
+	if (cs35l41->vol_ctl.ramp_wq) {
+		destroy_workqueue(cs35l41->vol_ctl.ramp_wq);
+		cs35l41->vol_ctl.ramp_wq = NULL;
+	}
 	mutex_destroy(&cs35l41->force_int_lock);
 	mutex_destroy(&cs35l41->vol_ctl.vol_mutex);
 err:
@@ -4453,6 +4467,7 @@ err:
 		dev_err(cs35l41->dev, "%s: Register codec failed\n", __func__);
 	} else {
 		dev_info(cs35l41->dev, "%s: Register nop codec\n", __func__);
+		cs35l41->is_nop = true;
 		ret = 0;
 	}
 
@@ -4462,6 +4477,11 @@ EXPORT_SYMBOL_GPL(cs35l41_probe);
 
 void cs35l41_remove(struct cs35l41_private *cs35l41)
 {
+	if (cs35l41->is_nop) {
+		snd_soc_unregister_component(cs35l41->dev);
+		return;
+	}
+
 	if (cs35l41->wq)
 		cancel_delayed_work_sync(&cs35l41->hb_work);
 #if IS_ENABLED(CONFIG_SND_SOC_CODEC_DETECT)

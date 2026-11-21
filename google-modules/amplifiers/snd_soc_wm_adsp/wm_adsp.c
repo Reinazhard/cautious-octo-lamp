@@ -1114,6 +1114,9 @@ static int wm_coeff_tlv_put(struct snd_kcontrol *kctl,
 	struct wm_coeff_ctl *ctl = bytes_ext_to_ctl(bytes_ext);
 	int ret = 0;
 
+	if (size > ctl->len)
+		return -EINVAL;
+
 	mutex_lock(&ctl->dsp->pwr_lock);
 
 	if (copy_from_user(ctl->cache, bytes, size))
@@ -1226,6 +1229,9 @@ static int wm_coeff_tlv_get(struct snd_kcontrol *kctl,
 		(struct soc_bytes_ext *)kctl->private_value;
 	struct wm_coeff_ctl *ctl = bytes_ext_to_ctl(bytes_ext);
 	int ret = 0;
+
+	if (size > ctl->len)
+		return -EINVAL;
 
 	mutex_lock(&ctl->dsp->pwr_lock);
 
@@ -1904,6 +1910,16 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		offset = le32_to_cpu(region->offset) & 0xffffff;
 		type = be32_to_cpu(region->type) & 0xff;
 
+		if (le32_to_cpu(region->len) >
+		    firmware->size - pos - sizeof(*region)) {
+			adsp_err(dsp,
+				 "%s.%d: region len %d bytes exceeds file length %zu\n",
+				 file, regions,
+				 le32_to_cpu(region->len), firmware->size);
+			ret = -EINVAL;
+			goto out_fw;
+		}
+
 		switch (type) {
 		case WMFW_NAME_TEXT:
 			region_name = "Firmware name";
@@ -1961,16 +1977,6 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		adsp_dbg(dsp, "%s.%d: %d bytes at %d in %s\n", file,
 			 regions, le32_to_cpu(region->len), offset,
 			 region_name);
-
-		if (le32_to_cpu(region->len) >
-		    firmware->size - pos - sizeof(*region)) {
-			adsp_err(dsp,
-				 "%s.%d: %s region len %d bytes exceeds file length %zu\n",
-				 file, regions, region_name,
-				 le32_to_cpu(region->len), firmware->size);
-			ret = -EINVAL;
-			goto out_fw;
-		}
 
 		if (text) {
 			memcpy(text, region->data, le32_to_cpu(region->len));
@@ -3515,6 +3521,11 @@ void wm_adsp2_remove(struct wm_adsp *dsp)
 {
 	struct wm_coeff_ctl *ctl;
 
+	if (!dsp->ctl_list.next)
+		return;
+
+	cancel_work_sync(&dsp->boot_work);
+
 	while (!list_empty(&dsp->ctl_list)) {
 		ctl = list_first_entry(&dsp->ctl_list, struct wm_coeff_ctl,
 					list);
@@ -3531,6 +3542,8 @@ void wm_adsp2_remove(struct wm_adsp *dsp)
 			wm_adsp_remove_ctl(dsp, ctl);
 		wm_adsp_free_ctl_blk(ctl);
 	}
+
+	wm_adsp_free_alg_regions(dsp);
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_remove);
 
