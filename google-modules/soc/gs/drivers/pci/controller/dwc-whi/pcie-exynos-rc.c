@@ -345,14 +345,18 @@ static dma_addr_t pcie_dma_map_phys(struct device *dev, phys_addr_t phys,
 	exynos_pcie = &g_pcie_rc[ch_num];
 
 	dma_addr = dma_map_phys(&exynos_pcie->dup_ep_dev, phys, size, dir, attrs);
+	if (dma_mapping_error(&exynos_pcie->dup_ep_dev, dma_addr))
+		return DMA_MAPPING_ERROR;
+
 	if (exynos_pcie->s2mpu) {
 		s2mpu_update_refcnt(dev, dma_addr, size, true, dir);
-	} else if (exynos_pcie->use_sysmmu && dma_addr != DMA_MAPPING_ERROR) {
+	} else if (exynos_pcie->use_sysmmu) {
 		ret = pcie_iommu_map(dma_addr, dma_addr, size,
 				dir, pcie_ch_to_hsi(ch_num));
 		if (ret != 0) {
 			pr_err("DMA map - Can't map PCIe SysMMU table!!!\n");
-			return 0;
+			dma_unmap_phys(&exynos_pcie->dup_ep_dev, dma_addr, size, dir, attrs);
+			return DMA_MAPPING_ERROR;
 		}
 	}
 	return dma_addr;
