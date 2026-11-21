@@ -641,18 +641,19 @@ static ssize_t aocc_write(struct file *file, const char __user *buf,
 	if (count > SIZE_MAX - sizeof(int))
 		return -EINVAL;
 
-	buffer = kmalloc(count + sizeof(int), GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
-
 	mutex_lock(&aocc_devices_lock);
 	aocc_device_dead = private->aocc_device_entry->service->dead;
 	mutex_unlock(&aocc_devices_lock);
 
 	if (aocc_device_dead) {
-		retval = -ESHUTDOWN;
-		goto err_aocc_device_dead;
+		pr_err_ratelimited("Write failed for channel %d with code %d (device dead)\n",
+				   private->channel_index, -ESHUTDOWN);
+		return -ESHUTDOWN;
 	}
+
+	buffer = kmalloc(count + sizeof(int), GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
 
 	/*Prepend the appropriate channel index to the message. */
 	((int *)buffer)[0] = private->channel_index;
@@ -669,9 +670,9 @@ static ssize_t aocc_write(struct file *file, const char __user *buf,
 		retval = -ENOMEM;
 	}
 
-err_aocc_device_dead:
 	if (retval < 0 && retval != -EAGAIN) {
-		pr_err("Write failed for channel %d with code %zd\n", private->channel_index, retval);
+		pr_err_ratelimited("Write failed for channel %d with code %zd\n",
+				   private->channel_index, retval);
 	}
 
 	kfree(buffer);
