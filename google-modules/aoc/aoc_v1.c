@@ -163,7 +163,7 @@ int aoc_watchdog_restart(struct aoc_prvdata *prvdata,
 
 		dev_info(prvdata->dev, "waiting for aoc reset to finish\n");
 		if (wait_event_timeout(prvdata->aoc_reset_wait_queue, prvdata->aoc_reset_done,
-				       aoc_reset_timeout_ms) == 0) {
+				       msecs_to_jiffies(aoc_reset_timeout_ms)) == 0) {
 			dev_err(prvdata->dev, "AoC reset timed out\n");
 			ret = exynos_pmu_read(custom_out_offset, &custom_out);
 			dev_err(prvdata->dev,
