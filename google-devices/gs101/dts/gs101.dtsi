@@ -1773,6 +1773,7 @@
 	thermal_zones: thermal-zones {
 		big_thermal: BIG {
 			zone_name  = "BIG_THERMAL";
+			thermal-governor = "user_space";
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tmuctrl_0>;
@@ -1828,6 +1829,7 @@
 		};
 		mid_thermal: MID {
 			zone_name  = "MID_THERMAL";
+			thermal-governor = "user_space";
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tmuctrl_1>;
@@ -1883,6 +1885,7 @@
 		};
 		little_thermal: LITTLE {
 			zone_name  = "LITTLE_THERMAL";
+			thermal-governor = "user_space";
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tmuctrl_2>;
@@ -1938,6 +1941,7 @@
 		};
 		gpu_thermal: G3D {
 			zone_name  = "G3D_THERMAL";
+			thermal-governor = "user_space";
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tmuctrl_3>;
@@ -1995,6 +1999,7 @@
 		};
 		isp_thermal: ISP {
 			zone_name  = "ISP_THERMAL";
+			thermal-governor = "user_space";
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tmuctrl_4>;
@@ -2044,6 +2049,7 @@
 		};
 		tpu_thermal: TPU {
 			zone_name  = "TPU_THERMAL";
+			thermal-governor = "user_space";
 			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			thermal-sensors = <&tmuctrl_5>;
