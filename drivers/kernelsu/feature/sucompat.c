@@ -88,7 +88,7 @@ static int ksu_handle_execveat_init(struct filename *filename, struct user_arg_p
     if (current->pid == 1)
         return -EINVAL;
 
-    if (!is_init(get_current_cred()))
+    if (!is_init(current_cred()))
         return -EINVAL;
 
     if (unlikely(!strcmp(filename->name, KSUD_PATH))) {
