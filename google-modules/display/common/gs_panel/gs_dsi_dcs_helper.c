@@ -35,7 +35,7 @@ void gs_dsi_send_cmdset(struct mipi_dsi_device *dsi, const struct gs_dsi_cmdset 
 		return;
 
 	c = &cmdset->cmds[cmdset->num_cmd - 1];
-	if (!c->panel_rev) {
+	if (!panel_rev || !c->panel_rev) {
 		last_cmd = c;
 	} else {
 		for (; c >= cmdset->cmds; c--) {
@@ -73,7 +73,7 @@ EXPORT_SYMBOL_GPL(gs_dsi_send_cmdset);
 
 static void write_dcs_transfer_trace(size_t len, const u8 *data)
 {
-	static char tmp[48] = { 0 };
+	char tmp[48] = { 0 };
 	switch (len) {
 	case 1:
 		snprintf(tmp, sizeof(tmp), "[%02X]", data[0]);

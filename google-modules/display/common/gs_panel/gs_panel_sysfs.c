@@ -395,8 +395,8 @@ static ssize_t te2_lp_timing_show(struct device *dev, struct device_attribute *a
 static ssize_t time_in_state_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct backlight_device *bl = to_backlight_device(dev);
-	struct gs_panel *ctx = bl_get_data(bl);
+	const struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
+	struct gs_panel *ctx = mipi_dsi_get_drvdata(dsi);
 	struct display_stats *stats = &ctx->disp_stats;
 	int state, vrefresh_idx, res_idx, time_state_idx;
 	u64 time, delta_ms;
@@ -468,8 +468,8 @@ static ssize_t time_in_state_show(struct device *dev,
 static ssize_t available_disp_stats_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct backlight_device *bl = to_backlight_device(dev);
-	struct gs_panel *ctx = bl_get_data(bl);
+	const struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
+	struct gs_panel *ctx = mipi_dsi_get_drvdata(dsi);
 	struct display_stats *stats = &ctx->disp_stats;
 	int state, vrefresh_idx, res_idx;
 	ssize_t len = 0;
@@ -898,7 +898,7 @@ static ssize_t frame_rate_store(struct device *dev, struct device_attribute *att
 	ret = kstrtou16(buf, 0, &frame_rate);
 	if (ret || frame_rate < 1 || frame_rate > 120) {
 		dev_err(dev, "invalid frame rate value: %u\n", frame_rate);
-		return ret;
+		return ret ? ret : -EINVAL;
 	}
 
 	if (!gs_is_panel_active(ctx)) {
@@ -1109,6 +1109,7 @@ static ssize_t hbm_mode_store(struct device *dev, struct device_attribute *attr,
 	ret = kstrtouint(buf, 0, &hbm_mode);
 	if (ret || (hbm_mode >= GS_HBM_STATE_MAX)) {
 		dev_err(ctx->dev, "invalid hbm_mode value\n");
+		ret = ret ? ret : -EINVAL;
 		goto unlock;
 	}
 
@@ -1314,8 +1315,8 @@ static ssize_t acl_mode_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
-	struct gs_panel *ctx = mipi_dsi_get_drvdata(dsi);
+	struct backlight_device *bd = to_backlight_device(dev);
+	struct gs_panel *ctx = bl_get_data(bd);
 	ssize_t ret;
 	u32 acl_mode;
 
@@ -1346,8 +1347,8 @@ static ssize_t acl_mode_store(struct device *dev,
 static ssize_t acl_mode_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
-	struct gs_panel *ctx = mipi_dsi_get_drvdata(dsi);
+	struct backlight_device *bd = to_backlight_device(dev);
+	struct gs_panel *ctx = bl_get_data(bd);
 
 	if (!gs_is_panel_active(ctx)) {
 		dev_err(ctx->dev, "panel is not enabled\n");
@@ -1361,8 +1362,8 @@ static ssize_t ssc_en_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
-	struct gs_panel *ctx = mipi_dsi_get_drvdata(dsi);
+	struct backlight_device *bd = to_backlight_device(dev);
+	struct gs_panel *ctx = bl_get_data(bd);
 	ssize_t ret;
 	bool ssc_en;
 
@@ -1392,8 +1393,8 @@ static ssize_t ssc_en_store(struct device *dev,
 static ssize_t ssc_en_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
-	struct gs_panel *ctx = mipi_dsi_get_drvdata(dsi);
+	struct backlight_device *bd = to_backlight_device(dev);
+	struct gs_panel *ctx = bl_get_data(bd);
 
 	if (!gs_panel_has_func(ctx, set_ssc_en)) {
 		dev_err(ctx->dev, "SSC is not supported\n");

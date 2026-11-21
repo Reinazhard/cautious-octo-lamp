@@ -230,6 +230,7 @@ static void local_hbm_wait_and_notify_effectiveness(struct gs_panel *ctx, struct
 			ktime_us_delta(ktime_get(), lhbm->timestamps.next_vblank_ts) :
 			0,
 		frames);
+	mutex_lock(&ctx->mode_lock);
 	if (lhbm->effective_state == GLOCAL_HBM_ENABLING) {
 		lhbm->effective_state = GLOCAL_HBM_ENABLED;
 		sysfs_notify(&ctx->bl->dev.kobj, NULL, "local_hbm_mode");
@@ -237,6 +238,7 @@ static void local_hbm_wait_and_notify_effectiveness(struct gs_panel *ctx, struct
 		dev_warn(ctx->dev, "%s: LHBM state = %d before becoming effective\n", __func__,
 			 lhbm->effective_state);
 	}
+	mutex_unlock(&ctx->mode_lock);
 }
 
 /**

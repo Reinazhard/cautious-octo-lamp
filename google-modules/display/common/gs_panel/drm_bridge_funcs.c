@@ -892,8 +892,10 @@ static int gs_panel_bridge_atomic_check(struct drm_bridge *bridge,
 {
 	struct gs_panel *ctx = bridge_to_gs_panel(bridge);
 	struct drm_atomic_commit *state = new_crtc_state->state;
-	const struct drm_display_mode *current_mode = &ctx->current_mode->mode;
+	const struct gs_panel_mode *pmode = ctx->current_mode;
+	const struct drm_display_mode *current_mode = pmode ? &pmode->mode : NULL;
 	int ret;
+	int clock = 0;
 
 	if (unlikely(!new_crtc_state))
 		return 0;
@@ -906,11 +908,9 @@ static int gs_panel_bridge_atomic_check(struct drm_bridge *bridge,
 		int current_vrefresh = drm_mode_vrefresh(current_mode);
 		int target_vrefresh = drm_mode_vrefresh(target_mode);
 		int current_bts_fps = gs_drm_mode_bts_fps(current_mode,
-			ctx->current_mode->gs_mode.min_bts_fps);
+			pmode->gs_mode.min_bts_fps);
 		int target_bts_fps = gs_drm_mode_bts_fps(target_mode,
 			gs_conn_state->gs_mode.min_bts_fps);
-
-		int clock;
 
 		/* if resolution changing */
 		if (current_mode->hdisplay != target_mode->hdisplay &&

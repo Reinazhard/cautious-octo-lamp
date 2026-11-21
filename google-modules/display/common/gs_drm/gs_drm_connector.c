@@ -478,10 +478,6 @@ static int connector_add_mipi_dsi_device(struct gs_drm_connector *gs_connector, 
 	for_each_available_child_of_node(dev->of_node, node) {
 		bool found;
 
-		if (info.node) {
-			continue;
-		}
-
 		if (of_property_read_u32(node, "channel", &info.channel)) {
 			/* if cannot read channel, continue */
 			continue;
@@ -495,11 +491,19 @@ static int connector_add_mipi_dsi_device(struct gs_drm_connector *gs_connector, 
 			/*TODO(tknelms): case for no pname provided */
 			strscpy(info.type, node_label, sizeof(info.type));
 			info.node = of_node_get(node);
+			of_node_put(node);
+			break;
 		}
 	}
 
 	if (info.node) {
-		mipi_dsi_device_register_full(host, &info);
+		struct mipi_dsi_device *dsi;
+
+		dsi = mipi_dsi_device_register_full(host, &info);
+		of_node_put(info.node);
+		if (IS_ERR(dsi))
+			return PTR_ERR(dsi);
+		gs_connector->panel_dsi_device = dsi;
 		dev_dbg(dev, "%s-\n", __func__);
 		return 0;
 	} else {
@@ -706,7 +710,11 @@ static int gs_drm_connector_probe(struct platform_device *pdev)
 static void gs_drm_connector_remove(struct platform_device *pdev)
 {
 	struct gs_drm_connector *gs_connector = platform_get_drvdata(pdev);
-	(void)gs_connector; /*TODO(tknelms): use*/
+
+	if (gs_connector && gs_connector->panel_dsi_device) {
+		mipi_dsi_device_unregister(gs_connector->panel_dsi_device);
+		gs_connector->panel_dsi_device = NULL;
+	}
 };
 
 static const struct of_device_id gs_connector_of_match[] = {

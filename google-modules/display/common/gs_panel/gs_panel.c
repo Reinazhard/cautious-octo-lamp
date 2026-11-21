@@ -58,6 +58,7 @@ struct gs_drm_connector *get_gs_drm_connector_parent(const struct gs_panel *ctx)
 	struct device_node *panel_node = dev->of_node;
 	struct device_node *parent_node;
 	struct platform_device *parent_pdev;
+	struct gs_drm_connector *gs_connector;
 
 	parent_node = of_get_parent(panel_node);
 	if (!parent_node) {
@@ -71,7 +72,9 @@ struct gs_drm_connector *get_gs_drm_connector_parent(const struct gs_panel *ctx)
 		return NULL;
 	}
 	of_node_put(parent_node);
-	return platform_get_drvdata(parent_pdev);
+	gs_connector = platform_get_drvdata(parent_pdev);
+	put_device(&parent_pdev->dev);
+	return gs_connector;
 }
 
 struct gs_panel *gs_connector_to_panel(const struct gs_drm_connector *gs_connector)
@@ -1068,8 +1071,16 @@ void gs_dsi_cmd_align(struct gs_panel *ctx)
 		mutex_unlock(&ctx->mode_lock);
 		return;
 	}
-	te_period = USEC_PER_SEC / gs_drm_mode_te_freq(&current_mode->mode);
-	vblank_period = USEC_PER_SEC / drm_mode_vrefresh(&current_mode->mode);
+	u32 te_freq = gs_drm_mode_te_freq(&current_mode->mode);
+	u32 vrefresh = drm_mode_vrefresh(&current_mode->mode);
+
+	if (!te_freq || !vrefresh) {
+		mutex_unlock(&ctx->mode_lock);
+		return;
+	}
+
+	te_period = USEC_PER_SEC / te_freq;
+	vblank_period = USEC_PER_SEC / vrefresh;
 
 	/* gated TE should not happen when panel refresh duration equal to TE period */
 	if (vblank_period == te_period) {
@@ -1469,6 +1480,8 @@ void gs_panel_update_lhbm_hist_data_helper(struct gs_panel *ctx, struct drm_atom
 	}
 
 	new_conn_state = drm_atomic_get_new_connector_state(state, &gs_connector->base);
+	if (!new_conn_state)
+		return;
 	new_gs_connector_state = to_gs_connector_state(new_conn_state);
 
 	hist_data = &new_gs_connector_state->lhbm_hist_data;
@@ -1783,6 +1796,10 @@ int gs_dsi_panel_common_init(struct mipi_dsi_device *dsi, struct gs_panel *ctx)
 
 	/* Connector */
 	ctx->gs_connector = get_gs_drm_connector_parent(ctx);
+	if (!ctx->gs_connector) {
+		dev_err(dev, "Failed to get parent gs_connector\n");
+		return -EPROBE_DEFER;
+	}
 	ctx->gs_connector->panel_dsi_device = dsi;
 
 	/* Parse device tree */
@@ -1950,6 +1967,37 @@ static void _gs_dsi_panel_common_remove(struct mipi_dsi_device *dsi)
 	struct gs_panel *ctx = mipi_dsi_get_drvdata(dsi);
 
 	mipi_dsi_detach(dsi);
+
+	cancel_delayed_work_sync(&ctx->idle_data.idle_work);
+	if (gs_panel_has_func(ctx, run_normal_mode_work))
+		cancel_delayed_work_sync(&ctx->normal_mode_work);
+	cancel_work_sync(&ctx->notify_panel_mode_changed_work);
+	cancel_work_sync(&ctx->notify_brightness_changed_work);
+	cancel_delayed_work_sync(&ctx->notify_panel_te2_rate_changed_work);
+	cancel_work_sync(&ctx->notify_panel_te2_option_changed_work);
+
+	if (ctx->lhbm.work_data.wq) {
+		cancel_delayed_work_sync(&ctx->lhbm.work_data.timeout_work);
+		destroy_workqueue(ctx->lhbm.work_data.wq);
+		ctx->lhbm.work_data.wq = NULL;
+	}
+	if (ctx->lhbm.work_data.thread && !IS_ERR(ctx->lhbm.work_data.thread)) {
+		kthread_cancel_work_sync(&ctx->lhbm.work_data.post_work);
+		kthread_stop(ctx->lhbm.work_data.thread);
+		ctx->lhbm.work_data.thread = NULL;
+	}
+
+	kfree(ctx->color_data.data);
+	ctx->color_data.data = NULL;
+	if (ctx->lp_mode_blob) {
+		drm_property_blob_put(ctx->lp_mode_blob);
+		ctx->lp_mode_blob = NULL;
+	}
+	if (ctx->touch_bridge_data.touch_dev) {
+		of_node_put(ctx->touch_bridge_data.touch_dev);
+		ctx->touch_bridge_data.touch_dev = NULL;
+	}
+
 	drm_panel_remove(&ctx->base);
 
 	devm_backlight_device_unregister(ctx->dev, ctx->bl);
