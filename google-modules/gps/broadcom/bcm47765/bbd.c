@@ -754,7 +754,7 @@ struct bbd_device *bbd_init(struct device *dev, bool legacy_patch)
 	bbd->class = class_create("bbd");
 	if (IS_ERR(bbd->class)) {
 		pr_err("failed to create class bbd\n");
-		goto exit;
+		goto unregister_chrdev;
 	}
 
 	/* Create BBD char devices */
@@ -790,7 +790,6 @@ struct bbd_device *bbd_init(struct device *dev, bool legacy_patch)
 		if (ret) {
 			pr_err("failed to cdev_add() \"%s\", ret=%d",
 					 bbd_dev_name[minor], ret);
-			unregister_chrdev_region(bbd_cdev->devno, 1);
 			goto free_class;
 		}
 
@@ -800,7 +799,6 @@ struct bbd_device *bbd_init(struct device *dev, bool legacy_patch)
 		if (IS_ERR_OR_NULL(bbd_cdev->dev)) {
 			pr_err("failed to device_create() \"%s\", ret = %d",
 					bbd_dev_name[minor], ret);
-			unregister_chrdev_region(bbd_cdev->devno, 1);
 			cdev_del(&bbd_cdev->cdev);
 			goto free_class;
 		}
@@ -847,9 +845,10 @@ free_class:
 
 		device_destroy(bbd->class, devno);
 		cdev_del(cdev);
-		unregister_chrdev_region(devno, 1);
 	}
 	class_destroy(bbd->class);
+unregister_chrdev:
+	unregister_chrdev_region(bbd->dev_num, BBD_DEVICE_INDEX);
 exit:
 	kvfree(bbd);
 	return NULL;
@@ -875,7 +874,6 @@ void bbd_exit(struct device *dev)
 
 		device_destroy(bbd->class, bbd_cdev->devno);
 		cdev_del(&bbd_cdev->cdev);
-		unregister_chrdev_region(bbd_cdev->devno, 1);
 
 		pr_info("(%d,%d) unregistered /dev/%s\n",
 				MAJOR(bbd->dev_num), minor, bbd_dev_name[minor]);
@@ -886,6 +884,7 @@ void bbd_exit(struct device *dev)
 #endif
 	/* Remove class */
 	class_destroy(bbd->class);
+	unregister_chrdev_region(bbd->dev_num, BBD_DEVICE_INDEX);
 	kvfree(bbd);
 }
 
