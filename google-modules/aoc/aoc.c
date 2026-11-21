@@ -2429,14 +2429,23 @@ long aoc_unlocked_ioctl_handle_ion_fd(unsigned int cmd, unsigned long arg)
 	BUILD_BUG_ON(sizeof(struct aoc_ion_handle) !=
 				_IOC_SIZE(AOC_IOCTL_ION_FD_TO_HANDLE));
 
+	if (!prvdata)
+		return -ENODEV;
+
 	if (copy_from_user(&handle, (struct aoc_ion_handle *)arg, _IOC_SIZE(cmd)))
 		return ret;
 
 	dmabuf = dma_buf_get(handle.fd);
 	if (IS_ERR(dmabuf))
-		 return -EINVAL;
+		return -EINVAL;
+
+	if (dmabuf->ops != &samsung_dma_buf_ops)
+		goto err_put_dmabuf;
 
 	dma_heap_buf = dmabuf->priv;
+	if (!dma_heap_buf || !dma_heap_buf->heap)
+		goto err_put_dmabuf;
+
 	handle.handle = (u64)dma_heap_buf->priv;
 
 	/*
@@ -2449,14 +2458,18 @@ long aoc_unlocked_ioctl_handle_ion_fd(unsigned int cmd, unsigned long arg)
 		base = phys_heap->base;
 	}
 
-	if (!(is_aoc_dma_buf(prvdata, base)))
-		return ret;
+	if (!is_aoc_dma_buf(prvdata, base))
+		goto err_put_dmabuf;
 
 	dma_buf_put(dmabuf);
 
 	if (!copy_to_user((struct aoc_ion_handle *)arg, &handle, _IOC_SIZE(cmd)))
 		ret = 0;
 
+	return ret;
+
+err_put_dmabuf:
+	dma_buf_put(dmabuf);
 	return ret;
 }
 
