@@ -247,11 +247,12 @@ static int samsung_abox_adaptation_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 	pdev_abox = of_find_device_by_node(np_abox);
-	dma_data->dev_abox = &pdev_abox->dev;
-	if (!dma_data->dev_abox) {
+	of_node_put(np_abox);
+	if (!pdev_abox) {
 		dev_err(dev, "Failed to get abox platform device\n");
 		return -EPROBE_DEFER;
 	}
+	dma_data->dev_abox = &pdev_abox->dev;
 	dma_data->abox_data = dev_get_drvdata(dma_data->dev_abox);
 
 	abox_register_ipc_handler(dma_data->dev_abox, IPC_ERAP,
@@ -261,15 +262,21 @@ static int samsung_abox_adaptation_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &abox_adaptation_cmpt_drv,
 			&abox_adaptation_dai_drv, 1);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(dev, "register component failed: %d\n", ret);
+		put_device(dma_data->dev_abox);
+	}
 
 	return ret;
 }
 
 static int samsung_abox_adaptation_remove(struct platform_device *pdev)
 {
+	struct abox_adaptation_dma_data *dma_data = platform_get_drvdata(pdev);
+
 	snd_soc_unregister_component(&pdev->dev);
+	if (dma_data && dma_data->dev_abox)
+		put_device(dma_data->dev_abox);
 	return 0;
 }
 

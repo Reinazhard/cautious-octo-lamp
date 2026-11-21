@@ -74,7 +74,7 @@ static ssize_t cl_dsp_debugfs_logger_en_read(struct file *file,
 	if (ret)
 		return ret;
 
-	ret = pm_runtime_get_sync(db->core->dev);
+	ret = pm_runtime_resume_and_get(db->core->dev);
 	if (ret < 0) {
 		dev_err(db->core->dev, "PM Runtime Resume Failed\n");
 		return ret;
@@ -137,7 +137,7 @@ static ssize_t cl_dsp_debugfs_logger_en_write(struct file *file,
 	if (ret)
 		goto exit_free;
 
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
 		dev_err(db->core->dev, "PM Runtime Resume Failed\n");
 		goto exit_free;
@@ -187,7 +187,7 @@ static ssize_t cl_dsp_debugfs_timestamp_shift_read(struct file *file,
 	if (ret)
 		return ret;
 
-	ret = pm_runtime_get_sync(db->core->dev);
+	ret = pm_runtime_resume_and_get(db->core->dev);
 	if (ret < 0) {
 		dev_err(db->core->dev, "PM Runtime Resume Failed\n");
 		return ret;

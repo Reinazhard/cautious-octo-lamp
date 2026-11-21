@@ -1474,7 +1474,7 @@ static int tas256x_i2c_probe(struct i2c_client *p_client,
 
 	plat_data = (struct linux_platform *)devm_kzalloc(&p_client->dev,
 		sizeof(struct linux_platform), GFP_KERNEL);
-	if (p_tas256x == NULL) {
+	if (plat_data == NULL) {
 		dev_err(&p_client->dev, "failed to allocate memory\n");
 		n_result = -ENOMEM;
 		goto err;
