@@ -253,7 +253,8 @@ static int mobile_pwr_state_set_locked(struct edgetpu_mobile_platform_dev *etmde
 	ret = platform_pwr->acpm_set_rate(TPU_ACPM_DOMAIN, (unsigned long)val);
 	if (ret) {
 		dev_err(dev, "error setting tpu state: %d\n", ret);
-		pm_runtime_put_sync(dev);
+		if (curr_state == TPU_OFF && val > TPU_OFF)
+			pm_runtime_put_sync(dev);
 		return ret;
 	}
 

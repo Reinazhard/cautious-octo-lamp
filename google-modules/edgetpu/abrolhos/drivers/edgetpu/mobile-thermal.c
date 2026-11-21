@@ -373,6 +373,7 @@ static int tpu_thermal_cooling_register(struct edgetpu_thermal *thermal, char *t
 	thermal->cooling_state = 0;
 	thermal->cdev = thermal_of_cooling_device_register(cooling_node, 0, type, thermal,
 							   &edgetpu_cooling_ops);
+	of_node_put(cooling_node);
 	if (IS_ERR(thermal->cdev))
 		return PTR_ERR(thermal->cdev);
 

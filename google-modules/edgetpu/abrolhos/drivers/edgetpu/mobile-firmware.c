@@ -399,25 +399,6 @@ static int mobile_firmware_setup_buffer(struct edgetpu_firmware *et_fw,
 	memcpy(&etdev->fw_version, &image_config->firmware_versions,
 	       sizeof(etdev->fw_version));
 
-	image_config_changed = memcmp(image_config, last_image_config, sizeof(*image_config));
-
-	if (etmdev->gsa_dev) {
-		ret = mobile_firmware_gsa_authenticate(etmdev, fw_buf, image_config, image_vaddr);
-	} else if (image_config->privilege_level == FW_PRIV_LEVEL_NS) {
-		etdev_dbg(etdev, "Loading unauthenticated non-secure firmware\n");
-		/* Copy the firmware image to the target location, skipping the header */
-		memcpy(image_vaddr, fw_buf->vaddr + MOBILE_FW_HEADER_SIZE,
-		       fw_buf->used_size - MOBILE_FW_HEADER_SIZE);
-	} else {
-		etdev_err(etdev,
-			  "Cannot load firmware at privilege level %d with no authentication\n",
-			  image_config->privilege_level);
-		ret = -EINVAL;
-	}
-
-	if (ret)
-		goto out;
-
 	image_start = (phys_addr_t)image_config->carveout_base;
 	image_end = (phys_addr_t)(image_config->firmware_base + image_config->firmware_size - 1);
 	carveout_start = etmdev->fw_region_paddr;
@@ -431,6 +412,30 @@ static int mobile_firmware_setup_buffer(struct edgetpu_firmware *et_fw,
 		ret = -ERANGE;
 		goto out;
 	}
+
+	image_config_changed = memcmp(image_config, last_image_config, sizeof(*image_config));
+
+	if (etmdev->gsa_dev) {
+		ret = mobile_firmware_gsa_authenticate(etmdev, fw_buf, image_config, image_vaddr);
+	} else if (image_config->privilege_level == FW_PRIV_LEVEL_NS) {
+		if (fw_buf->used_size - MOBILE_FW_HEADER_SIZE > etmdev->fw_region_size) {
+			etdev_err(etdev, "Firmware payload exceeds carveout size\n");
+			ret = -EINVAL;
+			goto out;
+		}
+		etdev_dbg(etdev, "Loading unauthenticated non-secure firmware\n");
+		/* Copy the firmware image to the target location, skipping the header */
+		memcpy(image_vaddr, fw_buf->vaddr + MOBILE_FW_HEADER_SIZE,
+		       fw_buf->used_size - MOBILE_FW_HEADER_SIZE);
+	} else {
+		etdev_err(etdev,
+			  "Cannot load firmware at privilege level %d with no authentication\n",
+			  image_config->privilege_level);
+		ret = -EINVAL;
+	}
+
+	if (ret)
+		goto out;
 
 	if (!image_config_changed)
 		goto out;

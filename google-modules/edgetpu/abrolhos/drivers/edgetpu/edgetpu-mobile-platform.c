@@ -97,7 +97,7 @@ static int edgetpu_platform_setup_fw_region(struct edgetpu_mobile_platform_dev *
 			of_node_put(np);
 			return -ENODEV;
 		}
-		etmdev->gsa_dev = get_device(&gsa_pdev->dev);
+		etmdev->gsa_dev = &gsa_pdev->dev;
 		of_node_put(np);
 	}
 
