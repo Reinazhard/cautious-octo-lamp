@@ -241,8 +241,6 @@ static void bigo_close(struct kref *ref)
 	struct bigo_inst *inst = container_of(ref, struct bigo_inst, refcount);
 
 	if (inst && inst->core) {
-		if (clear_job_from_prioq(inst->core, inst))
-			kref_put(&inst->refcount, bigo_close);
 		bigo_unmap_all(inst);
 		bigo_mark_qos_dirty(inst->core);
 		bigo_update_qos(inst->core);
@@ -262,6 +260,8 @@ static int bigo_release(struct inode *inode, struct file *file)
 		return -EINVAL;
 
 	mutex_lock(&core->lock);
+	if (clear_job_from_prioq(core, inst))
+		kref_put(&inst->refcount, bigo_close);
 	list_del(&inst->list);
 	if (list_empty(&core->instances))
 	{

@@ -125,8 +125,11 @@ static int bigo_of_parse_opp_table(struct bigo_core *core)
 
 		list_add_tail(&opp->list, &core->pm.opps);
 	}
+	of_node_put(opp_np);
 	return rc;
 err_entry:
+	of_node_put(np);
+	of_node_put(opp_np);
 	bigo_of_remove_opp_table(core);
 err_add_table:
 	return rc;
@@ -192,8 +195,11 @@ static int bigo_of_parse_bw_table(struct bigo_core *core)
 
 		list_add_tail(&bw->list, &core->pm.bw);
 	}
+	of_node_put(bw_np);
 	return rc;
 err_entry:
+	of_node_put(np);
+	of_node_put(bw_np);
 	bigo_of_remove_bw_table(core);
 err_add_table:
 	return rc;
@@ -241,6 +247,7 @@ void bigo_of_dt_release(struct bigo_core *core)
 	if (!core)
 		return;
 	bigo_of_remove_opp_table(core);
+	bigo_of_remove_bw_table(core);
 }
 
 MODULE_LICENSE("GPL");
