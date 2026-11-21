@@ -126,8 +126,10 @@ static int mfc_mem_dma_heap_alloc(struct mfc_dev *dev,
 		goto err_attach;
 	}
 
+	dma_resv_lock(special_buf->dma_buf->resv, NULL);
 	special_buf->sgt = dma_buf_map_attachment(special_buf->attachment,
 			DMA_BIDIRECTIONAL);
+	dma_resv_unlock(special_buf->dma_buf->resv);
 	if (IS_ERR(special_buf->sgt)) {
 		mfc_dev_err("Failed to get sgt (err %ld)\n",
 				PTR_ERR(special_buf->sgt));
@@ -164,8 +166,10 @@ err_vaddr:
 	special_buf->vaddr = NULL;
 err_daddr:
 	special_buf->daddr = 0;
+	dma_resv_lock(special_buf->dma_buf->resv, NULL);
 	dma_buf_unmap_attachment(special_buf->attachment, special_buf->sgt,
 				 DMA_BIDIRECTIONAL);
+	dma_resv_unlock(special_buf->dma_buf->resv);
 err_map:
 	special_buf->sgt = NULL;
 	dma_buf_detach(special_buf->dma_buf, special_buf->attachment);
@@ -185,9 +189,12 @@ void mfc_mem_dma_heap_free(struct mfc_special_buf *special_buf)
 
 	if (special_buf->vaddr)
 		dma_buf_vunmap(special_buf->dma_buf, &map);
-	if (special_buf->sgt)
+	if (special_buf->sgt) {
+		dma_resv_lock(special_buf->dma_buf->resv, NULL);
 		dma_buf_unmap_attachment(special_buf->attachment,
 					 special_buf->sgt, DMA_BIDIRECTIONAL);
+		dma_resv_unlock(special_buf->dma_buf->resv);
+	}
 	if (special_buf->attachment)
 		dma_buf_detach(special_buf->dma_buf, special_buf->attachment);
 	if (special_buf->dma_buf)
@@ -350,9 +357,12 @@ void mfc_put_iovmm(struct mfc_ctx *ctx, struct dpb_table *dpb, int num_planes, i
 		if (dpb[index].addr[i])
 			mfc_debug(2, "[IOVMM] index %d buf[%d] fd: %d addr: %#llx\n",
 					index, i, dpb[index].fd[i], dpb[index].addr[i]);
-		if (dpb[index].sgt[i])
+		if (dpb[index].sgt[i]) {
+			dma_resv_lock(dpb[index].dmabufs[i]->resv, NULL);
 			dma_buf_unmap_attachment(dpb[index].attach[i], dpb[index].sgt[i],
 					DMA_BIDIRECTIONAL);
+			dma_resv_unlock(dpb[index].dmabufs[i]->resv);
+		}
 		if (dpb[index].attach[i])
 			dma_buf_detach(dpb[index].dmabufs[i], dpb[index].attach[i]);
 		if (dpb[index].dmabufs[i])
@@ -415,8 +425,10 @@ void mfc_get_iovmm(struct mfc_ctx *ctx, struct vb2_buffer *vb, struct dpb_table 
 			goto err_iovmm;
 		}
 
+		dma_resv_lock(dpb[index].dmabufs[i]->resv, NULL);
 		dpb[index].sgt[i] = dma_buf_map_attachment(dpb[index].attach[i],
 				DMA_BIDIRECTIONAL);
+		dma_resv_unlock(dpb[index].dmabufs[i]->resv);
 		if (IS_ERR(dpb[index].sgt[i])) {
 			mfc_ctx_err("[IOVMM] Failed to get sgt (err %ld)\n",
 					PTR_ERR(dpb[index].sgt[i]));
