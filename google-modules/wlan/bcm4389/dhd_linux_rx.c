@@ -292,7 +292,7 @@ void dhd_rx_wq_wakeup(struct work_struct *ptr)
 	}
 
 	DHD_OS_WAKE_LOCK(pub);
-	if (pm_runtime_get_sync(dhd_bus_to_dev(pub->bus)) >= 0) {
+	if (pm_runtime_resume_and_get(dhd_bus_to_dev(pub->bus)) >= 0) {
 
 		// do nothing but wakeup the bus.
 		pm_runtime_mark_last_busy(dhd_bus_to_dev(pub->bus));

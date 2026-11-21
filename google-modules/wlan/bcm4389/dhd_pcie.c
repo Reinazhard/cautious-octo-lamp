@@ -5565,25 +5565,25 @@ dhdpcie_mem_dump(dhd_bus_t *bus)
 	}
 
 #ifdef DHD_PCIE_NATIVE_RUNTIMEPM
-	if (pm_runtime_get_sync(dhd_bus_to_dev(bus)) < 0)
+	if (pm_runtime_resume_and_get(dhd_bus_to_dev(bus)) < 0)
 		return BCME_ERROR;
 #endif /* DHD_PCIE_NATIVE_RUNTIMEPM */
 
 	if (dhdp->skip_memdump_map_read == FALSE) {
 		ret = dhdpcie_get_mem_dump(bus);
-		if (ret) {
+		if (ret)
 			DHD_ERROR(("%s: failed to get mem dump, err=%d\n", __FUNCTION__, ret));
-			goto exit;
-		}
 	} else {
 		DHD_ERROR(("%s: Skipped to get mem dump, err=%d\n", __FUNCTION__, ret));
 		dhdp->skip_memdump_map_read = FALSE;
 	}
 #ifdef DHD_DEBUG_UART
-	bus->dhd->memdump_success = TRUE;
+	if (!ret)
+		bus->dhd->memdump_success = TRUE;
 #endif	/* DHD_DEBUG_UART */
 
-	dhd_schedule_memdump(dhdp, dhdp->soc_ram, dhdp->soc_ram_length);
+	if (!ret)
+		dhd_schedule_memdump(dhdp, dhdp->soc_ram, dhdp->soc_ram_length);
 	/* buf, actually soc_ram free handled in dhd_{free,clear} */
 
 #ifdef DHD_PCIE_NATIVE_RUNTIMEPM

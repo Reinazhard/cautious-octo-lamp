@@ -3726,10 +3726,13 @@ void dhd_start_xmit_wq_adapter(struct work_struct *ptr)
 		return;
 	}
 
-	if (pm_runtime_get_sync(dhd_bus_to_dev(bus)) >= 0) {
+	if (pm_runtime_resume_and_get(dhd_bus_to_dev(bus)) >= 0) {
 		ret = dhd_start_xmit(work->skb, work->net);
 		pm_runtime_mark_last_busy(dhd_bus_to_dev(bus));
 		pm_runtime_put_autosuspend(dhd_bus_to_dev(bus));
+	} else {
+		kfree_skb(work->skb);
+		ret = -EIO;
 	}
 	kfree(work);
 	dhd_netif_start_queue(bus);
@@ -6438,7 +6441,7 @@ dhd_siocdevprivate_wrapper(struct net_device *net, struct ifreq *ifr,
 	if (atomic_read(&dhd->pub.block_bus))
 		return -EHOSTDOWN;
 
-	if (pm_runtime_get_sync(dhd_bus_to_dev(dhd->pub.bus)) < 0)
+	if (pm_runtime_resume_and_get(dhd_bus_to_dev(dhd->pub.bus)) < 0)
 		return BCME_ERROR;
 
 	error = dhd_siocdevprivate(net, ifr, data, cmd);
@@ -6458,7 +6461,7 @@ dhd_ioctl_entry_wrapper(struct net_device *net, struct ifreq *ifr, int cmd)
 	if (atomic_read(&dhd->pub.block_bus))
 		return -EHOSTDOWN;
 
-	if (pm_runtime_get_sync(dhd_bus_to_dev(dhd->pub.bus)) < 0)
+	if (pm_runtime_resume_and_get(dhd_bus_to_dev(dhd->pub.bus)) < 0)
 		return BCME_ERROR;
 
 	error = dhd_ioctl_entry(net, ifr, cmd);
@@ -7150,7 +7153,8 @@ dhd_open(struct net_device *net)
 			/* try to bring up bus */
 
 #ifdef DHD_PCIE_NATIVE_RUNTIMEPM
-			if (pm_runtime_get_sync(dhd_bus_to_dev(dhd->pub.bus)) >= 0) {
+			ret = pm_runtime_resume_and_get(dhd_bus_to_dev(dhd->pub.bus));
+			if (ret >= 0) {
 				ret = dhd_bus_start(&dhd->pub);
 				pm_runtime_mark_last_busy(dhd_bus_to_dev(dhd->pub.bus));
 				pm_runtime_put_autosuspend(dhd_bus_to_dev(dhd->pub.bus));
@@ -15821,7 +15825,7 @@ dhd_net_bus_devreset(struct net_device *dev, uint8 flag)
 	dhd_info_t *dhd = DHD_DEV_INFO(dev);
 
 #ifdef DHD_PCIE_NATIVE_RUNTIMEPM
-	if (pm_runtime_get_sync(dhd_bus_to_dev(dhd->pub.bus)) < 0)
+	if (pm_runtime_resume_and_get(dhd_bus_to_dev(dhd->pub.bus)) < 0)
 		return BCME_ERROR;
 #endif /* DHD_PCIE_NATIVE_RUNTIMEPM */
 

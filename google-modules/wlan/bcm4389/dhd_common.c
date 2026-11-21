@@ -1877,8 +1877,8 @@ dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 
 #ifdef DHD_PCIE_NATIVE_RUNTIMEPM
 	DHD_OS_WAKE_LOCK(dhd_pub);
-	if (pm_runtime_get_sync(dhd_bus_to_dev(dhd_pub->bus)) < 0) {
-		DHD_RPM(("%s: pm_runtime_get_sync error. \n", __FUNCTION__));
+	if (pm_runtime_resume_and_get(dhd_bus_to_dev(dhd_pub->bus)) < 0) {
+		DHD_RPM(("%s: pm_runtime_resume_and_get error. \n", __FUNCTION__));
 		DHD_OS_WAKE_UNLOCK(dhd_pub);
 		return BCME_ERROR;
 	}
