@@ -10480,6 +10480,7 @@ exit:
 		if (
 #ifdef WL_TWT
 			!(((ret == -EBUSY) || (ret == -EOPNOTSUPP)) &&
+			command &&
 			((strnicmp(command, CMD_TWT_SETUP, strlen(CMD_TWT_SETUP)) == 0) ||
 			(strnicmp(command, CMD_TWT_TEARDOWN, strlen(CMD_TWT_TEARDOWN)) == 0) ||
 			(strnicmp(command, CMD_TWT_INFO, strlen(CMD_TWT_INFO)) == 0))) &&

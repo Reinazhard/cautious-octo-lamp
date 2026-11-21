@@ -13357,6 +13357,8 @@ dhdpcie_bus_process_mailbox_intr(dhd_bus_t *bus, uint32 intstatus)
 			resched = dhdpci_bus_read_frames(bus);
 			pm_runtime_mark_last_busy(dhd_bus_to_dev(bus));
 			pm_runtime_put_autosuspend(dhd_bus_to_dev(bus));
+		} else {
+			pm_runtime_put_noidle(dhd_bus_to_dev(bus));
 		}
 #else
 		resched = dhdpci_bus_read_frames(bus);

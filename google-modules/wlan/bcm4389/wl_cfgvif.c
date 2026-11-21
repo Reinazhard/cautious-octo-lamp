@@ -361,17 +361,16 @@ wl_cfgvif_delayed_remove_iface_work(struct work_struct *work)
 	if (cfg->if_event_info.ifidx) {
 		ndev = bcmcfg_to_prmry_ndev(cfg);
 
+		rtnl_lock();
 #ifdef BCMDONGLEHOST
 		dhd_net_if_lock(ndev);
 #endif /* BCMDONGLEHOST */
-		rtnl_lock();
 		/* Remove interface except for primary ifidx */
 		wl_cfg80211_remove_if(cfg, cfg->if_event_info.ifidx, ndev, FALSE);
-		rtnl_unlock();
-
 #ifdef BCMDONGLEHOST
 		dhd_net_if_unlock(ndev);
 #endif /* BCMDONGLEHOST */
+		rtnl_unlock();
 	}
 	return;
 }

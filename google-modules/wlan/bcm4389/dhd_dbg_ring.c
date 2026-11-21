@@ -363,6 +363,7 @@ dhd_dbg_ring_push(dhd_dbg_ring_t *ring, dhd_dbg_ring_entry_t *hdr, void *data)
 	if (ret) {
 		DHD_ERROR((" memcpy_s() error : %d, destsz: %d, n: %d\n",
 			ret, avail_size, (int)DBG_RING_ENTRY_SIZE));
+		DHD_DBG_RING_UNLOCK(ring->lock, flags);
 		return BCME_ERROR;
 	}
 	w_entry->len = hdr->len;
@@ -373,6 +374,7 @@ dhd_dbg_ring_push(dhd_dbg_ring_t *ring, dhd_dbg_ring_entry_t *hdr, void *data)
 	if (ret) {
 		DHD_ERROR((" memcpy_s() error : %d, destsz: %d, n: %d\n",
 			ret, avail_size, w_entry->len));
+		DHD_DBG_RING_UNLOCK(ring->lock, flags);
 		return BCME_ERROR;
 	}
 	/* update write pointer */

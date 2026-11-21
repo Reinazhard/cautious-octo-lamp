@@ -6020,7 +6020,8 @@ cleanup:
 		p = pktbuf[i];
 		pa = pktbuf_pa[i];
 
-		DMA_UNMAP(dhd->osh, pa, pktlen[i], DMA_RX, 0, DHD_DMAH_NULL);
+		DMA_UNMAP(dhd->osh, pa, pktlen[i] + prot->rx_metadata_offset, DMA_RX, 0, DHD_DMAH_NULL);
+		PKTPUSH(dhd->osh, p, prot->rx_metadata_offset);
 		PKTFREE(dhd->osh, p, FALSE);
 #ifdef DHD_PRINT_RXPKTS_TRACE
 		DHD_ERROR(("dhd_prot_rxbuf_post: cleanup_free p=%p pdata=%p len=%d\n", p,
@@ -8966,6 +8967,7 @@ BCMFASTPATH(dhd_prot_txdata)(dhd_pub_t *dhd, void *PKTBUF, uint8 ifidx)
 	return BCME_OK;
 
 err_rollback_idx:
+	PKTPUSH(dhd->osh, PKTBUF, ETHER_HDR_LEN);
 	/* roll back write pointer for unprocessed message */
 	if (ring->wr == 0) {
 		ring->wr = ring->max_items - 1;

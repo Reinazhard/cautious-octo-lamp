@@ -1195,9 +1195,16 @@ dhd_sched_rxf(dhd_pub_t *dhdp, void *skb)
 		}
 	}
 #else /* RXF_DEQUEUE_ON_BUSY */
+	int retries = 50;
 	do {
 		if (dhd_rxf_enqueue(dhdp, skb) == BCME_OK)
 			break;
+		if (--retries <= 0) {
+			DHD_ERROR(("%s: rxf queue full, dropping skb\n", __FUNCTION__));
+			PKTFREE(dhdp->osh, skb, FALSE);
+			return;
+		}
+		udelay(10);
 	} while (1);
 	if (dhd->thr_rxf_ctl.thr_pid >= 0) {
 		up(&dhd->thr_rxf_ctl.sema);

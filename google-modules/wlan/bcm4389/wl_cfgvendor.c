@@ -4216,8 +4216,8 @@ wl_cfgvendor_nan_parse_datapath_args(struct wiphy *wiphy,
 				ret = -EINVAL;
 				goto exit;
 			}
-			strlcpy((char *)cmd_data->ndp_iface, (char *)nla_data(iter),
-				nla_len(iter));
+			strscpy((char *)cmd_data->ndp_iface, (char *)nla_data(iter),
+				sizeof(cmd_data->ndp_iface));
 			break;
 		case NAN_ATTRIBUTE_SECURITY:
 			if (nla_len(iter) != sizeof(uint8)) {

@@ -696,7 +696,8 @@ BCMFASTPATH(dhd_start_xmit)(struct sk_buff *skb, struct net_device *net)
 		dhd_os_busbusy_wake(&dhd->pub);
 		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
 		DHD_OS_WAKE_UNLOCK(&dhd->pub);
-		return NETDEV_TX_BUSY;
+		dev_kfree_skb_any(skb);
+		return NETDEV_TX_OK;
 	}
 #ifdef RPM_FAST_TRIGGER
 	/* Xmit is running reset RPM fast trigger */

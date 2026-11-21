@@ -939,6 +939,7 @@ dhd_flowid_lookup(dhd_pub_t *dhdp, uint8 ifindex,
 			flow_ring_node->status = FLOW_RING_STATUS_CLOSED;
 			flow_ring_node->active = FALSE;
 			DHD_FLOWRING_UNLOCK(flow_ring_node->lock, flags);
+			dhd_flowid_free(dhdp, ifindex, id);
 			DHD_ERROR(("%s: create error %d\n", __FUNCTION__, id));
 			return BCME_ERROR;
 		}

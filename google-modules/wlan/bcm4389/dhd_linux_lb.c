@@ -1087,18 +1087,20 @@ dhd_napi_poll(struct napi_struct *napi, int budget)
 	DHD_INFO(("%s processed %d\n", __FUNCTION__, processed));
 
 	/*
-	 * Signal napi complete only when no more packets are processed and
-	 * none are left in the enqueued queue.
+	 * Signal napi complete only when fewer packets than budget are processed and
+	 * none are left in the queues.
 	 */
-	if ((processed == 0) && (skb_queue_len(&dhd->rx_napi_queue) == 0)) {
-		napi_complete(napi);
+	if ((processed < budget) && skb_queue_empty(&dhd->rx_napi_queue) &&
+	    skb_queue_empty(&dhd->rx_process_queue)) {
+		if (napi_complete_done(napi, processed)) {
+			DHD_GENERAL_LOCK(&dhd->pub, flags);
+			DHD_BUS_BUSY_CLEAR_IN_NAPI(&dhd->pub);
+			DHD_GENERAL_UNLOCK(&dhd->pub, flags);
+		}
 #ifdef DHD_LB_STATS
 		dhd->pub.lb_rxp_napi_complete_cnt++;
 #endif /* DHD_LB_STATS */
-		DHD_GENERAL_LOCK(&dhd->pub, flags);
-		DHD_BUS_BUSY_CLEAR_IN_NAPI(&dhd->pub);
-		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
-		return 0;
+		return processed;
 	}
 
 #ifdef DHD_LB_STATS

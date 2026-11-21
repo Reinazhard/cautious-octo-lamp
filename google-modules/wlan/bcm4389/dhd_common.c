@@ -10522,7 +10522,7 @@ dhd_start_event_ecounters(dhd_pub_t *dhd)
 
 	/* Now create ecounters config request with max allowed length */
 	req = (event_ecounters_config_request_v2_t *)MALLOCZ(dhd->osh,
-		sizeof(event_ecounters_config_request_v2_t *) + max_xtlv_len);
+		sizeof(event_ecounters_config_request_v2_t) + max_xtlv_len);
 
 	if (req == NULL) {
 		rc = BCME_NOMEM;
@@ -10592,7 +10592,7 @@ dhd_start_event_ecounters(dhd_pub_t *dhd)
 fail:
 	/* Free allocated memories */
 	if (req) {
-		MFREE(dhd->osh, req, sizeof(event_ecounters_config_request_v2_t *) + max_xtlv_len);
+		MFREE(dhd->osh, req, sizeof(event_ecounters_config_request_v2_t) + max_xtlv_len);
 	}
 	if (id_array) {
 		MFREE(dhd->osh, id_array, sizeof(event_id_array_t) *
