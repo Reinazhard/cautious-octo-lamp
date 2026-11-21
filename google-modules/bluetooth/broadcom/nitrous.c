@@ -154,7 +154,11 @@ static void nitrous_prepare_uart_tx_locked(struct nitrous_bt_lpm *lpm, bool asse
 	}
 
 	if (assert && !lpm->uart_tx_dev_pm_resumed) {
-		ret = pm_runtime_get_sync(lpm->dev);
+		ret = pm_runtime_resume_and_get(lpm->dev);
+		if (ret < 0) {
+			dev_err(lpm->dev, "Tx resume failed: %d\n", ret);
+			return;
+		}
 		lpm->uart_tx_dev_pm_resumed = true;
 		/* Shall be resumed here */
 		logbuffer_log(lpm->log, "uart_tx_locked");
@@ -471,14 +475,9 @@ static void nitrous_lpm_runtime_disable(struct nitrous_bt_lpm *lpm)
 	devm_free_irq(lpm->dev, lpm->irq_host_wake, lpm);
 	device_init_wakeup(lpm->dev, false);
 	pm_relax(lpm->dev);
-	/* Check whether usage_counter got out of sync */
-	if (atomic_read(&lpm->dev->power.usage_count)) {
-		dev_warn(lpm->dev, "Usage counter went out of sync: %d",
-			atomic_read(&lpm->dev->power.usage_count));
-		logbuffer_log(lpm->log, "Usage counter went out of sync: %d",
-			atomic_read(&lpm->dev->power.usage_count));
-		/* Force set it to 0 */
-		atomic_set(&lpm->dev->power.usage_count, 0);
+	if (lpm->uart_tx_dev_pm_resumed) {
+		pm_runtime_put_noidle(lpm->dev);
+		lpm->uart_tx_dev_pm_resumed = false;
 	}
 	dev_dbg(lpm->dev, "DEV_WAKE: Low - LPM disable");
 	logbuffer_log(lpm->log, "DEV_WAKE: Low - LPM disable");
