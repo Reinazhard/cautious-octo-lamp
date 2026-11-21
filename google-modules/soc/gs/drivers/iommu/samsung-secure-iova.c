@@ -32,7 +32,7 @@ unsigned long secure_iova_alloc(unsigned long size, unsigned int align)
 {
 	unsigned long out_addr;
 	struct genpool_data_align alignment = {
-		.align = max_t(int, PFN_DOWN(align), MAX_SECURE_VA_ALIGN),
+		.align = min_t(int, PFN_DOWN(align), MAX_SECURE_VA_ALIGN),
 	};
 
 	if (WARN_ON_ONCE(!secure_iova_pool))

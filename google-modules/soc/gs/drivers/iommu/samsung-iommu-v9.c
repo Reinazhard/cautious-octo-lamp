@@ -480,6 +480,8 @@ static int samsung_sysmmu_attach_dev(struct iommu_domain *dom, struct device *de
 	page_table = virt_to_phys(domain->page_table);
 
 	client = dev_iommu_priv_get(dev);
+	if (!client || client->sysmmu_count == 0)
+		return -ENODEV;
 	for (i = 0; i < client->sysmmu_count; i++) {
 		drvdata = client->sysmmus[i];
 
@@ -535,6 +537,8 @@ static void samsung_sysmmu_detach_dev(struct iommu_domain *dom, struct device *d
 	domain = to_sysmmu_domain(dom);
 
 	client = dev_iommu_priv_get(dev);
+	if (!client || client->sysmmu_count == 0)
+		return;
 	for (i = 0; i < client->sysmmu_count; i++) {
 		drvdata = client->sysmmus[i];
 		samsung_sysmmu_detach_drvdata(drvdata);
