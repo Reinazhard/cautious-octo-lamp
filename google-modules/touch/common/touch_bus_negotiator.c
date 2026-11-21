@@ -572,10 +572,6 @@ static void tbn_remove(struct platform_device *pdev)
 
 	if (tbn->mode == TBN_MODE_GPIO) {
 		free_irq(tbn->aoc2ap_irq, tbn);
-		if (gpio_is_valid(tbn->ap2aoc_gpio))
-			gpio_free(tbn->ap2aoc_gpio);
-		if (gpio_is_valid(tbn->aoc2ap_gpio))
-			gpio_free(tbn->aoc2ap_gpio);
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_TBN_AOC_CHANNEL_MODE)
 	} else if (tbn->mode == TBN_MODE_AOC_CHANNEL) {
 		if (!IS_ERR(tbn->aoc_channel_task))
