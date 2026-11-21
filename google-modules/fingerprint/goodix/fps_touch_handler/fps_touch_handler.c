@@ -167,6 +167,9 @@ static bool fth_process_frame(struct fth_drvdata *d, ktime_t ts)
 		if (!f->cur.dirty)
 			continue;
 
+		if (f->last.id < 0 && f->cur.id < 0)
+			continue;
+
 		f->cur.dirty = false;
 		last = f->last;
 		f->last = f->cur;
@@ -211,6 +214,10 @@ static bool fth_process_frame(struct fth_drvdata *d, ktime_t ts)
 			ev.major = f->cur.major;
 			ev.minor = f->cur.minor;
 			ev.orientation = f->cur.orientation;
+		} else {
+			ev.X[i] = last.x;
+			ev.Y[i] = last.y;
+			ev.updated[i] = true;
 		}
 
 		kfifo_put(&d->fifo, ev);
@@ -228,6 +235,7 @@ static void fth_touch_event(struct input_handle *handle, unsigned int type,
 	struct finger *f;
 	unsigned long flags;
 	bool queued = false;
+	ktime_t ts;
 	int i;
 
 	if (!d)
@@ -252,7 +260,8 @@ static void fth_touch_event(struct input_handle *handle, unsigned int type,
 	}
 
 	if (code == SYN_REPORT) {
-		queued = fth_process_frame(d, dev->timestamp[INPUT_CLK_MONO]);
+		ts = dev->timestamp[INPUT_CLK_MONO];
+		queued = fth_process_frame(d, ktime_to_ns(ts) ? ts : ktime_get());
 		goto unlock;
 	}
 
@@ -264,7 +273,8 @@ static void fth_touch_event(struct input_handle *handle, unsigned int type,
 	switch (code) {
 	case ABS_MT_TRACKING_ID:
 		f->cur.id = value;
-		f->cur.down = value >= 0 ? dev->timestamp[INPUT_CLK_MONO] : 0;
+		ts = dev->timestamp[INPUT_CLK_MONO];
+		f->cur.down = value >= 0 ? (ktime_to_ns(ts) ? ts : ktime_get()) : 0;
 		break;
 	case ABS_MT_POSITION_X:
 		f->cur.x = abs(value);
@@ -378,11 +388,13 @@ static int fth_open(struct inode *inode, struct file *file)
 	struct fth_drvdata *d = container_of(inode->i_cdev,
 					     struct fth_drvdata, cdev);
 
-	if (test_bit(FTH_FLAG_ZOMBIE, &d->flags))
-		return -ENODEV;
-
 	if (test_and_set_bit(FTH_FLAG_OPEN, &d->flags))
 		return -EBUSY;
+
+	if (test_bit(FTH_FLAG_ZOMBIE, &d->flags)) {
+		clear_bit(FTH_FLAG_OPEN, &d->flags);
+		return -ENODEV;
+	}
 
 	file->private_data = d;
 	return 0;
@@ -445,10 +457,7 @@ static ssize_t fth_read(struct file *file, char __user *ubuf, size_t count,
 	memset(&d->buf, 0, sizeof(d->buf));
 
 	spin_lock_irqsave(&d->lock, flags);
-	for (n = 0; n < FTH_MAX_FD_EVENTS; n++) {
-		if (!kfifo_get(&d->fifo, &d->buf.fd_events[n]))
-			break;
-	}
+	n = kfifo_out(&d->fifo, d->buf.fd_events, FTH_MAX_FD_EVENTS);
 	spin_unlock_irqrestore(&d->lock, flags);
 
 	d->buf.num_events = n;
@@ -549,21 +558,28 @@ static long fth_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
+		if (cfg.left < 0 || cfg.top < 0 ||
+		    cfg.right < cfg.left || cfg.bottom < cfg.top ||
+		    cfg.rad_x < 0 || cfg.rad_y < 0) {
+			rc = -EINVAL;
+			break;
+		}
+
 		/*
 		 * A finger may wander half the AOI's size outside it before it
 		 * counts as lifted, so grow the box by that much.  The edges
 		 * are signed 32-bit, so do the subtraction in 64 bits.
 		 */
-		half_w = (int)(((s64)cfg.right - cfg.left) / 2);
-		half_h = (int)(((s64)cfg.bottom - cfg.top) / 2);
+		half_w = (cfg.right - cfg.left) / 2;
+		half_h = (cfg.bottom - cfg.top) / 2;
 
 		spin_lock_irqsave(&d->lock, flags);
 		d->config = cfg;
 		d->up_config = cfg;
-		d->up_config.left -= half_w;
-		d->up_config.right += half_w;
-		d->up_config.top -= half_h;
-		d->up_config.bottom += half_h;
+		d->up_config.left = max(0, cfg.left - half_w);
+		d->up_config.top = max(0, cfg.top - half_h);
+		d->up_config.right = min_t(s64, S32_MAX, (s64)cfg.right + half_w);
+		d->up_config.bottom = min_t(s64, S32_MAX, (s64)cfg.bottom + half_h);
 		fth_reconfigure_fingers(d);
 		spin_unlock_irqrestore(&d->lock, flags);
 		break;
@@ -590,6 +606,7 @@ static long fth_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static const struct file_operations fth_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = fth_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 	.open = fth_open,
 	.release = fth_release,
 	.read = fth_read,
@@ -690,6 +707,9 @@ static int fth_lptw_notifier_callback(struct notifier_block *nb,
 {
 	int *param = data;
 
+	if (!param)
+		return NOTIFY_DONE;
+
 	fth_lptw_report_event(action, param[0], param[1], param[2], param[3],
 			      param[4]);
 	return NOTIFY_OK;
@@ -755,10 +775,10 @@ static void fth_remove(struct platform_device *pdev)
 	goog_lptw_notifier_register(&fth_notifier_block, false);
 #endif
 
+	input_unregister_handler(&fth_touch_handler);
+
 	rcu_assign_pointer(fth_touch_handler.private, NULL);
 	synchronize_rcu();
-
-	input_unregister_handler(&fth_touch_handler);
 
 	spin_lock_irqsave(&d->lock, flags);
 	held = d->wakelocks;
