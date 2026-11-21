@@ -900,25 +900,30 @@ static inline bool dw3000_spi_queue_active(struct dw3000 *dw)
 int dw3000_xfer(struct dw3000 *dw, u32 reg_fileid, u16 reg_offset, u16 length,
 		void *buffer, enum spi_modes mode)
 {
-	struct {
-		struct spi_message msg;
-		struct spi_transfer header;
-		struct spi_transfer data;
-		u8 header_buf[2];
-	} xfer = {};
+	struct spi_message msg;
+	struct spi_transfer xfer[2] = {};
+	u8 *header_buf;
+	int ret;
 
-	/* Init transfers first because spi_message_init_with_transfer don't! */
-	xfer.header.tx_buf = xfer.header_buf;
-	xfer.header.len = sizeof(xfer.header_buf);
+	header_buf = kmalloc(2, GFP_KERNEL);
+	if (!header_buf)
+		return -ENOMEM;
+
+	/* Init transfers first because spi_message_init_with_transfers don't! */
+	xfer[0].tx_buf = header_buf;
+	xfer[0].len = 2;
 
 	/* Then construct SPI message */
-	spi_message_init_with_transfers(&xfer.msg, &xfer.header, 2);
+	spi_message_init_with_transfers(&msg, xfer, 2);
 
 	/* Prepare header & data transfers */
-	dw3000_prepare_xfer(&xfer.msg, reg_fileid, reg_offset, length, buffer,
-			    mode);
-	/* Now execute this spi message synchronously */
-	return dw3000_spi_sync(dw, &xfer.msg);
+	ret = dw3000_prepare_xfer(&msg, reg_fileid, reg_offset, length, buffer,
+				  mode);
+	if (!ret)
+		ret = dw3000_spi_sync(dw, &msg);
+
+	kfree(header_buf);
+	return ret;
 }
 
 /**
