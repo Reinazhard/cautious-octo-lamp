@@ -416,22 +416,20 @@ void* wl_cfg80211_btcoex_init(struct net_device *ndev)
 {
 	struct btcoex_info *btco_inf = NULL;
 
-	btco_inf = kmalloc(sizeof(struct btcoex_info), GFP_KERNEL);
+	btco_inf = kzalloc(sizeof(struct btcoex_info), GFP_KERNEL);
 	if (!btco_inf)
 		return NULL;
 
-	btco_inf->ts_dhcp_start = 0;
-	btco_inf->ts_dhcp_ok = 0;
 	/* Set up timer for BT  */
 	btco_inf->timer_ms = 10;
 	init_timer_compat(&btco_inf->timer, wl_cfg80211_bt_timerfunc, btco_inf);
-	wl_cfg80211_btcoex_init_handler_status();
 
 	btco_inf->dev = ndev;
 
 	INIT_WORK(&btco_inf->work, wl_cfg80211_bt_handler);
 
 	btcoex_info_loc = btco_inf;
+	wl_cfg80211_btcoex_init_handler_status();
 	return btco_inf;
 }
 
@@ -440,10 +438,8 @@ void wl_cfg80211_btcoex_kill_handler(void)
 	if (!btcoex_info_loc)
 		return;
 
-	if (btcoex_info_loc->timer_on) {
-		btcoex_info_loc->timer_on = 0;
-		del_timer_sync(&btcoex_info_loc->timer);
-	}
+	btcoex_info_loc->timer_on = 0;
+	del_timer_sync(&btcoex_info_loc->timer);
 	cancel_work_sync(&btcoex_info_loc->work);
 	wl_cfg80211_btcoex_init_handler_status();
 }
@@ -455,6 +451,7 @@ void wl_cfg80211_btcoex_deinit(void)
 
 	wl_cfg80211_btcoex_kill_handler();
 	kfree(btcoex_info_loc);
+	btcoex_info_loc = NULL;
 }
 
 int wl_cfg80211_set_btcoex_dhcp(struct net_device *dev, dhd_pub_t *dhd, char *command)
@@ -474,6 +471,9 @@ int wl_cfg80211_set_btcoex_dhcp(struct net_device *dev, dhd_pub_t *dhd, char *co
 	static bool saved_status = FALSE;
 
 	char buf_flag7_default[8] =   { 7, 00, 00, 00, 0x0, 0x00, 0x00, 0x00};
+
+	if (!btco_inf)
+		return BCME_ERROR;
 
 	/* Figure out powermode 1 or o command */
 	cmd_len = sizeof(BTCOEXMODE);
