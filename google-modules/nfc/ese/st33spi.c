@@ -819,24 +819,21 @@ static long st33spi_compat_ioctl(struct file *filp, unsigned int cmd,
 
 static int st33spi_open(struct inode *inode, struct file *filp)
 {
-	struct st33spi_data *st33spi = NULL;
+	struct st33spi_data *entry, *st33spi = NULL;
 	int status = -ENXIO;
 
 	mutex_lock(&device_list_lock);
 
-	list_for_each_entry (st33spi, &device_list, device_entry) {
-		if (st33spi->devt == inode->i_rdev) {
+	list_for_each_entry (entry, &device_list, device_entry) {
+		if (entry->devt == inode->i_rdev) {
+			st33spi = entry;
 			status = 0;
 			break;
 		}
 	}
 
-	if (st33spi == NULL)
-		return -ENODEV;
-
-	if (status) {
-		dev_dbg(&st33spi->spi->dev, "st33spi: nothing for minor %d\n",
-			iminor(inode));
+	if (!st33spi) {
+		pr_debug("st33spi: nothing for minor %d\n", iminor(inode));
 		goto err_find_dev;
 	}
 
