@@ -606,10 +606,10 @@ static long st33spi_ioctl(struct file *filp, unsigned int cmd,
 	spi = spi_dev_get(st33spi->spi);
 	spin_unlock_irq(&st33spi->spi_lock);
 
-	dev_dbg(&st33spi->spi->dev, "st33spi ioctl cmd %d\n", cmd);
-
 	if (spi == NULL)
 		return -ESHUTDOWN;
+
+	dev_dbg(&spi->dev, "st33spi ioctl cmd %d\n", cmd);
 
 	/* use the buffer lock here for triple duty:
 	 *  - prevent I/O (from us) so calling spi_setup() is safe;
@@ -740,10 +740,9 @@ static long st33spi_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	}
 
+	dev_dbg(&spi->dev, "st33spi ioctl retval %d\n", retval);
 	mutex_unlock(&st33spi->buf_lock);
 	spi_dev_put(spi);
-
-	dev_dbg(&st33spi->spi->dev, "st33spi ioctl retval %d\n", retval);
 
 	return retval;
 }
@@ -1069,6 +1068,7 @@ static int st33spi_parse_dt(struct device *dev, struct st33spi_data *pdata)
 	} else {
 		pdata->spi_state = 0;
 	}
+	of_node_put(data_np);
 	dev_info(dev, "Default st33spi state: %d\n", pdata->spi_state);
 	of_node_put(data_np);
 
