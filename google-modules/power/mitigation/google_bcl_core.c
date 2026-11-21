@@ -428,7 +428,10 @@ static int google_bcl_remove_thermal(struct bcl_device *bcl_dev)
 
 	if (IS_ERR_OR_NULL(bcl_dev))
 		return 0;
-        if (bcl_dev->batt_psy_initialized)
+
+	google_bcl_remove_qos(bcl_dev);
+
+	if (bcl_dev->batt_psy_initialized)
 		power_supply_unreg_notifier(&bcl_dev->psy_nb);
 	for (i = 0; i < TRIGGERED_SOURCE_MAX; i++) {
 		if (!bcl_dev->zone[i])
@@ -448,6 +451,7 @@ static int google_bcl_remove_thermal(struct bcl_device *bcl_dev)
 		if (zone->warn_work.work.func != NULL)
 			cancel_delayed_work_sync(&zone->warn_work);
 		devm_kfree(bcl_dev->device, zone);
+		bcl_dev->zone[i] = NULL;
 	}
 	if (bcl_dev->setup_sub_odpm_work.work.func != NULL)
 		cancel_delayed_work_sync(&bcl_dev->setup_sub_odpm_work);
@@ -465,8 +469,10 @@ static int google_bcl_remove_thermal(struct bcl_device *bcl_dev)
 	if (bcl_dev->sub_pwr_irq_work.work.func != NULL)
 		cancel_delayed_work_sync(&bcl_dev->sub_pwr_irq_work);
 #endif
-	google_bcl_remove_qos(bcl_dev);
-	destroy_workqueue(bcl_dev->qos_update_wq);
+	if (bcl_dev->qos_update_wq) {
+		destroy_workqueue(bcl_dev->qos_update_wq);
+		bcl_dev->qos_update_wq = NULL;
+	}
 	if (bcl_dev->soc_work.work.func != NULL)
 		cancel_delayed_work_sync(&bcl_dev->soc_work);
 	if (bcl_dev->ramp_work.work.func != NULL)

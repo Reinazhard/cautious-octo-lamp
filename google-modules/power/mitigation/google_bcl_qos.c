@@ -212,6 +212,9 @@ void google_bcl_remove_qos(struct bcl_device *bcl_dev)
 	struct bcl_zone *zone;
 	struct list_head *n, *pos;
 
+	if (!bcl_dev)
+		return;
+
 	for (i = 0; i < TRIGGERED_SOURCE_MAX; i++) {
 		zone = bcl_dev->zone[i];
 		if ((!zone) || (!zone->bcl_qos))
@@ -236,9 +239,8 @@ void google_bcl_remove_qos(struct bcl_device *bcl_dev)
 		list_del(&data->list);
 		kfree(data);
 	}
-	if (bcl_dev->qos_work.work.func != NULL)
+	if (bcl_dev->qos_work.work.func != NULL) {
 		cancel_delayed_work_sync(&bcl_dev->qos_work);
-
-	mutex_destroy(&bcl_dev->qos_update_lock);
-
+		mutex_destroy(&bcl_dev->qos_update_lock);
+	}
 }
