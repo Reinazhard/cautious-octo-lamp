@@ -2533,7 +2533,8 @@ void google_bcl_start_timer(struct bcl_device *bcl_dev)
 	if (!bcl_dev->bat_ktimer_en)
 		return;
 
-	bcl_dev->ws = wakeup_source_register(NULL, "bcl_overcurrent_wake");
+	if (!bcl_dev->ws)
+		bcl_dev->ws = wakeup_source_register(NULL, "bcl_overcurrent_wake");
 	hrtimer_start(&(bcl_dev->hr_timer),
 		      ktime_set(bcl_dev->bat_ktimer / 1000,
 				(bcl_dev->bat_ktimer % 1000) *
