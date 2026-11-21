@@ -3349,7 +3349,7 @@ classh_cfg:
 
 gpio_cfg:
 	for (i = 0; i < ARRAY_SIZE(gpios); i++) {
-		sprintf(of_name, "cirrus,gpio-ctrl%d", i + 1);
+		snprintf(of_name, sizeof(of_name), "cirrus,gpio-ctrl%d", i + 1);
 		child = of_get_child_by_name(node, of_name);
 		gpios[i]->is_present = child ? true : false;
 		if (!gpios[i]->is_present)
