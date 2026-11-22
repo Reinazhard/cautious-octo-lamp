@@ -445,7 +445,7 @@ static int cmd_echo(struct lwis_device *lwis_dev, struct lwis_cmd_pkt *header,
 static int cmd_time_query(struct lwis_device *lwis_dev, struct lwis_cmd_pkt *header,
 			  struct lwis_cmd_time_query __user *u_msg)
 {
-	struct lwis_cmd_time_query time_query;
+	struct lwis_cmd_time_query time_query = { 0 };
 
 	time_query.timestamp_ns = ktime_to_ns(lwis_get_time());
 	time_query.header.cmd_id = header->cmd_id;
@@ -462,7 +462,7 @@ static int cmd_get_device_info(struct lwis_device *lwis_dev, struct lwis_cmd_pkt
 	int i;
 	struct lwis_cmd_device_info *k_info;
 
-	k_info = kmalloc(sizeof(*k_info), GFP_KERNEL);
+	k_info = kzalloc(sizeof(*k_info), GFP_KERNEL);
 	if (!k_info)
 		return -ENOMEM;
 
@@ -1594,7 +1594,7 @@ static int cmd_periodic_io_submit(struct lwis_client *client, struct lwis_cmd_pk
 				  struct lwis_cmd_periodic_io_info __user *u_msg)
 {
 	int ret = 0;
-	struct lwis_cmd_periodic_io_info k_periodic_io_info;
+	struct lwis_cmd_periodic_io_info k_periodic_io_info = { 0 };
 	struct lwis_periodic_io *k_periodic_io = NULL;
 	struct lwis_device *lwis_dev = client->lwis_dev;
 
