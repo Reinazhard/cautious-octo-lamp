@@ -1515,7 +1515,7 @@ int maxfg_reset_max_min(struct maxfg_regmap *regmap)
 static int maxfg_update_fcn_fcr_delta(struct maxfg_regmap *regmap,
 				      struct maxfg_bypss_charglimt *limit)
 {
-	int ret, fullcapnom, fullcaprep;
+	int ret, fullcapnom = 0, fullcaprep = 0;
 
 	ret = maxfg_reg_read(regmap, MAXFG_TAG_fcnom, (u16 *)&fullcapnom);
 	if (ret < 0) {
