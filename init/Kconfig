@@ -2302,6 +2302,7 @@ config RUST
 	select CFI_ICALL_NORMALIZE_INTEGERS if CFI
 	depends on !KASAN || CC_IS_CLANG
 	depends on !KASAN_SW_TAGS || RUSTC_VERSION >= 109600
+	depends on !KMSAN
 	help
 	  Enables Rust support in the kernel.
 
