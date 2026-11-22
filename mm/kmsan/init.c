@@ -103,6 +103,7 @@ struct metadata_page_pair {
 	struct page *shadow, *origin;
 };
 static struct metadata_page_pair held_back[NR_PAGE_ORDERS] __initdata;
+static unsigned long kmsan_reserved_pages __initdata;
 
 /*
  * Eager metadata allocation. When the memblock allocator is freeing pages to
@@ -123,10 +124,12 @@ bool kmsan_memblock_free_pages(struct page *page, unsigned int order)
 
 	if (!held_back[order].shadow) {
 		held_back[order].shadow = page;
+		kmsan_reserved_pages += 1UL << order;
 		return false;
 	}
 	if (!held_back[order].origin) {
 		held_back[order].origin = page;
+		kmsan_reserved_pages += 1UL << order;
 		return false;
 	}
 	shadow = held_back[order].shadow;
@@ -179,6 +182,7 @@ static void do_collection(void)
 		origin = smallstack_pop(&collect);
 		kmsan_setup_meta(page, shadow, origin, collect.order);
 		__free_pages_core(page, collect.order, MEMINIT_EARLY);
+		kmsan_reserved_pages -= 1UL << collect.order;
 	}
 }
 
@@ -228,6 +232,7 @@ static void kmsan_memblock_discard(void)
 		do_collection();
 		collect_split();
 	}
+	totalram_pages_add(-(long)kmsan_reserved_pages);
 }
 
 void __init kmsan_init_runtime(void)
