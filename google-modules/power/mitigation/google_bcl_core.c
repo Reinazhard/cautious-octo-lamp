@@ -1572,7 +1572,7 @@ static int intf_pmic_init(struct bcl_device *bcl_dev)
 static int google_set_intf_pmic(struct bcl_device *bcl_dev, struct platform_device *pdev)
 {
 	int ret = 0;
-	u32 retval;
+	u32 retval = M77759;
 	struct device_node *np = bcl_dev->device->of_node;
 
 	ret = of_property_read_u32(np, "google,ifpmic", &retval);
