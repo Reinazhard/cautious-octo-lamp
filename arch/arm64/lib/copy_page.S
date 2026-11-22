@@ -78,5 +78,7 @@ alternative_else_nop_endif
 
 	ret
 SYM_FUNC_END(__pi_copy_page)
+#ifndef CONFIG_KMSAN
 SYM_FUNC_ALIAS(copy_page, __pi_copy_page)
 EXPORT_SYMBOL(copy_page)
+#endif

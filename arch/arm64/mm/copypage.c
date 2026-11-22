@@ -77,7 +77,15 @@ void copy_user_highpage(struct page *to, struct page *from,
 EXPORT_SYMBOL_GPL(copy_user_highpage);
 
 #ifdef CONFIG_KMSAN
+extern void __pi_copy_page(void *to, const void *from);
 extern void __pi_clear_page(void *to);
+
+void __no_sanitize_memory copy_page(void *to, const void *from)
+{
+	__pi_copy_page(to, from);
+	kmsan_memmove(to, from, PAGE_SIZE);
+}
+EXPORT_SYMBOL(copy_page);
 
 void __no_sanitize_memory clear_page(void *to)
 {
