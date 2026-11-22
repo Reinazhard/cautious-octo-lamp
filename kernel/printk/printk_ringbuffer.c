@@ -1971,7 +1971,7 @@ static int prb_read(struct printk_ringbuffer *rb, u64 seq,
 	struct printk_info *info = to_info(desc_ring, seq);
 	struct prb_desc *rdesc = to_desc(desc_ring, seq);
 	atomic_long_t *state_var = &rdesc->state_var;
-	struct prb_desc desc;
+	struct prb_desc desc = { 0 };
 	unsigned long id;
 	int err;
 
