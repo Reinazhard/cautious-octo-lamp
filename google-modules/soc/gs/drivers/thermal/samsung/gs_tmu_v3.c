@@ -40,6 +40,7 @@
 #include <soc/google/exynos-cpuhp.h>
 
 #include <trace/events/clock.h>
+#include <linux/cpu.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/thermal_exynos.h>
@@ -1660,95 +1661,131 @@ void register_tpu_thermal_pause_cb(tpu_pause_cb tpu_cb, void *data)
 	tpu_data = data;
 	/* Ensure tpu_data is assigned and has been committed. */
 	smp_wmb();
-	tpu_thermal_pause_cb = tpu_cb;
+	WRITE_ONCE(tpu_thermal_pause_cb, tpu_cb);
 }
 EXPORT_SYMBOL(register_tpu_thermal_pause_cb);
 
-/*
+static int gs_pause_cpus(const struct cpumask *mask)
+{
+	struct cpumask offlined;
+	int cpu, ret;
+
+	cpumask_clear(&offlined);
+	for_each_cpu(cpu, mask) {
+		ret = remove_cpu(cpu);
+		if (ret < 0) {
+			for_each_cpu(cpu, &offlined)
+				add_cpu(cpu);
+			return ret;
+		}
+		if (ret == 0)
+			cpumask_set_cpu(cpu, &offlined);
+	}
+
+	return 0;
+}
+
+static int gs_resume_cpus(const struct cpumask *mask)
+{
+	int cpu, ret;
+
+	for_each_cpu(cpu, mask) {
+		ret = add_cpu(cpu);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static void gs_throttle_pause(struct kthread_work *work)
 {
 	struct gs_tmu_data *data = container_of(work,
-						   struct gs_tmu_data, pause_work);
+						struct gs_tmu_data, pause_work);
 	struct cpumask mask;
-	int cpu_pause_mask, ret;
+	tpu_pause_cb tpu_cb = NULL;
+	void *tpu_ctx = NULL;
+	unsigned int tmu_type;
+	bool do_pause, transition = false;
+	int ret;
 
 	mutex_lock(&data->lock);
 
-	switch (data->tmu_type) {
+	tmu_type = data->tmu_type;
+	switch (tmu_type) {
 	case TMU_TYPE_CPU:
-		cpu_pause_mask = cpumask_and(&mask, cpu_possible_mask, &data->pause_cpus);
+		if (!cpumask_and(&mask, cpu_possible_mask, &data->pause_cpus))
+			goto unlock;
 		break;
 	case TMU_TYPE_TPU:
-		// tpu_data has been assigned and ensure it's not NULL.
-		// So, just need to ensure tpu_thermal_pause_cb is not NULL.
-		// This is the pair of read side register_tpu_thermal_pause_cb().
-		if (!tpu_thermal_pause_cb) {
+		/*
+		 * tpu_data is published before tpu_thermal_pause_cb with a
+		 * write barrier in register_tpu_thermal_pause_cb().
+		 */
+		tpu_cb = READ_ONCE(tpu_thermal_pause_cb);
+		if (!tpu_cb) {
 			pr_err_ratelimited("%s: TPU pause callback not registered\n",
 					   data->tmu_name);
 			goto unlock;
 		}
 		smp_rmb();
+		tpu_ctx = tpu_data;
 		break;
 	case TMU_TYPE_GPU:
 	case TMU_TYPE_ISP:
 	default:
 		pr_warn_ratelimited("%s: %u unsupported type for pause function\n",
-				    data->tmu_name, data->tmu_type);
+				    data->tmu_name, tmu_type);
 		goto unlock;
 	}
 
 	if (data->is_paused) {
 		if (data->temperature < data->resume_threshold) {
-			if (data->tmu_type == TMU_TYPE_CPU) {
-				if (resume_cpus(&mask)) {
-					// queue the work again in case failure
-					// also do not queue again when prepare to suspend
-					if (!atomic_read(&gs_tmu_in_suspend))
-						kthread_queue_work(&data->pause_worker,
-								   &data->pause_work);
-				} else {
-					data->is_paused = false;
-					pr_info_ratelimited("%s thermal resume cpus: %*pbl\n",
-						data->tmu_name, cpumask_pr_args(&mask));
-				}
-			} else if (data->tmu_type == TMU_TYPE_TPU) {
-				ret = tpu_thermal_pause_cb(THERMAL_RESUME, tpu_data);
-				if (!ret) {
-					data->is_paused = false;
-					pr_info_ratelimited("%s thermal resumed\n", data->tmu_name);
-				} else {
-					if (!atomic_read(&gs_tmu_in_suspend))
-						kthread_queue_work(&data->pause_worker,
-								   &data->pause_work);
-				}
-			}
+			do_pause = false;
+			transition = true;
 		}
 	} else {
 		if (data->temperature >= data->pause_threshold) {
-			if (data->tmu_type == TMU_TYPE_CPU) {
-				if (pause_cpus(&mask)) {
-					// queue the work again in case of failure
-					// also do not queue again when prepare to suspend
-					if (!atomic_read(&gs_tmu_in_suspend))
-						kthread_queue_work(&data->pause_worker,
-								   &data->pause_work);
-				} else {
-					data->is_paused = true;
-					pr_info_ratelimited("%s thermal pause cpus: %*pbl\n",
-						data->tmu_name, cpumask_pr_args(&mask));
-				}
-			} else if (data->tmu_type == TMU_TYPE_TPU) {
-				ret = tpu_thermal_pause_cb(THERMAL_SUSPEND, tpu_data);
-				if (!ret) {
-					data->is_paused = true;
-					pr_info_ratelimited("%s thermal paused\n", data->tmu_name);
-				} else {
-					if (!atomic_read(&gs_tmu_in_suspend))
-						kthread_queue_work(&data->pause_worker,
-								   &data->pause_work);
-				}
-			}
+			do_pause = true;
+			transition = true;
 		}
+	}
+
+	if (!transition) {
+		update_thermal_trace(data, PAUSE, data->is_paused);
+		disable_stats_update(data->disable_stats, data->is_paused);
+		goto unlock;
+	}
+
+	/*
+	 * Release data->lock across CPU hotplug and TPU suspend/resume to avoid
+	 * stalling gs_get_temp() and lock-order inversion with cpu_hotplug_lock.
+	 * pause_work runs on the single-threaded per-TMU pause_worker, so
+	 * data->is_paused has no concurrent writers.
+	 */
+	mutex_unlock(&data->lock);
+
+	if (tmu_type == TMU_TYPE_CPU) {
+		ret = do_pause ? gs_pause_cpus(&mask) : gs_resume_cpus(&mask);
+	} else {
+		ret = tpu_cb(do_pause ? THERMAL_SUSPEND : THERMAL_RESUME,
+			     tpu_ctx);
+	}
+
+	mutex_lock(&data->lock);
+
+	if (!ret) {
+		data->is_paused = do_pause;
+		if (tmu_type == TMU_TYPE_CPU)
+			pr_info_ratelimited("%s thermal %s cpus: %*pbl\n",
+					    data->tmu_name,
+					    do_pause ? "pause" : "resume",
+					    cpumask_pr_args(&mask));
+		else
+			pr_info_ratelimited("%s thermal %s\n", data->tmu_name,
+					    do_pause ? "paused" : "resumed");
+	} else if (!atomic_read(&gs_tmu_in_suspend)) {
+		kthread_queue_work(&data->pause_worker, &data->pause_work);
 	}
 
 	update_thermal_trace(data, PAUSE, data->is_paused);
@@ -1757,7 +1794,6 @@ static void gs_throttle_pause(struct kthread_work *work)
 unlock:
 	mutex_unlock(&data->lock);
 }
-*/
 
 static void gs_throttle_hard_limit(struct kthread_work *work)
 {
@@ -1941,12 +1977,8 @@ static int gs_tmu_irq_work_init(struct platform_device *pdev)
 			kthread_init_work(&data->hotplug_work, gs_throttle_cpu_hotplug);
 		}
 
-		/* TODO: b/199473897 fix this in android-mainline (commit c7f998a0cd01 "Revert
-				"ANDROID: cpu/hotplug: add pause/resume_cpus interface")
-		if (data->pause_enable) {
+		if (data->pause_enable)
 			kthread_init_work(&data->pause_work, gs_throttle_pause);
-		}
-		*/
 
 		kthread_init_worker(&data->pause_worker);
 		scnprintf(kworker_name, CPUHP_USER_NAME_LEN, "%s_pause", data->tmu_name);
