@@ -447,6 +447,8 @@ int bitmap_parse(const char *start, unsigned int buflen,
 	int unset_bit;
 	int chunk;
 
+	bitmap_zero(maskp, nmaskbits);
+
 	for (chunk = 0; ; chunk++) {
 		end = bitmap_find_region_reverse(start, end);
 		if (start > end)
