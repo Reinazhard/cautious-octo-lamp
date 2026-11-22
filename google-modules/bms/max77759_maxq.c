@@ -253,8 +253,8 @@ static void maxq_log_array(struct max77759_maxq *maxq, char *title,
 static int maxq_user_space_read(struct max77759_maxq *maxq, u8 *data)
 {
 	int ret, i;
-	u8 request[OPCODE_USER_SPACE_R_REQ_LEN];
-	u8 response[OPCODE_USER_SPACE_R_RES_LEN];
+	u8 request[OPCODE_USER_SPACE_R_REQ_LEN] = {};
+	u8 response[OPCODE_USER_SPACE_R_RES_LEN] = {};
 
 	request[ADDR_OPCODE] = OPCODE_USER_SPACE_READ;
 	request[START_ADDR] = data[0];
@@ -288,8 +288,8 @@ static int maxq_user_space_read(struct max77759_maxq *maxq, u8 *data)
 static int maxq_user_space_write(struct max77759_maxq *maxq, u8 *data)
 {
 	int ret, i;
-	u8 request[OPCODE_USER_SPACE_W_REQ_LEN];
-	u8 response[OPCODE_USER_SPACE_W_RES_LEN];
+	u8 request[OPCODE_USER_SPACE_W_REQ_LEN] = {};
+	u8 response[OPCODE_USER_SPACE_W_RES_LEN] = {};
 
 	request[ADDR_OPCODE] = OPCODE_USER_SPACE_WRITE;
 	request[START_ADDR] = data[0];
@@ -324,7 +324,7 @@ static int maxq_user_space_write(struct max77759_maxq *maxq, u8 *data)
 static int maxq_rs_read(struct max77759_maxq *maxq, gbms_tag_t tag, u8 *data)
 {
 	int ret, len;
-	u8 buff[OPCODE_USER_SPACE_R_RES_LEN];
+	u8 buff[OPCODE_USER_SPACE_R_RES_LEN] = {};
 
 	if (tag == GBMS_TAG_RSBM) {
 		buff[RS_TAG_OFFSET_ADDR] = RSBM_ADDR;
@@ -365,7 +365,7 @@ static int maxq_rs_read(struct max77759_maxq *maxq, gbms_tag_t tag, u8 *data)
 static int maxq_rs_write(struct max77759_maxq *maxq, gbms_tag_t tag, u8 *data)
 {
 	int ret, len;
-	u8 buff[OPCODE_USER_SPACE_W_REQ_LEN];
+	u8 buff[OPCODE_USER_SPACE_W_REQ_LEN] = {};
 
 	if (tag == GBMS_TAG_RSBM) {
 		buff[RS_TAG_OFFSET_ADDR] = RSBM_ADDR;
