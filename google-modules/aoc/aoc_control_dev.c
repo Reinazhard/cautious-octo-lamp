@@ -142,8 +142,8 @@ static ssize_t memory_exception_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct stats_prvdata *prvdata = dev_get_drvdata(dev);
-	struct CMD_GET_MEMORY_EXCEPTION_DATA_COUNT get_count_cmd;
-	struct CMD_GET_MEMORY_EXCEPTION_DATA get_data_cmd;
+	struct CMD_GET_MEMORY_EXCEPTION_DATA_COUNT get_count_cmd = { 0 };
+	struct CMD_GET_MEMORY_EXCEPTION_DATA get_data_cmd = { 0 };
 	u32 total_count;
 	u32 i;
 	u32 bytes_written;
@@ -190,8 +190,8 @@ static ssize_t memory_votes_stats(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct stats_prvdata *prvdata = dev_get_drvdata(dev);
-	struct CMD_GET_MEMORY_VOTES_DATA_COUNT get_count_cmd;
-	struct CMD_GET_MEMORY_VOTES_DATA get_data_cmd;
+	struct CMD_GET_MEMORY_VOTES_DATA_COUNT get_count_cmd = { 0 };
+	struct CMD_GET_MEMORY_VOTES_DATA get_data_cmd = { 0 };
 	u32 total_count;
 	u32 i;
 	u32 bytes_written;
@@ -444,7 +444,7 @@ static int aoc_control_prepare(struct device *dev)
 {
 	if (notify_on_state_transition) {
 				struct stats_prvdata *prvdata = dev_get_drvdata(dev);
-		struct CMD_AP_STATE_TRANSITION cmd;
+		struct CMD_AP_STATE_TRANSITION cmd = { 0 };
 		int ret;
 
 		AocCmdNoAckHdrSet(&cmd.parent, CMD_AP_STATE_TRANSITION_ID, sizeof(cmd));
@@ -464,7 +464,7 @@ static void aoc_control_complete(struct device *dev)
 {
 	if (notify_on_state_transition) {
 		struct stats_prvdata *prvdata = dev_get_drvdata(dev);
-		struct CMD_AP_STATE_TRANSITION cmd;
+		struct CMD_AP_STATE_TRANSITION cmd = { 0 };
 		int ret;
 
 		AocCmdNoAckHdrSet(&cmd.parent, CMD_AP_STATE_TRANSITION_ID, sizeof(cmd));
@@ -612,7 +612,7 @@ static void discovery_workitem(struct work_struct *work)
 {
 	struct stats_prvdata *prvdata =
 		container_of(work, struct stats_prvdata, discovery_work);
-	struct CMD_SYS_STATS_TOT cmd_total;
+	struct CMD_SYS_STATS_TOT cmd_total = { 0 };
 	struct device *dev = &prvdata->service->dev;
 	struct aoc_stat *stats;
 	int i, ret;
@@ -645,9 +645,8 @@ static void discovery_workitem(struct work_struct *work)
 	dev_dbg(dev, "Returned %d, %d stats", ret, prvdata->total_stats);
 
 	for (i = 0; i < prvdata->total_stats; i++) {
-		struct CMD_SYS_STATS_INFO_GET cmd_info;
+		struct CMD_SYS_STATS_INFO_GET cmd_info = { 0 };
 
-		memset(&cmd_info, 0, sizeof(cmd_info));
 		AocCmdHdrSet(&cmd_info.parent.parent, CMD_SYS_STATS_INFO_GET_ID,
 			     sizeof(cmd_info));
 		cmd_info.index = i;

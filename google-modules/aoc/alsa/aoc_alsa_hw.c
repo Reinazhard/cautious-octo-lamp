@@ -319,7 +319,7 @@ exit:
 static int aoc_audio_control_simple_cmd(const char *cmd_channel, int cmd_id, struct aoc_chip *chip)
 {
 	int err = 0;
-	struct CMD_HDR cmd;
+	struct CMD_HDR cmd = { 0 };
 
 	AocCmdHdrSet(&cmd, cmd_id, sizeof(cmd));
 
@@ -336,7 +336,7 @@ int aoc_audio_volume_set(struct aoc_chip *chip, uint32_t volume, int src,
 			 int dst)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_SET_PARAMETER cmd;
+	struct CMD_AUDIO_OUTPUT_SET_PARAMETER cmd = { 0 };
 
 	/* No volume control for capturing */
 	/* Haptics in AoC does not have adjustable volume */
@@ -366,7 +366,7 @@ static int aoc_audio_capture_mic_input(struct aoc_chip *chip,
 				       int input_cmd, int mic_input_source)
 {
 	int err;
-	struct CMD_AUDIO_INPUT_AP_INPUT_START cmd1;
+	struct CMD_AUDIO_INPUT_AP_INPUT_START cmd1 = { 0 };
 
 	if (input_cmd == START) {
 		AocCmdHdrSet(&(cmd1.parent), CMD_AUDIO_INPUT_AP_INPUT_START_ID,
@@ -504,8 +504,8 @@ static int aoc_us_record_param_configured_num(struct aoc_chip *chip)
 int aoc_set_builtin_mic_power_state(struct aoc_chip *chip, int iMic, int state)
 {
 	int err;
-	struct CMD_AUDIO_INPUT_MIC_POWER_ON cmd_on;
-	struct CMD_AUDIO_INPUT_MIC_POWER_OFF cmd_off;
+	struct CMD_AUDIO_INPUT_MIC_POWER_ON cmd_on = { 0 };
+	struct CMD_AUDIO_INPUT_MIC_POWER_OFF cmd_off = { 0 };
 
 	if (state == 1) {
 		AocCmdHdrSet(&(cmd_on.parent), CMD_AUDIO_INPUT_MIC_POWER_ON_ID,
@@ -530,7 +530,7 @@ int aoc_set_builtin_mic_power_state(struct aoc_chip *chip, int iMic, int state)
 int aoc_get_builtin_mic_power_state(struct aoc_chip *chip, int iMic)
 {
 	int err;
-	struct CMD_AUDIO_INPUT_MIC_GET_POWER_STATE cmd;
+	struct CMD_AUDIO_INPUT_MIC_GET_POWER_STATE cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_INPUT_MIC_GET_POWER_STATE_ID,
 		     sizeof(cmd));
@@ -548,7 +548,7 @@ int aoc_get_builtin_mic_power_state(struct aoc_chip *chip, int iMic)
 int aoc_mic_clock_rate_get(struct aoc_chip *chip)
 {
 	int err;
-	struct CMD_AUDIO_INPUT_GET_MIC_CLOCK_FREQUENCY cmd;
+	struct CMD_AUDIO_INPUT_GET_MIC_CLOCK_FREQUENCY cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_INPUT_GET_MIC_CLOCK_FREQUENCY_ID,
 		     sizeof(cmd));
@@ -567,7 +567,7 @@ int aoc_mic_hw_gain_get(struct aoc_chip *chip, int state)
 {
 	int err;
 	/* TODO: the cmd structures for 3 states differ only in names */
-	struct CMD_AUDIO_INPUT_GET_MIC_CURRENT_HW_GAIN cmd;
+	struct CMD_AUDIO_INPUT_GET_MIC_CURRENT_HW_GAIN cmd = { 0 };
 	int cmd_id;
 
 	switch (state) {
@@ -597,7 +597,7 @@ int aoc_mic_hw_gain_set(struct aoc_chip *chip, int state, int gain)
 {
 	int err;
 	/* TODO: the cmd structures for 3 states differ only in names */
-	struct CMD_AUDIO_INPUT_SET_MIC_LOW_POWER_HW_GAIN cmd;
+	struct CMD_AUDIO_INPUT_SET_MIC_LOW_POWER_HW_GAIN cmd = { 0 };
 	int cmd_id;
 
 	switch (state) {
@@ -628,7 +628,7 @@ int aoc_mic_hw_gain_set(struct aoc_chip *chip, int state, int gain)
 int aoc_mic_dc_blocker_get(struct aoc_chip *chip)
 {
 	int err;
-	struct CMD_AUDIO_INPUT_GET_MIC_DC_BLOCKER cmd;
+	struct CMD_AUDIO_INPUT_GET_MIC_DC_BLOCKER cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_INPUT_GET_MIC_DC_BLOCKER_ID,
 		     sizeof(cmd));
@@ -646,7 +646,7 @@ int aoc_mic_dc_blocker_get(struct aoc_chip *chip)
 int aoc_mic_dc_blocker_set(struct aoc_chip *chip, int enable)
 {
 	int err;
-	struct CMD_AUDIO_INPUT_SET_MIC_DC_BLOCKER cmd;
+	struct CMD_AUDIO_INPUT_SET_MIC_DC_BLOCKER cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_INPUT_SET_MIC_DC_BLOCKER_ID,
 		     sizeof(cmd));
@@ -664,7 +664,7 @@ int aoc_mic_dc_blocker_set(struct aoc_chip *chip, int enable)
 int aoc_sidetone_cfg_get(struct aoc_chip *chip, int param, long *val)
 {
 	int err = 0;
-	struct CMD_AUDIO_OUTPUT_GET_SIDETONE cmd;
+	struct CMD_AUDIO_OUTPUT_GET_SIDETONE cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_GET_SIDETONE_ID, sizeof(cmd));
 
@@ -703,7 +703,7 @@ int aoc_sidetone_cfg_get(struct aoc_chip *chip, int param, long *val)
 int aoc_sidetone_cfg_set(struct aoc_chip *chip, int param, long val)
 {
 	int err = 0;
-	struct CMD_AUDIO_OUTPUT_SET_SIDETONE cmd;
+	struct CMD_AUDIO_OUTPUT_SET_SIDETONE cmd = { 0 };
 
 	aoc_sidetone_cfg_get(chip, 0, NULL); //get the updated data from AoC before setting
 	cmd.eq_num_stages = chip->sidetone_cfg.eq_num_stages;
@@ -741,7 +741,7 @@ int aoc_sidetone_cfg_set(struct aoc_chip *chip, int param, long val)
 int aoc_sidetone_eq_get(struct aoc_chip *chip, int biquad_idx, long *val)
 {
 	int i, err = 0;
-	struct CMD_AUDIO_OUTPUT_GET_SIDETONE_EQ cmd;
+	struct CMD_AUDIO_OUTPUT_GET_SIDETONE_EQ cmd = { 0 };
 	int n_params = ARRAY_SIZE(cmd.coeffs);
 
 	pr_info("%s: sidetone eq %d - %d params\n", __func__, biquad_idx, n_params);
@@ -768,7 +768,7 @@ int aoc_sidetone_eq_set(struct aoc_chip *chip, int biquad_idx, long *val)
 {
 	int i, err = 0;
 	uint32_t tmp;
-	struct CMD_AUDIO_OUTPUT_SET_SIDETONE_EQ cmd;
+	struct CMD_AUDIO_OUTPUT_SET_SIDETONE_EQ cmd = { 0 };
 	int n_params = ARRAY_SIZE(cmd.coeffs);
 
 	pr_info("%s: sidetone eq %d - %d params\n", __func__, biquad_idx, n_params);
@@ -792,7 +792,7 @@ int aoc_sidetone_eq_set(struct aoc_chip *chip, int biquad_idx, long *val)
 int aoc_incall_capture_enable_get(struct aoc_chip *chip, int stream, long *val)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_TELE_CAPT cmd;
+	struct CMD_AUDIO_OUTPUT_TELE_CAPT cmd = { 0 };
 
 #if IS_ENABLED(CONFIG_SOC_GS101) || IS_ENABLED(CONFIG_SOC_GS201)
 	if (stream == 3) {
@@ -823,7 +823,7 @@ int aoc_incall_capture_enable_get(struct aoc_chip *chip, int stream, long *val)
 int aoc_incall_capture_enable_set(struct aoc_chip *chip, int stream, long val)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_TELE_CAPT cmd;
+	struct CMD_AUDIO_OUTPUT_TELE_CAPT cmd = { 0 };
 
 #if IS_ENABLED(CONFIG_SOC_GS101) || IS_ENABLED(CONFIG_SOC_GS201)
 	if (stream == 3) {
@@ -854,7 +854,7 @@ int aoc_incall_capture_enable_set(struct aoc_chip *chip, int stream, long val)
 int aoc_incall_playback_enable_get(struct aoc_chip *chip, int stream, long *val)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_INCALL_MUSIC cmd;
+	struct CMD_AUDIO_OUTPUT_INCALL_MUSIC cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_GET_INCALL_MUSIC_ID, sizeof(cmd));
 
@@ -877,7 +877,7 @@ int aoc_incall_playback_enable_get(struct aoc_chip *chip, int stream, long *val)
 int aoc_incall_playback_enable_set(struct aoc_chip *chip, int stream, long val)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_INCALL_MUSIC cmd;
+	struct CMD_AUDIO_OUTPUT_INCALL_MUSIC cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_SET_INCALL_MUSIC_ID, sizeof(cmd));
 	cmd.ring = stream;
@@ -899,7 +899,7 @@ int aoc_incall_playback_enable_set(struct aoc_chip *chip, int stream, long val)
 int aoc_incall_playback_mic_channel_get(struct aoc_chip *chip, int stream, long *val)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_INCALL_MUSIC_CHAN cmd;
+	struct CMD_AUDIO_OUTPUT_INCALL_MUSIC_CHAN cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_GET_INCALL_MUSIC_CHAN_ID, sizeof(cmd));
 
@@ -922,7 +922,7 @@ int aoc_incall_playback_mic_channel_get(struct aoc_chip *chip, int stream, long 
 int aoc_incall_playback_mic_channel_set(struct aoc_chip *chip, int stream, long val)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_INCALL_MUSIC_CHAN cmd;
+	struct CMD_AUDIO_OUTPUT_INCALL_MUSIC_CHAN cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_SET_INCALL_MUSIC_CHAN_ID, sizeof(cmd));
 	cmd.ring = stream;
@@ -959,7 +959,7 @@ int aoc_voice_call_mic_mute(struct aoc_chip *chip, int mute)
 int aoc_get_builtin_mic_process_mode(struct aoc_chip *chip)
 {
 	int err;
-	struct CMD_AUDIO_INPUT_GET_AP_MIC_INDEX cmd;
+	struct CMD_AUDIO_INPUT_GET_AP_MIC_INDEX cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_INPUT_GET_AP_MIC_INDEX_ID,
 		     sizeof(cmd));
@@ -975,7 +975,7 @@ int aoc_get_builtin_mic_process_mode(struct aoc_chip *chip)
 int aoc_set_builtin_mic_process_mode(struct aoc_chip *chip, long mode)
 {
 	int err;
-	struct CMD_AUDIO_INPUT_GET_AP_MIC_INDEX cmd;
+	struct CMD_AUDIO_INPUT_GET_AP_MIC_INDEX cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_INPUT_SET_AP_MIC_INDEX_ID, sizeof(cmd));
 
@@ -1002,7 +1002,7 @@ int aoc_set_builtin_mic_process_mode(struct aoc_chip *chip, long mode)
 int aoc_get_dsp_state(struct aoc_chip *chip)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_GET_DSP_STATE cmd;
+	struct CMD_AUDIO_OUTPUT_GET_DSP_STATE cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_GET_DSP_STATE_ID,
 		     sizeof(cmd));
@@ -1018,7 +1018,7 @@ int aoc_get_dsp_state(struct aoc_chip *chip)
 int aoc_get_asp_mode(struct aoc_chip *chip, int block, int component, int key)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_GET_PARAMETER cmd;
+	struct CMD_AUDIO_OUTPUT_GET_PARAMETER cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_GET_PARAMETER_ID,
 		     sizeof(cmd));
@@ -1046,7 +1046,7 @@ int aoc_set_asp_mode(struct aoc_chip *chip, int block, int component, int key,
 		     int val)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_SET_PARAMETER cmd;
+	struct CMD_AUDIO_OUTPUT_SET_PARAMETER cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_SET_PARAMETER_ID,
 		     sizeof(cmd));
@@ -1073,7 +1073,7 @@ int aoc_set_asp_mode(struct aoc_chip *chip, int block, int component, int key,
 int aoc_get_audio_dsp_mode(struct aoc_chip *chip, long *val)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_DSP_MODE cmd;
+	struct CMD_AUDIO_OUTPUT_DSP_MODE cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_DSP_MODE_GET_ID, sizeof(cmd));
 
@@ -1096,7 +1096,7 @@ int aoc_get_audio_dsp_mode(struct aoc_chip *chip, long *val)
 int aoc_set_audio_dsp_mode(struct aoc_chip *chip, long val)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_DSP_MODE cmd;
+	struct CMD_AUDIO_OUTPUT_DSP_MODE cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_DSP_MODE_SET_ID, sizeof(cmd));
 
@@ -1117,7 +1117,7 @@ int aoc_set_audio_dsp_mode(struct aoc_chip *chip, long val)
 int aoc_get_sink_channel_bitmap(struct aoc_chip *chip, int sink)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_GET_SINKS_BITMAPS cmd;
+	struct CMD_AUDIO_OUTPUT_GET_SINKS_BITMAPS cmd = { 0 };
 
 	if (sink >= AUDIO_OUTPUT_SINKS) {
 		pr_err("Err: sink id %d not exists!\n", sink);
@@ -1144,7 +1144,7 @@ int aoc_get_sink_mode(struct aoc_chip *chip, int sink)
 int aoc_set_sink_mode(struct aoc_chip *chip, int sink, int mode)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_SINK2 cmd;
+	struct CMD_AUDIO_OUTPUT_SINK2 cmd = { 0 };
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_SINK2_ID, sizeof(cmd));
 
 	cmd.sink = sink;
@@ -1165,7 +1165,7 @@ int aoc_set_sink_mode(struct aoc_chip *chip, int sink, int mode)
 int aoc_get_sink_state(struct aoc_chip *chip, int sink)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_GET_SINK_PROCESSING_STATE cmd;
+	struct CMD_AUDIO_OUTPUT_GET_SINK_PROCESSING_STATE cmd = { 0 };
 	AocCmdHdrSet(&(cmd.parent),
 		     CMD_AUDIO_OUTPUT_GET_SINK_PROCESSING_STATE_ID,
 		     sizeof(cmd));
@@ -1218,7 +1218,7 @@ int aoc_set_usb_feedback_endpoint(struct aoc_chip *chip, struct usb_device *udev
 			struct usb_host_endpoint *ep)
 {
 	struct usb_endpoint_descriptor *ep_desc = &ep->desc;
-	struct CMD_USB_CONTROL_SEND_FEEDBACK_EP_INFO cmd;
+	struct CMD_USB_CONTROL_SEND_FEEDBACK_EP_INFO cmd = { 0 };
 	int err = 0;
 
 	AocCmdHdrSet(&(cmd.parent), CMD_USB_CONTROL_SEND_FEEDBACK_EP_INFO_ID, sizeof(cmd));
@@ -1243,7 +1243,7 @@ int aoc_set_usb_feedback_endpoint(struct aoc_chip *chip, struct usb_device *udev
 
 int aoc_set_usb_offload_state(struct aoc_chip *chip, bool offload_enable)
 {
-	struct CMD_USB_CONTROL_SET_OFFLOAD_STATE cmd;
+	struct CMD_USB_CONTROL_SET_OFFLOAD_STATE cmd = { 0 };
 	int err = 0;
 
 	AocCmdHdrSet(&(cmd.parent), CMD_USB_CONTROL_SET_OFFLOAD_STATE_ID, sizeof(cmd));
@@ -1264,7 +1264,7 @@ aoc_audio_playback_trigger_source(struct aoc_alsa_stream *alsa_stream, int cmd,
 				  int src)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_SOURCE source;
+	struct CMD_AUDIO_OUTPUT_SOURCE source = { 0 };
 
 	AocCmdHdrSet(&(source.parent), CMD_AUDIO_OUTPUT_SOURCE_ID,
 		     sizeof(source));
@@ -1295,7 +1295,7 @@ aoc_audio_playback_trigger_source(struct aoc_alsa_stream *alsa_stream, int cmd,
 static int aoc_audio_playback_source_on(struct aoc_chip *chip, int cmd, int src)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_SOURCE source;
+	struct CMD_AUDIO_OUTPUT_SOURCE source = { 0 };
 
 	AocCmdHdrSet(&(source.parent), CMD_AUDIO_OUTPUT_SOURCE_ID, sizeof(source));
 
@@ -1328,7 +1328,7 @@ static int aoc_audio_playback_source_on(struct aoc_chip *chip, int cmd, int src)
 static int aoc_audio_path_bind(int src, int dst, int cmd, struct aoc_chip *chip)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_BIND bind;
+	struct CMD_AUDIO_OUTPUT_BIND bind = { 0 };
 
 	if (dst < 0)
 		return 0;
@@ -1352,7 +1352,7 @@ static int aoc_mmap_capture_trigger(struct aoc_alsa_stream *alsa_stream, int rec
 {
 	int err = 0;
 	int cmd_id;
-	struct CMD_AUDIO_INPUT_MMAP_ENABLE_2 cmd;
+	struct CMD_AUDIO_INPUT_MMAP_ENABLE_2 cmd = { 0 };
 	struct aoc_chip *chip = alsa_stream->chip;
 
 	if (alsa_stream->channels > 2) {
@@ -1384,7 +1384,7 @@ static int aoc_raw_capture_trigger(struct aoc_alsa_stream *alsa_stream, int reco
 {
 	int err = 0;
 	int cmd_id;
-	struct CMD_AUDIO_INPUT_RAW_ENABLE_2 cmd;
+	struct CMD_AUDIO_INPUT_RAW_ENABLE_2 cmd = { 0 };
 	struct aoc_chip *chip = alsa_stream->chip;
 
 	if (alsa_stream->channels > 2) {
@@ -1416,7 +1416,7 @@ static int aoc_audio_capture_mic_process_mode(struct aoc_chip *chip,
 					      struct aoc_alsa_stream *alsa_stream)
 {
 	int err;
-	struct CMD_AUDIO_INPUT_GET_AP_MIC_INDEX cmd;
+	struct CMD_AUDIO_INPUT_GET_AP_MIC_INDEX cmd = { 0 };
 
 	if (alsa_stream->idx == UC_ULTRASONIC_RECORD)
 		return 0;
@@ -1504,7 +1504,7 @@ int ap_data_control_trigger(struct aoc_chip *chip, struct aoc_alsa_stream *alsa_
 			    int record_cmd)
 {
 	int err = 0;
-	struct CMD_HDR cmd;
+	struct CMD_HDR cmd = { 0 };
 	int cmd_id;
 
 	/* We don't support the stop_data yet */
@@ -1701,7 +1701,7 @@ int aoc_audio_path_close(struct aoc_chip *chip, int src, int dest, bool be_on)
 #if !IS_ENABLED(CONFIG_SOC_GS101)
 static int aoc_audio_playback_set_params2(struct aoc_alsa_stream *alsa_stream, int source_mode)
 {
-	struct CMD_AUDIO_OUTPUT_EP_SETUP2 cmd;
+	struct CMD_AUDIO_OUTPUT_EP_SETUP2 cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_EP_SETUP2_ID, sizeof(cmd));
 	cmd.channel = alsa_stream->entry_point_idx;
@@ -1744,7 +1744,7 @@ static int aoc_audio_playback_set_params(struct aoc_alsa_stream *alsa_stream,
 					 int source_mode)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_EP_SETUP cmd;
+	struct CMD_AUDIO_OUTPUT_EP_SETUP cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_EP_SETUP_ID, sizeof(cmd));
 	cmd.d.channel = alsa_stream->entry_point_idx;
@@ -1828,7 +1828,7 @@ exit:
 
 #if !IS_ENABLED(CONFIG_SOC_GS101)
 static int aoc_audio_capture_set_params2(struct aoc_alsa_stream *alsa_stream) {
-	struct CMD_AUDIO_INPUT_MIC_RECORD_AP_SET_PARAMS2 cmd;
+	struct CMD_AUDIO_INPUT_MIC_RECORD_AP_SET_PARAMS2 cmd = { 0 };
 	int cmd_id;
 
 	cmd.channel = alsa_stream->idx;
@@ -1852,7 +1852,7 @@ static int aoc_audio_capture_set_params(struct aoc_alsa_stream *alsa_stream, uin
 					uint32_t samplerate, uint32_t bps, bool pcm_float_fmt)
 {
 	int err = 0;
-	struct CMD_AUDIO_INPUT_MIC_RECORD_AP_SET_PARAMS cmd;
+	struct CMD_AUDIO_INPUT_MIC_RECORD_AP_SET_PARAMS cmd = { 0 };
 	int cmd_id;
 	struct aoc_chip *chip = alsa_stream->chip;
 	int i, mic_id;
@@ -2022,7 +2022,7 @@ static int aoc_audio_capture_spatial_module_trigger(struct aoc_chip *chip,
 						    int record_cmd)
 {
 	int err = 0;
-	struct CMD_HDR cmd;
+	struct CMD_HDR cmd = { 0 };
 	pr_info("%s: %d", __func__, record_cmd);
 	AocCmdHdrSet(&cmd,
 		     (record_cmd == START) ? CMD_AUDIO_INPUT_SPATIAL_START_ID :
@@ -2093,8 +2093,8 @@ static int aoc_audio_get_parameters(int cmd_id, int block, int component, int ke
 				    struct aoc_chip *chip)
 {
 	int err;
-	struct CMD_AUDIO_INPUT_GET_PARAMETER cmd0;
-	struct CMD_AUDIO_OUTPUT_GET_PARAMETER cmd1;
+	struct CMD_AUDIO_INPUT_GET_PARAMETER cmd0 = { 0 };
+	struct CMD_AUDIO_OUTPUT_GET_PARAMETER cmd1 = { 0 };
 
 	if (cmd_id == CMD_AUDIO_INPUT_GET_PARAMETER_ID) /* Input channel */
 	{
@@ -2133,8 +2133,8 @@ static int aoc_audio_set_parameters(int cmd_id, int block, int component, int ke
 				    struct aoc_chip *chip)
 {
 	int err;
-	struct CMD_AUDIO_INPUT_SET_PARAMETER cmd0;
-	struct CMD_AUDIO_OUTPUT_SET_PARAMETER cmd1;
+	struct CMD_AUDIO_INPUT_SET_PARAMETER cmd0 = { 0 };
+	struct CMD_AUDIO_OUTPUT_SET_PARAMETER cmd1 = { 0 };
 
 	if (cmd_id == CMD_AUDIO_INPUT_SET_PARAMETER_ID) /* Input channel */
 	{
@@ -2393,7 +2393,7 @@ int aoc_enable_cca_on_voip(struct aoc_chip *chip, long enable)
 int aoc_lvm_enable_get(struct aoc_chip *chip, long *enable)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_GET_PARAMETER cmd;
+	struct CMD_AUDIO_OUTPUT_GET_PARAMETER cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_GET_PARAMETER_ID, sizeof(cmd));
 
@@ -2419,7 +2419,7 @@ int aoc_lvm_enable_get(struct aoc_chip *chip, long *enable)
 int aoc_lvm_enable_set(struct aoc_chip *chip, long enable)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_SET_PARAMETER cmd;
+	struct CMD_AUDIO_OUTPUT_SET_PARAMETER cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_SET_PARAMETER_ID, sizeof(cmd));
 
@@ -2442,7 +2442,7 @@ int aoc_lvm_enable_set(struct aoc_chip *chip, long enable)
 int aoc_decoder_ref_enable_get(struct aoc_chip *chip, long *enable)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_GET_PARAMETER cmd;
+	struct CMD_AUDIO_OUTPUT_GET_PARAMETER cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_GET_PARAMETER_ID, sizeof(cmd));
 
@@ -2468,7 +2468,7 @@ int aoc_decoder_ref_enable_get(struct aoc_chip *chip, long *enable)
 int aoc_decoder_ref_enable_set(struct aoc_chip *chip, long enable)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_SET_PARAMETER cmd;
+	struct CMD_AUDIO_OUTPUT_SET_PARAMETER cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_SET_PARAMETER_ID, sizeof(cmd));
 
@@ -2491,7 +2491,7 @@ int aoc_decoder_ref_enable_set(struct aoc_chip *chip, long enable)
 int aoc_compr_offload_linear_gain_get(struct aoc_chip *chip, long *val)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_DEC_CH_GAIN cmd;
+	struct CMD_AUDIO_OUTPUT_DEC_CH_GAIN cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_DEC_CH_GAIN_GET_ID, sizeof(cmd));
 
@@ -2517,7 +2517,7 @@ int aoc_compr_offload_linear_gain_get(struct aoc_chip *chip, long *val)
 int aoc_compr_offload_linear_gain_set(struct aoc_chip *chip, long *val)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_DEC_CH_GAIN cmd;
+	struct CMD_AUDIO_OUTPUT_DEC_CH_GAIN cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_DEC_CH_GAIN_SET_ID, sizeof(cmd));
 
@@ -2552,7 +2552,7 @@ int aoc_compr_offload_linear_gain_set(struct aoc_chip *chip, long *val)
 int aoc_mel_enable(struct aoc_chip *chip, int enable)
 {
 	int err = 0;
-	struct CMD_AUDIO_OUTPUT_MEL_STATE cmd;
+	struct CMD_AUDIO_OUTPUT_MEL_STATE cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_MEL_STATE_ID, sizeof(cmd));
 
@@ -2569,7 +2569,7 @@ int aoc_mel_enable(struct aoc_chip *chip, int enable)
 int aoc_mel_rs2_set(struct aoc_chip *chip, long *rs2)
 {
 	int err = 0;
-	struct CMD_AUDIO_OUTPUT_MEL_RS2 cmd;
+	struct CMD_AUDIO_OUTPUT_MEL_RS2 cmd = { 0 };
 	uint32_t tmp;
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_MEL_SET_RS2_ID, sizeof(cmd));
@@ -2588,7 +2588,7 @@ int aoc_mel_rs2_set(struct aoc_chip *chip, long *rs2)
 int aoc_mel_rs2_get(struct aoc_chip *chip, long *rs2)
 {
 	int err = 0;
-	struct CMD_AUDIO_OUTPUT_MEL_RS2 cmd;
+	struct CMD_AUDIO_OUTPUT_MEL_RS2 cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_MEL_GET_RS2_ID, sizeof(cmd));
 
@@ -2607,7 +2607,7 @@ int aoc_mel_rs2_get(struct aoc_chip *chip, long *rs2)
 int aoc_compr_offload_playback_rate_set(struct aoc_chip *chip, long *val)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_DECODER_CFG_SPEED cmd;
+	struct CMD_AUDIO_OUTPUT_DECODER_CFG_SPEED cmd = { 0 };
 	uint32_t tmp;
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_DECODER_CFG_SPEED_ID, sizeof(cmd));
@@ -2671,7 +2671,7 @@ exit:
 int aoc_mic_loopback(struct aoc_chip *chip, int enable)
 {
 	int err;
-	struct CMD_AUDIO_INPUT_ENABLE_MIC_LOOPBACK cmd;
+	struct CMD_AUDIO_INPUT_ENABLE_MIC_LOOPBACK cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent),
 		     ((enable == 1) ? CMD_AUDIO_INPUT_MIC_LOOPBACK_START_ID :
@@ -3347,7 +3347,7 @@ exit:
 int aoc_eraser_aec_reference_set(struct aoc_chip *chip, long aec_input_source)
 {
 	int err;
-	struct CMD_AUDIO_INPUT_FEEDBACK_SRC_SELECT_REF cmd;
+	struct CMD_AUDIO_INPUT_FEEDBACK_SRC_SELECT_REF cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_INPUT_HOTWORD_SELECT_AEC_REF_ID, sizeof(cmd));
 
@@ -3385,8 +3385,8 @@ int aoc_eraser_aec_reference_set(struct aoc_chip *chip, long aec_input_source)
 static int aoc_audio_modem_mic_input(struct aoc_chip *chip, int input_cmd, int mic_input_source)
 {
 	int err;
-	struct CMD_HDR cmd0; /* For modem mic input STOP */
-	struct CMD_AUDIO_INPUT_MODEM_INPUT_START_2 cmd1;
+	struct CMD_HDR cmd0 = { 0 }; /* For modem mic input STOP */
+	struct CMD_AUDIO_INPUT_MODEM_INPUT_START_2 cmd1 = { 0 };
 
 	if (input_cmd == START) {
 		AocCmdHdrSet(&(cmd1.parent), CMD_AUDIO_INPUT_MODEM_INPUT_START_2_ID, sizeof(cmd1));
@@ -3921,7 +3921,7 @@ int teardown_voipcall(struct aoc_alsa_stream *alsa_stream)
 int aoc_compr_offload_setup(struct aoc_alsa_stream *alsa_stream, int type)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_DECODER_CFG cmd;
+	struct CMD_AUDIO_OUTPUT_DECODER_CFG cmd = { 0 };
 
 	/* TODO: refactor may be needed for passing codec info from HAL to AoC */
 	AocCmdHdrSet(&(cmd.parent),
@@ -3961,7 +3961,7 @@ int aoc_compr_offload_setup(struct aoc_alsa_stream *alsa_stream, int type)
 int aoc_compr_offload_send_metadata(struct aoc_alsa_stream *alsa_stream)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_DECODER_GAPLESS_METADATA cmd;
+	struct CMD_AUDIO_OUTPUT_DECODER_GAPLESS_METADATA cmd = { 0 };
 
 	if (!alsa_stream->gapless_offload_enable)
 		return 0;
@@ -4034,7 +4034,7 @@ int aoc_compr_offload_get_decoder_frames(struct aoc_alsa_stream *alsa_stream, ui
 {
 #if !(IS_ENABLED(CONFIG_SOC_GS101) || IS_ENABLED(CONFIG_SOC_GS201))
 	int err;
-	struct CMD_AUDIO_OUTPUT_GET_DECODER_TOT_FRAMES cmd;
+	struct CMD_AUDIO_OUTPUT_GET_DECODER_TOT_FRAMES cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_GET_DECODER_TOT_FRAMES_ID,
 		     sizeof(cmd));
@@ -4057,7 +4057,7 @@ int aoc_compr_offload_get_decoder_frames(struct aoc_alsa_stream *alsa_stream, ui
 int aoc_compr_offload_get_io_samples(struct aoc_alsa_stream *alsa_stream, uint64_t *sample)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_GET_EP_SAMPLES cmd;
+	struct CMD_AUDIO_OUTPUT_GET_EP_SAMPLES cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_GET_EP_TOT_SAMPLES_ID,
 		     sizeof(cmd));
@@ -4177,7 +4177,7 @@ static void print_enc_param(struct AUDIO_OUTPUT_BT_A2DP_ENC_CFG *enc_cfg)
 int aoc_a2dp_set_enc_param(struct aoc_chip *chip, struct AUDIO_OUTPUT_BT_A2DP_ENC_CFG *cfg)
 {
 	int err = 0;
-	struct CMD_AUDIO_OUTPUT_BT_A2DP_ENC_CFG cmd;
+	struct CMD_AUDIO_OUTPUT_BT_A2DP_ENC_CFG cmd = { 0 };
 
 	AocCmdHdrSet(&(cmd.parent), CMD_AUDIO_OUTPUT_BT_A2DP_ENC_CFG_ID, sizeof(cmd));
 	memcpy(&cmd.bt_a2dp_enc_cfg, cfg, sizeof(*cfg));
@@ -4250,7 +4250,7 @@ int aoc_audio_us_record(struct aoc_chip *chip, bool enable)
 int aoc_audio_set_chirp_parameter(struct aoc_chip *chip, int key, int value)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_SET_PARAMETER cmd;
+	struct CMD_AUDIO_OUTPUT_SET_PARAMETER cmd = { 0 };
 
 	AocCmdHdrSet(&cmd.parent, CMD_AUDIO_OUTPUT_SET_PARAMETER_ID,
 		     sizeof(cmd));
@@ -4269,7 +4269,7 @@ int aoc_audio_set_chirp_parameter(struct aoc_chip *chip, int key, int value)
 int aoc_audio_set_two_one(struct aoc_chip *chip, int enable)
 {
 	int err;
-	struct CMD_AUDIO_OUTPUT_SET_PARAMETER cmd;
+	struct CMD_AUDIO_OUTPUT_SET_PARAMETER cmd = { 0 };
 
 	AocCmdHdrSet(&cmd.parent, CMD_AUDIO_OUTPUT_SET_PARAMETER_ID,
 		     sizeof(cmd));
@@ -4289,7 +4289,7 @@ int aoc_audio_set_chre_src_pdm_gain(struct aoc_chip *chip, int gain)
 {
 	if (chip->chre_supported) {
 		int err;
-		struct CMD_AUDIO_INPUT_SET_CHRE_SRC_PDM_GAIN cmd;
+		struct CMD_AUDIO_INPUT_SET_CHRE_SRC_PDM_GAIN cmd = { 0 };
 
 		AocCmdHdrSet(&cmd.parent, CMD_AUDIO_INPUT_SET_CHRE_SRC_PDM_GAIN_ID,
 				sizeof(cmd));
@@ -4311,7 +4311,7 @@ int aoc_audio_set_chre_src_aec_gain(struct aoc_chip *chip, int gain)
 {
 	if (chip->chre_supported) {
 		int err;
-		struct CMD_AUDIO_INPUT_SET_CHRE_SRC_AEC_GAIN cmd;
+		struct CMD_AUDIO_INPUT_SET_CHRE_SRC_AEC_GAIN cmd = { 0 };
 
 		AocCmdHdrSet(&cmd.parent, CMD_AUDIO_INPUT_SET_CHRE_SRC_AEC_GAIN_ID,
 				sizeof(cmd));
@@ -4333,7 +4333,7 @@ int aoc_audio_set_chre_src_aec_timeout(struct aoc_chip *chip, int timeout)
 {
 	if (chip->chre_supported) {
 		int err;
-		struct CMD_AUDIO_INPUT_SET_CHRE_SRC_AEC_TIMEOUT cmd;
+		struct CMD_AUDIO_INPUT_SET_CHRE_SRC_AEC_TIMEOUT cmd = { 0 };
 
 		AocCmdHdrSet(&cmd.parent, CMD_AUDIO_INPUT_SET_CHRE_SRC_AEC_TIMEOUT_ID,
 				sizeof(cmd));
@@ -4355,7 +4355,7 @@ int aoc_audio_set_chre_src_aec_timeout(struct aoc_chip *chip, int timeout)
 int aoc_audio_set_hdmic_gain(struct aoc_chip *chip, int gain)
 {
 	int err;
-	struct CMD_AUDIO_INPUT_SET_HDMIC_GAIN cmd;
+	struct CMD_AUDIO_INPUT_SET_HDMIC_GAIN cmd = { 0 };
 
 	AocCmdHdrSet(&cmd.parent, CMD_AUDIO_INPUT_SET_HDMIC_GAIN_ID,
 			sizeof(cmd));
