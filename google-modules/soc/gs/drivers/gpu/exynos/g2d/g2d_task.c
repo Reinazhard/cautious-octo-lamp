@@ -494,7 +494,8 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
 
 	INIT_LIST_HEAD(&task->node);
 
-	task->cmd_page = alloc_pages(GFP_KERNEL, get_order(G2D_CMD_LIST_SIZE));
+	task->cmd_page = alloc_pages(GFP_KERNEL | __GFP_ZERO,
+				     get_order(G2D_CMD_LIST_SIZE));
 	if (!task->cmd_page) {
 		ret = -ENOMEM;
 		goto err_page;
