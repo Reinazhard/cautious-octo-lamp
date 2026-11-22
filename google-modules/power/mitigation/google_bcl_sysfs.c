@@ -1233,7 +1233,7 @@ static ssize_t uvlo1_lvl_show(struct device *dev, struct device_attribute *attr,
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
-	unsigned int uvlo1_lvl;
+	unsigned int uvlo1_lvl = 0;
 
 	if (!bcl_dev)
 		return -EIO;
@@ -1297,7 +1297,7 @@ static ssize_t uvlo2_lvl_show(struct device *dev, struct device_attribute *attr,
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
-	unsigned int uvlo2_lvl;
+	unsigned int uvlo2_lvl = 0;
 
 	if (!bcl_dev)
 		return -EIO;

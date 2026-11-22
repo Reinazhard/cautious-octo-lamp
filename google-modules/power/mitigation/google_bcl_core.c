@@ -1340,8 +1340,8 @@ static void google_bcl_rd_last_curr(struct work_struct *work)
 static int intf_pmic_init(struct bcl_device *bcl_dev)
 {
 	int ret;
-	u8 val, retval;
-	unsigned int uvlo1_lvl, uvlo2_lvl, batoilo_lvl, batoilo2_lvl, lvl;
+	u8 val = 0, retval = 0;
+	unsigned int uvlo1_lvl = 0, uvlo2_lvl = 0, batoilo_lvl = 0, batoilo2_lvl = 0, lvl = 0;
 
 	bcl_dev->batt_psy = google_get_power_supply(bcl_dev, PSY_NAME);
 	batoilo_reg_read(bcl_dev->intf_pmic_dev, bcl_dev->ifpmic, BATOILO2, &lvl);
