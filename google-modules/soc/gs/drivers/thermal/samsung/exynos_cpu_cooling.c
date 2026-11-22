@@ -26,6 +26,7 @@
 #include <soc/google/ect_parser.h>
 #include <soc/google/exynos_cpu_cooling.h>
 #include <soc/google/exynos_pm_qos.h>
+#include <soc/google/gs_tmu_v3.h>
 #include <thermal_core.h>
 
 #include <trace/events/clock.h>
@@ -122,6 +123,7 @@ struct exynos_cpu_cooling_device {
 	unsigned int var_temp_size;
 
 	struct thermal_zone_device *tzd;
+	struct thermal_cooling_device *tj_cdev;
 	unsigned long sysfs_req;
 	bool sysfs_req_bypass;
 	bool apply_dsu_bci_constraints;
@@ -1037,6 +1039,17 @@ static DEVICE_ATTR_RW(user_vote_bypass);
  * Return: a valid struct thermal_cooling_device pointer on success,
  * on failure, it returns a corresponding ERR_PTR().
  */
+static int exynos_cpu_cooling_name_to_tzid(const char *name)
+{
+	if (!strcmp(name, "BIG"))
+		return TZ_BIG;
+	if (!strcmp(name, "MID"))
+		return TZ_MID;
+	if (!strcmp(name, "LITTLE"))
+		return TZ_LIT;
+	return -EINVAL;
+}
+
 static struct thermal_cooling_device *
 __exynos_cpu_cooling_register(struct device_node *np,
 			      struct cpufreq_policy *policy, u32 capacitance, char *cooling_name)
@@ -1183,6 +1196,19 @@ __exynos_cpu_cooling_register(struct device_node *np,
 
 	} else {
 		cpufreq_cdev->apply_dsu_bci_constraints = false;
+	}
+
+	ret = exynos_cpu_cooling_name_to_tzid(cooling_name);
+	if (ret >= 0) {
+		cpufreq_cdev->tj_cdev =
+			gs_tmu_tj_cdev_register(cooling_name, ret,
+						cpufreq_cdev->max_level);
+		if (IS_ERR(cpufreq_cdev->tj_cdev)) {
+			pr_warn("%s: failed to register %s-tj cooling device: %ld\n",
+				__func__, cooling_name,
+				PTR_ERR(cpufreq_cdev->tj_cdev));
+			cpufreq_cdev->tj_cdev = NULL;
+		}
 	}
 
 	return cdev;
