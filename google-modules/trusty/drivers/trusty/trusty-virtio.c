@@ -27,6 +27,7 @@
 #include <linux/virtio_ring.h>
 
 #include <linux/atomic.h>
+#include <linux/mm.h>
 
 #define  RSC_DESCR_VER  1
 
@@ -719,7 +720,8 @@ static dma_addr_t trusty_virtio_dma_map_phys(struct device *dev,
 					     enum dma_data_direction dir,
 					     unsigned long attrs)
 {
-	struct tipc_msg_buf *buf = phys_to_virt(phys);
+	struct tipc_msg_buf *buf =
+		(struct tipc_msg_buf *)page_private(phys_to_page(phys));
 
 	if (unlikely(attrs & DMA_ATTR_MMIO))
 		return DMA_MAPPING_ERROR;

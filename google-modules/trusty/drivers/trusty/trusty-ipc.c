@@ -239,6 +239,7 @@ static struct tipc_msg_buf *vds_alloc_msg_buf(struct tipc_virtio_dev *vds,
 	if (!mb->buf_va)
 		goto err_alloc;
 
+	set_page_private(virt_to_page(mb->buf_va), (unsigned long)mb);
 	sg_init_one(&mb->sg, mb->buf_va, sz);
 	ret = trusty_share_memory_compat(vds->vdev->dev.parent->parent,
 					 &mb->buf_id, &mb->sg, 1, pgprot);
@@ -254,6 +255,7 @@ static struct tipc_msg_buf *vds_alloc_msg_buf(struct tipc_virtio_dev *vds,
 	return mb;
 
 err_share:
+	set_page_private(virt_to_page(mb->buf_va), 0);
 	_free_shareable_mem(sz, mb->buf_va);
 err_alloc:
 	kfree(mb);
@@ -277,6 +279,7 @@ static void vds_free_msg_buf(struct tipc_virtio_dev *vds,
 		 * fails. Leak it in that case.
 		 */
 	} else {
+		set_page_private(virt_to_page(mb->buf_va), 0);
 		_free_shareable_mem(mb->buf_sz, mb->buf_va);
 	}
 	kfree(mb);
@@ -440,7 +443,7 @@ static int vds_queue_txbuf(struct tipc_virtio_dev *vds,
 
 	mutex_lock(&vds->lock);
 	if (vds->state == VDS_ONLINE) {
-		sg_init_one(&sg, mb, mb->wpos);
+		sg_init_one(&sg, mb->buf_va, mb->wpos);
 		err = virtqueue_add_outbuf(vds->txvq, &sg, 1, mb, GFP_KERNEL);
 		need_notify = virtqueue_kick_prepare(vds->txvq);
 	} else {
@@ -2081,7 +2084,7 @@ static int _handle_rxbuf(struct tipc_virtio_dev *vds,
 
 drop_it:
 	/* add the buffer back to the virtqueue */
-	sg_init_one(&sg, rxbuf, rxbuf->buf_sz);
+	sg_init_one(&sg, rxbuf->buf_va, rxbuf->buf_sz);
 	err = virtqueue_add_inbuf(vds->rxvq, &sg, 1, rxbuf, GFP_KERNEL);
 	if (err < 0) {
 		dev_err(dev, "failed to add a virtqueue buffer: %d\n", err);
@@ -2202,7 +2205,7 @@ static int tipc_virtio_probe(struct virtio_device *vdev)
 			goto err_free_rx_buffers;
 		}
 
-		sg_init_one(&sg, rxbuf, rxbuf->buf_sz);
+		sg_init_one(&sg, rxbuf->buf_va, rxbuf->buf_sz);
 		err = virtqueue_add_inbuf(vds->rxvq, &sg, 1, rxbuf, GFP_KERNEL);
 		WARN_ON(err); /* sanity check; this can't really happen */
 	}
