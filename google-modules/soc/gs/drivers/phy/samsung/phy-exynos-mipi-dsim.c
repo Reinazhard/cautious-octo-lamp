@@ -324,8 +324,8 @@ static int exynos_mipi_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct exynos_mipi_phy_data *phy_data;
 	const struct of_device_id *of_id;
-	unsigned int iso[EXYNOS_MIPI_PHYS_MASTER_NUM];
-	unsigned int rst[EXYNOS_MIPI_PHYS_MASTER_NUM];
+	unsigned int iso[EXYNOS_MIPI_PHYS_MASTER_NUM] = { 0 };
+	unsigned int rst[EXYNOS_MIPI_PHYS_MASTER_NUM] = { 0 };
 	struct resource *res;
 	unsigned int i;
 	int ret = 0, elements = 0;
