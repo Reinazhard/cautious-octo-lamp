@@ -15,6 +15,7 @@
 #include <soc/google/ect_parser.h>
 #include <soc/google/gpu_cooling.h>
 #include <soc/google/tmu.h>
+#include <soc/google/gs_tmu_v3.h>
 
 #include <thermal_core.h>
 
@@ -66,6 +67,7 @@ struct power_table {
 struct gpufreq_cooling_device {
 	int id;
 	struct thermal_cooling_device *cool_dev;
+	struct thermal_cooling_device *tj_cdev;
 	struct thermal_zone_device *tzd;
 	void *gpu_drv_data;
 	struct gpufreq_cooling_query_fns *gpu_fns;
@@ -1048,6 +1050,14 @@ static struct thermal_cooling_device *__gpufreq_cooling_register(struct device_n
 	gpufreq_cdev->cool_dev = cool_dev;
 	gpufreq_cdev->gpufreq_state = 0;
 
+	gpufreq_cdev->tj_cdev = gs_tmu_tj_cdev_register("G3D", TZ_GPU,
+							cool_dev->max_state);
+	if (IS_ERR(gpufreq_cdev->tj_cdev)) {
+		pr_warn("%s: failed to register G3D-tj cooling device: %ld\n",
+			__func__, PTR_ERR(gpufreq_cdev->tj_cdev));
+		gpufreq_cdev->tj_cdev = NULL;
+	}
+
 	pr_info("gpu cooling registered for %s, capacitance: %d, power_callback: %s\n",
 		dev_name, capacitance,
 		cooling_ops == &gpufreq_power_cooling_ops ? "true" : "false");
@@ -1137,6 +1147,7 @@ void gpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 
 	gpufreq_cdev = cdev->devdata;
 
+	gs_tmu_tj_cdev_unregister(gpufreq_cdev->tj_cdev);
 	thermal_cooling_device_unregister(gpufreq_cdev->cool_dev);
 
 	release_idr(&gpufreq_idr, gpufreq_cdev->id);
