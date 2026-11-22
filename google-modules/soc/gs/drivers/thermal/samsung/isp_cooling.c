@@ -13,6 +13,7 @@
 #include <soc/google/isp_cooling.h>
 
 #include <soc/google/tmu.h>
+#include <soc/google/gs_tmu_v3.h>
 #if IS_ENABLED(CONFIG_ECT)
 #include <soc/google/ect_parser.h>
 #endif
@@ -38,6 +39,7 @@
 struct isp_cooling_device {
 	int id;
 	struct thermal_cooling_device *cool_dev;
+	struct thermal_cooling_device *tj_cdev;
 	unsigned int isp_state;
 	unsigned int isp_val;
 };
@@ -384,6 +386,15 @@ __isp_cooling_register(struct device_node *np,
 
 	isp_dev->cool_dev = cool_dev;
 	isp_dev->isp_state = 0;
+
+	isp_dev->tj_cdev = gs_tmu_tj_cdev_register("ISP", TZ_ISP,
+						   cool_dev->max_state);
+	if (IS_ERR(isp_dev->tj_cdev)) {
+		pr_warn("%s: failed to register ISP-tj cooling device: %ld\n",
+			__func__, PTR_ERR(isp_dev->tj_cdev));
+		isp_dev->tj_cdev = NULL;
+	}
+
 	mutex_lock(&cooling_isp_lock);
 
 	isp_dev_count++;
@@ -453,6 +464,7 @@ void isp_cooling_unregister(struct thermal_cooling_device *cdev)
 	isp_dev_count--;
 	mutex_unlock(&cooling_isp_lock);
 
+	gs_tmu_tj_cdev_unregister(isp_dev->tj_cdev);
 	thermal_cooling_device_unregister(isp_dev->cool_dev);
 	release_idr(&isp_idr, isp_dev->id);
 	kfree(isp_dev);
