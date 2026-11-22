@@ -213,7 +213,7 @@ static int _match_data(int id, void *p, void *data)
 
 static void *_alloc_shareable_mem(size_t sz, gfp_t gfp)
 {
-	return alloc_pages_exact(sz, gfp);
+	return alloc_pages_exact(sz, gfp | __GFP_ZERO);
 }
 
 static void _free_shareable_mem(size_t sz, void *va)

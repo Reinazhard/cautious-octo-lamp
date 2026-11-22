@@ -728,7 +728,7 @@ static int trusty_init_msg_buf(struct trusty_state *s, struct device *dev)
 	 * TODO: This can be made more generic by discovering the required size
 	 * through SMC_FC_FFA_FEATURES later.
 	 */
-	s->ffa_tx = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	s->ffa_tx = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!s->ffa_tx) {
 		ret = -ENOMEM;
 		goto err_alloc_tx;
@@ -739,7 +739,7 @@ static int trusty_init_msg_buf(struct trusty_state *s, struct device *dev)
 		goto err_unaligned_tx_buf;
 	}
 
-	s->ffa_rx = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	s->ffa_rx = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!s->ffa_rx) {
 		ret = -ENOMEM;
 		goto err_alloc_rx;
