@@ -85,7 +85,7 @@ int __kprobes aarch64_insn_write(void *addr, u32 insn)
 	return __aarch64_insn_write(addr, cpu_to_le32(insn));
 }
 
-noinstr int aarch64_insn_write_literal_u64(void *addr, u64 val)
+int __kprobes aarch64_insn_write_literal_u64(void *addr, u64 val)
 {
 	u64 *waddr;
 	unsigned long flags;
@@ -151,7 +151,7 @@ static void text_poke_memset(void *dst, void *src, size_t patched, size_t len)
  *
  * Useful for JITs to dump new code blocks into unused regions of RX memory.
  */
-noinstr void *aarch64_insn_copy(void *dst, void *src, size_t len)
+void __kprobes *aarch64_insn_copy(void *dst, void *src, size_t len)
 {
 	/* A64 instructions must be word aligned */
 	if ((uintptr_t)dst & 0x3)
@@ -168,7 +168,7 @@ noinstr void *aarch64_insn_copy(void *dst, void *src, size_t len)
  *
  * Useful for JITs to fill regions of RX memory with illegal instructions.
  */
-noinstr void *aarch64_insn_set(void *dst, u32 insn, size_t len)
+void __kprobes *aarch64_insn_set(void *dst, u32 insn, size_t len)
 {
 	if ((uintptr_t)dst & 0x3)
 		return NULL;
