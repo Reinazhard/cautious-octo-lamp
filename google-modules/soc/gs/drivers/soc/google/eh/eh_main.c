@@ -46,6 +46,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/kmsan.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -275,6 +276,8 @@ static void eh_setup_descriptor(struct eh_device *eh_dev, struct page *src_page,
 				unsigned int index)
 {
 	struct eh_compress_desc *desc;
+
+	kmsan_handle_dma(page_to_phys(src_page), PAGE_SIZE, DMA_TO_DEVICE);
 
 	desc = eh_descriptor(eh_dev, index);
 	/* Set the source address */
@@ -541,11 +544,15 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 	case EH_CDESC_COPIED:
 		compr_data = eh_dev->compr_buffers[fifo_index] + offset;
 		compr_size = PAGE_SIZE;
+		kmsan_handle_dma(virt_to_phys(compr_data), compr_size,
+				 DMA_FROM_DEVICE);
 		break;
 
 	/* normal case, compression completed successfully */
 	case EH_CDESC_COMPRESSED:
 		compr_data = eh_dev->compr_buffers[fifo_index] + offset;
+		kmsan_handle_dma(virt_to_phys(compr_data), compr_size,
+				 DMA_FROM_DEVICE);
 		break;
 
 	/* normal case, hardware detected page of all zeros */
@@ -1173,6 +1180,8 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 			alignment = PAGE_SIZE;
 	}
 
+	kmsan_handle_dma(src_paddr, slen, DMA_TO_DEVICE);
+
 	csize_data = slen << EH_DCMD_CSIZE_SIZE_SHIFT;
 	eh_write_register(eh_dev, EH_REG_DCMD_CSIZE(index), csize_data);
 
@@ -1344,6 +1353,9 @@ int eh_decompress_page(struct eh_device *eh_dev, void *src,
 		pr_err("dcmd [%u] bad status %lu\n", index, status);
 		eh_dump_regs(eh_dev);
 		ret = -EIO;
+	} else {
+		kmsan_handle_dma(page_to_phys(page), PAGE_SIZE,
+				 DMA_FROM_DEVICE);
 	}
 
 out:
