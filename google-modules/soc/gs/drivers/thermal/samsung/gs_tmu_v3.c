@@ -2784,11 +2784,8 @@ static ssize_t acpm_gov_timer_stepwise_gain_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	if (timer_stepwise_gain < 0) {
-		timer_stepwise_gain = 0;
-	} else if (timer_stepwise_gain > 5) { //TODO: better value to saturate?
-		timer_stepwise_gain = 5;
-	}
+	timer_stepwise_gain = clamp(timer_stepwise_gain, STEPWISE_GAIN_MIN,
+				    STEPWISE_GAIN_MAX);
 
 	data->acpm_gov_params.fields.timer_stepwise_gain = timer_stepwise_gain;
 
