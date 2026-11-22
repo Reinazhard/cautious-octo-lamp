@@ -1290,13 +1290,14 @@ static void reset_pi_params(struct gs_tmu_data *data)
 
 static void allow_maximum_power(struct gs_tmu_data *data)
 {
-	struct thermal_instance *instance;
 	struct thermal_zone_device *tz = data->tzd;
-
-	mutex_unlock(&data->lock);
-	mutex_lock(&tz->lock);
 	const struct thermal_trip_desc *td =
 		&tz->trips[data->trip_control_temp];
+	struct thermal_instance *instance;
+
+	lockdep_assert_held(&tz->lock);
+	lockdep_assert_held(&data->lock);
+
 	list_for_each_entry(instance, &td->thermal_instances, trip_node) {
 		if (!cdev_is_power_actor(instance->cdev))
 			continue;
@@ -1307,15 +1308,11 @@ static void allow_maximum_power(struct gs_tmu_data *data)
 
 		data->max_cdev = instance->target;
 		mutex_lock(&instance->cdev->lock);
-		instance->cdev->updated = false;
+		__thermal_cdev_update(instance->cdev);
 		mutex_unlock(&instance->cdev->lock);
 		trace_thermal_exynos_allow_max_power(data->tmu_name, data->is_hardlimited,
 						     instance->cdev->type, instance->target);
-		thermal_cdev_update(instance->cdev);
 	}
-
-	mutex_unlock(&tz->lock);
-	mutex_lock(&data->lock);
 }
 
 static u32 pi_calculate(struct gs_tmu_data *data, int control_temp,
@@ -1375,6 +1372,8 @@ static u32 pi_calculate(struct gs_tmu_data *data, int control_temp,
 static int gs_pi_controller(struct gs_tmu_data *data, int control_temp)
 {
 	struct thermal_zone_device *tz = data->tzd;
+	const struct thermal_trip_desc *td =
+		&tz->trips[data->trip_control_temp];
 	struct thermal_instance *instance;
 	struct thermal_cooling_device *cdev;
 	int ret = 0;
@@ -1382,11 +1381,9 @@ static int gs_pi_controller(struct gs_tmu_data *data, int control_temp)
 	u32 max_power, power_range;
 	unsigned long state;
 
-	// TODO: refactor locking
-	mutex_unlock(&data->lock);
-	mutex_lock(&tz->lock);
-	const struct thermal_trip_desc *td =
-		&tz->trips[data->trip_control_temp];
+	lockdep_assert_held(&tz->lock);
+	lockdep_assert_held(&data->lock);
+
 	list_for_each_entry(instance, &td->thermal_instances, trip_node) {
 		if (cdev_is_power_actor(instance->cdev)) {
 			found_actor = true;
@@ -1394,8 +1391,6 @@ static int gs_pi_controller(struct gs_tmu_data *data, int control_temp)
 			break;
 		}
 	}
-	mutex_unlock(&tz->lock);
-	mutex_lock(&data->lock);
 
 	if (!found_actor)
 		return -ENODEV;
@@ -1418,14 +1413,10 @@ static int gs_pi_controller(struct gs_tmu_data *data, int control_temp)
 	 * directly because thermal_cdev_update() would take cdev->lock
 	 * again.
 	 */
-	mutex_unlock(&data->lock);
-	mutex_lock(&tz->lock);
 	instance->target = state;
 	mutex_lock(&cdev->lock);
 	__thermal_cdev_update(cdev);
 	mutex_unlock(&cdev->lock);
-	mutex_unlock(&tz->lock);
-	mutex_lock(&data->lock);
 	data->max_cdev = state;
 
 	trace_thermal_exynos_power_allocator(tz, power_range, max_power, tz->temperature,
@@ -1446,6 +1437,7 @@ static void gs_pi_thermal(struct gs_tmu_data *data)
 
 	if (tz) {
 		if (READ_ONCE(tz->mode) == THERMAL_DEVICE_DISABLED) {
+			mutex_lock(&tz->lock);
 			mutex_lock(&data->lock);
 			reset_pi_params(data);
 			allow_maximum_power(data);
@@ -1456,6 +1448,7 @@ static void gs_pi_thermal(struct gs_tmu_data *data)
 
 	thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
+	mutex_lock(&tz->lock);
 	mutex_lock(&data->lock);
 
 	const struct thermal_trip *sw_trip =
@@ -1494,6 +1487,7 @@ polling:
 		start_pi_polling(data, delay);
 
 	mutex_unlock(&data->lock);
+	mutex_unlock(&tz->lock);
 }
 
 static int gs_get_mpmm_level(struct gs_tmu_data *data)
@@ -1770,28 +1764,27 @@ static void gs_throttle_hard_limit(struct kthread_work *work)
 	struct gs_tmu_data *data = container_of(work,
 						   struct gs_tmu_data, hardlimit_work);
 	struct thermal_zone_device *tz = data->tzd;
+	const struct thermal_trip_desc *td;
 	struct thermal_instance *instance;
 	struct thermal_cooling_device *cdev = NULL;
 	unsigned long state, max_state, prev_max_state;
 
 	mutex_lock(&tz->lock);
-	const struct thermal_trip_desc *td =
-		&tz->trips[data->trip_control_temp];
+	mutex_lock(&data->lock);
+
+	td = &tz->trips[data->trip_control_temp];
 	list_for_each_entry(instance, &td->thermal_instances, trip_node) {
 		if (!strncmp(data->tmu_name, tz->type, THERMAL_NAME_LENGTH)) {
 			cdev = instance->cdev;
 			break;
 		}
 	}
-	mutex_unlock(&tz->lock);
 
 	if (!cdev) {
 		pr_err_ratelimited("%s: cannot find cdev, hard limit throttling failed\n",
 				   data->tmu_name);
-		return;
+		goto err_exit;
 	}
-
-	mutex_lock(&data->lock);
 
 	if (data->is_hardlimited) {
 		if (data->temperature < data->hardlimit_clr_threshold) {
@@ -1802,21 +1795,17 @@ static void gs_throttle_hard_limit(struct kthread_work *work)
 			}
 			prev_max_state = data->max_cdev;
 			data->max_cdev = state;
-			mutex_unlock(&data->lock);
 
 			/*
 			 * cdev->lock is taken under tz->lock; call
 			 * __thermal_cdev_update() directly, as
 			 * thermal_cdev_update() would re-take cdev->lock.
 			 */
-			mutex_lock(&tz->lock);
 			instance->target = state;
 			mutex_lock(&cdev->lock);
 			__thermal_cdev_update(cdev);
 			mutex_unlock(&cdev->lock);
-			mutex_unlock(&tz->lock);
 
-			mutex_lock(&data->lock);
 			data->is_hardlimited = false;
 			pr_info_ratelimited("%s: clear hard limit, is_hardlimited = %d, pid swithed_on = %d\n",
 					    data->tmu_name, data->is_hardlimited,
@@ -1838,21 +1827,17 @@ static void gs_throttle_hard_limit(struct kthread_work *work)
 					       data->max_cdev);
 			prev_max_state = data->max_cdev;
 			data->max_cdev = state;
-			mutex_unlock(&data->lock);
 
 			/*
 			 * cdev->lock is taken under tz->lock; call
 			 * __thermal_cdev_update() directly, as
 			 * thermal_cdev_update() would re-take cdev->lock.
 			 */
-			mutex_lock(&tz->lock);
 			instance->target = state;
 			mutex_lock(&cdev->lock);
 			__thermal_cdev_update(cdev);
 			mutex_unlock(&cdev->lock);
-			mutex_unlock(&tz->lock);
 
-			mutex_lock(&data->lock);
 			data->is_hardlimited = true;
 			pr_info_ratelimited("%s: %s set cur_state to hardlimit cooling state %d, is_hardlimited = %d, pid swithed_on = %d\n",
 					    data->tmu_name, cdev->type,
@@ -1865,6 +1850,7 @@ static void gs_throttle_hard_limit(struct kthread_work *work)
 
 err_exit:
 	mutex_unlock(&data->lock);
+	mutex_unlock(&tz->lock);
 }
 
 static int gs_tmu_pm_notify(struct notifier_block *nb,
