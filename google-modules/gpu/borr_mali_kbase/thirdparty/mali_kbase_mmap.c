@@ -404,7 +404,7 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *const kctx,
 					      const unsigned long pgoff, const unsigned long flags)
 {
 	struct mm_struct *mm = current->mm;
-	struct vm_unmapped_area_info info;
+	struct vm_unmapped_area_info info = { 0 };
 	unsigned long align_offset = 0;
 	unsigned long align_mask = 0;
 #if (KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE)
