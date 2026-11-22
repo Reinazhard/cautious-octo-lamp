@@ -1400,7 +1400,9 @@ static int gs_pi_controller(struct gs_tmu_data *data, int control_temp)
 	if (!found_actor)
 		return -ENODEV;
 
-	cdev->ops->state2power(cdev, 0, &max_power);
+	ret = cdev->ops->state2power(cdev, 0, &max_power);
+	if (ret)
+		return ret;
 
 	power_range = pi_calculate(data, control_temp, max_power);
 
