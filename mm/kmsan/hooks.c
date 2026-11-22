@@ -483,3 +483,35 @@ void kmsan_disable_current(void)
 	KMSAN_WARN_ON(current->kmsan_ctx.depth == 0);
 }
 EXPORT_SYMBOL(kmsan_disable_current);
+
+static DEFINE_PER_CPU(struct kmsan_context_state, kmsan_irq_exit_saved_cstate);
+
+void kmsan_save_preempt_cstate(void)
+{
+	__memcpy(&current->kmsan_ctx.preempt_saved_cstate,
+		 &current->kmsan_ctx.cstate,
+		 sizeof(current->kmsan_ctx.cstate));
+}
+
+void kmsan_restore_preempt_cstate(void)
+{
+	__memcpy(&current->kmsan_ctx.cstate,
+		 &current->kmsan_ctx.preempt_saved_cstate,
+		 sizeof(current->kmsan_ctx.cstate));
+}
+
+void kmsan_save_irq_exit_cstate(void)
+{
+	if (in_task())
+		__memcpy(this_cpu_ptr(&kmsan_irq_exit_saved_cstate),
+			 &current->kmsan_ctx.cstate,
+			 sizeof(current->kmsan_ctx.cstate));
+}
+
+void kmsan_restore_irq_exit_cstate(void)
+{
+	if (in_task())
+		__memcpy(&current->kmsan_ctx.cstate,
+			 this_cpu_ptr(&kmsan_irq_exit_saved_cstate),
+			 sizeof(current->kmsan_ctx.cstate));
+}

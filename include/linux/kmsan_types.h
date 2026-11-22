@@ -30,6 +30,7 @@ struct kmsan_context_state {
 
 struct kmsan_ctx {
 	struct kmsan_context_state cstate;
+	struct kmsan_context_state preempt_saved_cstate;
 	int kmsan_in_runtime;
 	unsigned int depth;
 };

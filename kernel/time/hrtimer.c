@@ -43,7 +43,7 @@
 #include <linux/timer.h>
 #include <linux/freezer.h>
 #include <linux/compat.h>
-
+#include <linux/kmsan.h>
 #include <linux/uaccess.h>
 
 #include <trace/events/timer.h>
@@ -2177,7 +2177,7 @@ static void hrtimer_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t expires_nex
 }
 
 #ifdef CONFIG_HRTIMER_REARM_DEFERRED
-void __hrtimer_rearm_deferred(void)
+void __no_sanitize_memory __hrtimer_rearm_deferred(void)
 {
 	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
 	ktime_t expires_next;
@@ -2185,15 +2185,19 @@ void __hrtimer_rearm_deferred(void)
 	if (!cpu_base->deferred_rearm)
 		return;
 
-	guard(raw_spinlock)(&cpu_base->lock);
-	if (cpu_base->deferred_needs_update) {
-		hrtimer_update_base(cpu_base);
-		expires_next = hrtimer_update_next_event(cpu_base);
-	} else {
-		/* No timer added/removed. Use the cached value */
-		expires_next = cpu_base->deferred_expires_next;
+	kmsan_save_irq_exit_cstate();
+	{
+		guard(raw_spinlock)(&cpu_base->lock);
+		if (cpu_base->deferred_needs_update) {
+			hrtimer_update_base(cpu_base);
+			expires_next = hrtimer_update_next_event(cpu_base);
+		} else {
+			/* No timer added/removed. Use the cached value */
+			expires_next = cpu_base->deferred_expires_next;
+		}
+		hrtimer_rearm(cpu_base, expires_next, true);
 	}
-	hrtimer_rearm(cpu_base, expires_next, true);
+	kmsan_restore_irq_exit_cstate();
 }
 
 static __always_inline void

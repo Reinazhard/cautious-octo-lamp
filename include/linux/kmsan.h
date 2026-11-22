@@ -256,6 +256,11 @@ void kmsan_enable_current(void);
  */
 void kmsan_disable_current(void);
 
+void kmsan_save_preempt_cstate(void);
+void kmsan_restore_preempt_cstate(void);
+void kmsan_save_irq_exit_cstate(void);
+void kmsan_restore_irq_exit_cstate(void);
+
 /**
  * memset_no_sanitize_memory(): Fill memory without KMSAN instrumentation.
  * @s: address of kernel memory to fill.
@@ -396,6 +401,22 @@ static inline void kmsan_enable_current(void)
 }
 
 static inline void kmsan_disable_current(void)
+{
+}
+
+static inline void kmsan_save_preempt_cstate(void)
+{
+}
+
+static inline void kmsan_restore_preempt_cstate(void)
+{
+}
+
+static inline void kmsan_save_irq_exit_cstate(void)
+{
+}
+
+static inline void kmsan_restore_irq_exit_cstate(void)
 {
 }
 

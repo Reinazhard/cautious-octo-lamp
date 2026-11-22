@@ -48,6 +48,7 @@
 #include <linux/ioprio.h>
 #include <linux/kallsyms.h>
 #include <linux/kcov.h>
+#include <linux/kmsan.h>
 #include <linux/kprobes.h>
 #include <linux/llist_api.h>
 #include <linux/mmu_context.h>
@@ -8341,9 +8342,11 @@ EXPORT_SYMBOL(dynamic_preempt_schedule_notrace);
  * Note, that this is called and return with IRQs disabled. This will
  * protect us against recursive calling from IRQ contexts.
  */
-asmlinkage __visible void __sched preempt_schedule_irq(void)
+asmlinkage __visible void __sched __no_sanitize_memory preempt_schedule_irq(void)
 {
 	enum ctx_state prev_state;
+
+	kmsan_save_preempt_cstate();
 
 	/* Catch callers which need to be fixed */
 	BUG_ON(preempt_count() || !irqs_disabled());
@@ -8359,6 +8362,8 @@ asmlinkage __visible void __sched preempt_schedule_irq(void)
 	} while (need_resched());
 
 	exception_exit(prev_state);
+
+	kmsan_restore_preempt_cstate();
 }
 
 int default_wake_function(wait_queue_entry_t *curr, unsigned mode, int wake_flags,
