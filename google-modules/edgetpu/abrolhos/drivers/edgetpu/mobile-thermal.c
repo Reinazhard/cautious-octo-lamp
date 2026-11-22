@@ -235,6 +235,8 @@ static struct thermal_cooling_device_ops edgetpu_cooling_ops = {
 
 static void tpu_thermal_exit_cooling(struct edgetpu_thermal *thermal)
 {
+	gs_tmu_tj_cdev_unregister(thermal->tj_cdev);
+	thermal->tj_cdev = NULL;
 	if (!IS_ERR_OR_NULL(thermal->cdev))
 		thermal_cooling_device_unregister(thermal->cdev);
 }
@@ -377,7 +379,20 @@ static int tpu_thermal_cooling_register(struct edgetpu_thermal *thermal, char *t
 	if (IS_ERR(thermal->cdev))
 		return PTR_ERR(thermal->cdev);
 
-	return device_create_file(&thermal->cdev->device, &dev_attr_user_vote);
+	err = device_create_file(&thermal->cdev->device, &dev_attr_user_vote);
+	if (err)
+		return err;
+
+	thermal->tj_cdev = gs_tmu_tj_cdev_register("TPU", TZ_TPU,
+						   thermal->cdev->max_state);
+	if (IS_ERR(thermal->tj_cdev)) {
+		dev_warn(thermal->dev,
+			 "failed to register TPU-tj cooling device: %ld\n",
+			 PTR_ERR(thermal->tj_cdev));
+		thermal->tj_cdev = NULL;
+	}
+
+	return 0;
 }
 
 static int tpu_thermal_init(struct edgetpu_thermal *thermal, struct device *dev)

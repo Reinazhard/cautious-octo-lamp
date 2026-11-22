@@ -20,6 +20,7 @@ struct edgetpu_thermal {
 	struct device *dev;
 	struct dentry *cooling_root;
 	struct thermal_cooling_device *cdev;
+	struct thermal_cooling_device *tj_cdev;
 	struct mutex lock;
 	void *op_data;
 	unsigned long cooling_state;
