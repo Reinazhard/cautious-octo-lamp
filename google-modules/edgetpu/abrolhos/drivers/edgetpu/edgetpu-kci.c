@@ -758,7 +758,7 @@ static int edgetpu_kci_send_cmd_with_data(struct edgetpu_kci *kci,
 int edgetpu_kci_send_cmd(struct edgetpu_kci *kci,
 			 struct edgetpu_command_element *cmd)
 {
-	struct edgetpu_kci_response_element resp;
+	struct edgetpu_kci_response_element resp = { 0 };
 
 	/* Don't wait on a response for reverse KCI response. */
 	if (cmd->seq & KCI_REVERSE_FLAG)
@@ -1092,7 +1092,7 @@ int edgetpu_kci_firmware_tracing_level(struct edgetpu_dev *etdev, unsigned long 
 			.flags = (u32)level,
 		},
 	};
-	struct edgetpu_kci_response_element resp;
+	struct edgetpu_kci_response_element resp = { 0 };
 	int ret;
 
 	ret = edgetpu_kci_send_cmd_return_resp(etdev->kci, &cmd, &resp);
