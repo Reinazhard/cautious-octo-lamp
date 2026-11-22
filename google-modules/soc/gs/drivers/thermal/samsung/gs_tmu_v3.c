@@ -4433,6 +4433,102 @@ static struct thermal_cooling_device_ops tmu_tj_cooling_ops = {
 	.set_cur_state = tmu_tj_throttle_set_cur_state,
 };
 
+struct gs_tmu_tj_cdev_data {
+	enum tmu_grp_idx_t tzid;
+	unsigned long max_state;
+};
+
+static int gs_tmu_tj_get_max_state(struct thermal_cooling_device *cdev,
+				   unsigned long *state)
+{
+	struct gs_tmu_tj_cdev_data *tj_data = cdev->devdata;
+
+	*state = tj_data->max_state;
+	return 0;
+}
+
+static int gs_tmu_tj_get_cur_state(struct thermal_cooling_device *cdev,
+				   unsigned long *state)
+{
+	struct gs_tmu_tj_cdev_data *tj_data = cdev->devdata;
+	struct curr_state curr_state;
+
+	if (ACPM_BUF_VER == EXPECT_BUF_VER &&
+	    get_curr_state_from_acpm(acpm_gov_common.sm_base, tj_data->tzid,
+				     &curr_state)) {
+		*state = curr_state.cdev_state;
+		return 0;
+	}
+
+	return -EIO;
+}
+
+static int gs_tmu_tj_set_cur_state(struct thermal_cooling_device *cdev,
+				   unsigned long state)
+{
+	/* Tj throttling state is controlled by ACPM, not HLOS. */
+	return -EOPNOTSUPP;
+}
+
+static const struct thermal_cooling_device_ops gs_tmu_tj_cooling_ops = {
+	.get_max_state = gs_tmu_tj_get_max_state,
+	.get_cur_state = gs_tmu_tj_get_cur_state,
+	.set_cur_state = gs_tmu_tj_set_cur_state,
+};
+
+/**
+ * gs_tmu_tj_cdev_register() - Register a read-only ACPM Tj cooling device.
+ * @name: Thermal zone name prefix (registered as "<name>-tj").
+ * @tzid: Thermal zone group index used to read ACPM shared memory.
+ * @max_state: Maximum cooling state owned by the caller's subsystem driver.
+ *
+ * Return: Registered cooling device pointer on success, or ERR_PTR() on error.
+ */
+struct thermal_cooling_device *
+gs_tmu_tj_cdev_register(const char *name, enum tmu_grp_idx_t tzid,
+			unsigned long max_state)
+{
+	struct gs_tmu_tj_cdev_data *tj_data;
+	struct thermal_cooling_device *cdev;
+	char cdev_buf[THERMAL_NAME_LENGTH];
+
+	if (!name || (unsigned int)tzid >= TZ_END)
+		return ERR_PTR(-EINVAL);
+
+	tj_data = kzalloc(sizeof(*tj_data), GFP_KERNEL);
+	if (!tj_data)
+		return ERR_PTR(-ENOMEM);
+
+	tj_data->tzid = tzid;
+	tj_data->max_state = max_state;
+
+	scnprintf(cdev_buf, sizeof(cdev_buf), "%s-tj", name);
+	cdev = thermal_cooling_device_register(cdev_buf, tj_data,
+					       &gs_tmu_tj_cooling_ops);
+	if (IS_ERR(cdev))
+		kfree(tj_data);
+
+	return cdev;
+}
+EXPORT_SYMBOL_GPL(gs_tmu_tj_cdev_register);
+
+/**
+ * gs_tmu_tj_cdev_unregister() - Unregister a Tj cooling device and free data.
+ * @cdev: Cooling device returned by gs_tmu_tj_cdev_register().
+ */
+void gs_tmu_tj_cdev_unregister(struct thermal_cooling_device *cdev)
+{
+	struct gs_tmu_tj_cdev_data *tj_data;
+
+	if (IS_ERR_OR_NULL(cdev))
+		return;
+
+	tj_data = cdev->devdata;
+	thermal_cooling_device_unregister(cdev);
+	kfree(tj_data);
+}
+EXPORT_SYMBOL_GPL(gs_tmu_tj_cdev_unregister);
+
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
 static u8 tmu_id;
 static u16 tmu_reg_offset;

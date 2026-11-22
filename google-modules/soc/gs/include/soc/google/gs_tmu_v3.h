@@ -459,6 +459,25 @@ enum tmu_grp_idx_t {
 
 int set_acpm_tj_power_status(enum tmu_grp_idx_t tzid, bool on);
 
+#if IS_ENABLED(CONFIG_GS_THERMAL_V3)
+struct thermal_cooling_device *
+gs_tmu_tj_cdev_register(const char *name, enum tmu_grp_idx_t tzid,
+			unsigned long max_state);
+void gs_tmu_tj_cdev_unregister(struct thermal_cooling_device *cdev);
+#else
+static inline struct thermal_cooling_device *
+gs_tmu_tj_cdev_register(const char *name, enum tmu_grp_idx_t tzid,
+			unsigned long max_state)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline void
+gs_tmu_tj_cdev_unregister(struct thermal_cooling_device *cdev)
+{
+}
+#endif
+
 /* Callback for registering to CPU frequency table to ECT table offset */
 typedef int (*get_cpu_power_table_ect_offset_cb)(struct cpumask *maskp, int *offset);
 void register_get_cpu_power_table_ect_offset(get_cpu_power_table_ect_offset_cb cb);
