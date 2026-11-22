@@ -75,3 +75,14 @@ void copy_user_highpage(struct page *to, struct page *from,
 	flush_dcache_page(to);
 }
 EXPORT_SYMBOL_GPL(copy_user_highpage);
+
+#ifdef CONFIG_KMSAN
+extern void __pi_clear_page(void *to);
+
+void __no_sanitize_memory clear_page(void *to)
+{
+	__pi_clear_page(to);
+	kmsan_unpoison_memory(to, PAGE_SIZE);
+}
+EXPORT_SYMBOL(clear_page);
+#endif

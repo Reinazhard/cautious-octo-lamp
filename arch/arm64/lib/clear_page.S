@@ -49,5 +49,7 @@ alternative_else_nop_endif
 	b.ne	2b
 	ret
 SYM_FUNC_END(__pi_clear_page)
+#ifndef CONFIG_KMSAN
 SYM_FUNC_ALIAS(clear_page, __pi_clear_page)
 EXPORT_SYMBOL(clear_page)
+#endif
