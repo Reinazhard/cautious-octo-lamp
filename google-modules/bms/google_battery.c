@@ -10709,7 +10709,7 @@ static ssize_t manufacturing_date_show(struct device *dev,
 	struct power_supply *psy = container_of(dev, struct power_supply, dev);
 	struct batt_drv *batt_drv = power_supply_get_drvdata(psy);
 	struct bm_date *date = &batt_drv->health_data.bhi_data.bm_date;
-	struct rtc_time tm;
+	struct rtc_time tm = { 0 };
 
 	/* read manufacturing date when data is not loaded yet */
 	if (date->bm_y == 0) {
