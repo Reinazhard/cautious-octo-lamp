@@ -12,6 +12,7 @@
 #include <linux/bpf.h>
 #include <linux/cfi.h>
 #include <linux/filter.h>
+#include <linux/kmsan.h>
 #include <linux/memory.h>
 #include <linux/printk.h>
 #include <linux/slab.h>
@@ -248,6 +249,23 @@ static void emit_call(u64 target, struct jit_ctx *ctx)
 	else
 		emit_direct_call(target, ctx);
 }
+
+#ifdef CONFIG_KMSAN
+static void emit_kmsan_clear_param_tls(struct jit_ctx *ctx)
+{
+	emit(A64_PUSH(A64_R(0), A64_R(1), A64_SP), ctx);
+	emit(A64_PUSH(A64_R(2), A64_R(3), A64_SP), ctx);
+	emit(A64_PUSH(A64_R(4), A64_R(5), A64_SP), ctx);
+	emit(A64_PUSH(A64_R(6), A64_R(7), A64_SP), ctx);
+	emit_call((u64)kmsan_bpf_clear_param_tls, ctx);
+	emit(A64_POP(A64_R(6), A64_R(7), A64_SP), ctx);
+	emit(A64_POP(A64_R(4), A64_R(5), A64_SP), ctx);
+	emit(A64_POP(A64_R(2), A64_R(3), A64_SP), ctx);
+	emit(A64_POP(A64_R(0), A64_R(1), A64_SP), ctx);
+}
+#else
+static inline void emit_kmsan_clear_param_tls(struct jit_ctx *ctx) {}
+#endif
 
 static inline int bpf2a64_offset(int bpf_insn, int off,
 				 const struct jit_ctx *ctx)
@@ -625,6 +643,28 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)
 
 	if (ctx->stack_arg_size)
 		emit(A64_SUB_I(1, A64_SP, A64_SP, ctx->stack_arg_size), ctx);
+
+#ifdef CONFIG_KMSAN
+	if (ctx->stack_size || (!ctx->priv_sp_used && ctx->stack_arg_size)) {
+		u32 unpoison_sz = ctx->priv_sp_used ? ctx->stack_size
+						    : ctx->stack_size + ctx->stack_arg_size;
+
+		emit(A64_PUSH(A64_R(0), A64_R(1), A64_SP), ctx);
+		emit(A64_PUSH(A64_R(2), A64_R(3), A64_SP), ctx);
+		emit(A64_PUSH(A64_R(4), A64_R(5), A64_SP), ctx);
+		emit(A64_PUSH(A64_R(6), A64_R(7), A64_SP), ctx);
+		if (ctx->priv_sp_used)
+			emit(A64_MOV(1, A64_R(0), priv_sp), ctx);
+		else
+			emit(A64_ADD_I(1, A64_R(0), A64_SP, 64), ctx);
+		emit_a64_mov_i(1, A64_R(1), unpoison_sz, ctx);
+		emit_call((u64)kmsan_unpoison_memory, ctx);
+		emit(A64_POP(A64_R(6), A64_R(7), A64_SP), ctx);
+		emit(A64_POP(A64_R(4), A64_R(5), A64_SP), ctx);
+		emit(A64_POP(A64_R(2), A64_R(3), A64_SP), ctx);
+		emit(A64_POP(A64_R(0), A64_R(1), A64_SP), ctx);
+	}
+#endif
 
 	if (ctx->arena_vm_start)
 		emit_a64_mov_i64(arena_vm_base, ctx->arena_vm_start, ctx);
@@ -1060,6 +1100,12 @@ static void build_epilogue(struct jit_ctx *ctx, bool was_classic)
 	pop_callee_regs(ctx);
 
 	emit(A64_POP(A64_ZR, ptr, A64_SP), ctx);
+
+#ifdef CONFIG_KMSAN
+	emit(A64_PUSH(r0, A64_ZR, A64_SP), ctx);
+	emit_call((u64)kmsan_bpf_clear_retval_tls, ctx);
+	emit(A64_POP(r0, A64_ZR, A64_SP), ctx);
+#endif
 
 	if (was_classic)
 		build_bhb_mitigation(ctx);
@@ -1722,6 +1768,10 @@ emit_cond_jmp:
 			if (ret < 0)
 				return ret;
 		}
+		if (IS_ENABLED(CONFIG_KMSAN) &&
+		    insn->src_reg != BPF_PSEUDO_CALL &&
+		    func_addr != (u64)arch_bpf_timed_may_goto)
+			emit_kmsan_clear_param_tls(ctx);
 		emit_call(func_addr, ctx);
 		/*
 		 * Call to arch_bpf_timed_may_goto() is emitted by the
@@ -2455,6 +2505,7 @@ static void invoke_bpf_prog(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	/* arg2: &run_ctx */
 	emit(A64_ADD_I(1, A64_R(1), A64_SP, run_ctx_off), ctx);
 
+	emit_kmsan_clear_param_tls(ctx);
 	emit_call(enter_prog, ctx);
 
 	/* save return value to callee saved register x20 */
@@ -2487,6 +2538,7 @@ static void invoke_bpf_prog(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	/* arg3: &run_ctx */
 	emit(A64_ADD_I(1, A64_R(2), A64_SP, run_ctx_off), ctx);
 
+	emit_kmsan_clear_param_tls(ctx);
 	emit_call(exit_prog, ctx);
 
 	bpf_tramp_image_add_skip(im, p, skip, ctx->ro_image + ctx->idx);
@@ -2859,6 +2911,14 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	/* save args for bpf */
 	save_args(ctx, bargs_off, oargs_off, m, a, false, is_struct_ops, arena_base);
 
+#ifdef CONFIG_KMSAN
+	if (stack_size) {
+		emit(A64_MOV(1, A64_R(0), A64_SP), ctx);
+		emit_a64_mov_i(1, A64_R(1), stack_size, ctx);
+		emit_call((u64)kmsan_unpoison_memory, ctx);
+	}
+#endif
+
 	/* save callee saved registers */
 	emit(A64_STR64I(A64_R(19), A64_SP, regs_off), ctx);
 	emit(A64_STR64I(A64_R(20), A64_SP, regs_off + 8), ctx);
@@ -2869,6 +2929,7 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 			ctx->idx += 4;
 		else
 			emit_a64_mov_i64(A64_R(0), (const u64)im, ctx);
+		emit_kmsan_clear_param_tls(ctx);
 		emit_call((const u64)__bpf_tramp_enter, ctx);
 	}
 
@@ -2944,6 +3005,7 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 			ctx->idx += 4;
 		else
 			emit_a64_mov_i64(A64_R(0), (const u64)im, ctx);
+		emit_kmsan_clear_param_tls(ctx);
 		emit_call((const u64)__bpf_tramp_exit, ctx);
 	}
 
@@ -2953,6 +3015,11 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	/* restore callee saved register x19 and x20 */
 	emit(A64_LDR64I(A64_R(19), A64_SP, regs_off), ctx);
 	emit(A64_LDR64I(A64_R(20), A64_SP, regs_off + 8), ctx);
+
+#ifdef CONFIG_KMSAN
+	if (save_ret)
+		emit_call((u64)kmsan_bpf_clear_retval_tls, ctx);
+#endif
 
 	if (save_ret)
 		emit(A64_LDR64I(A64_R(0), A64_SP, retval_off), ctx);

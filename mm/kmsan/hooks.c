@@ -515,3 +515,18 @@ void kmsan_restore_irq_exit_cstate(void)
 			 this_cpu_ptr(&kmsan_irq_exit_saved_cstate),
 			 sizeof(current->kmsan_ctx.cstate));
 }
+
+void kmsan_bpf_clear_param_tls(void)
+{
+	struct kmsan_context_state *cstate = &kmsan_get_context()->cstate;
+
+	__memset(cstate->param_tls, 0, 128);
+}
+
+void kmsan_bpf_clear_retval_tls(void)
+{
+	struct kmsan_context_state *cstate = &kmsan_get_context()->cstate;
+
+	*(u64 *)cstate->retval_tls = 0;
+	cstate->retval_origin_tls = 0;
+}

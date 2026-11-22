@@ -261,6 +261,9 @@ void kmsan_restore_preempt_cstate(void);
 void kmsan_save_irq_exit_cstate(void);
 void kmsan_restore_irq_exit_cstate(void);
 
+void kmsan_bpf_clear_param_tls(void);
+void kmsan_bpf_clear_retval_tls(void);
+
 /**
  * memset_no_sanitize_memory(): Fill memory without KMSAN instrumentation.
  * @s: address of kernel memory to fill.
@@ -417,6 +420,14 @@ static inline void kmsan_save_irq_exit_cstate(void)
 }
 
 static inline void kmsan_restore_irq_exit_cstate(void)
+{
+}
+
+static inline void kmsan_bpf_clear_param_tls(void)
+{
+}
+
+static inline void kmsan_bpf_clear_retval_tls(void)
 {
 }
 
