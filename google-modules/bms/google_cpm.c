@@ -1489,10 +1489,18 @@ static int gcpm_chg_select_by_condition(struct gcpm_drv *gcpm, bool should_log)
 		if (!is_chg_avail)
 			continue;
 
-		if (wlc_psy)
-			wlc_power_limit = GPSY_SET_INT64_PROP(wlc_psy,
-							      GBMS_PROP_CHG_INDEX_POWER,
-							      cur_index);
+		if (is_wireless && wlc_psy) {
+			union gbms_propval val = { .int64val = cur_index };
+
+			wlc_power_limit = gbms_set_property(wlc_psy,
+							    GBMS_PROP_CHG_INDEX_POWER,
+							    &val);
+			if (wlc_power_limit < 0 && wlc_power_limit != -EINVAL &&
+			    wlc_power_limit != -EOPNOTSUPP)
+				dev_dbg(gcpm->device,
+					"failed to set GBMS_PROP_CHG_INDEX_POWER for '%s', ret=%d\n",
+					wlc_psy->desc->name, wlc_power_limit);
+		}
 
 		if (should_log) {
 			dev_dbg(gcpm->device, "%s: i:%d is_active:%d cp_avail:%d power_low_limit=%d power_min_limit:%d cc_max_low:%d cc_max_high:%d wlc_power_limit:%d\n",
