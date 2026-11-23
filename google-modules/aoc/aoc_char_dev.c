@@ -22,6 +22,7 @@
 #define ACD_CHARDEV_NAME "aoc_char"
 
 static int acd_major = -1;
+static int acd_major_dev;
 static unsigned int acd_next_minor; /* protected by acd_devices_lock */
 static struct class *acd_class;
 
@@ -186,17 +187,67 @@ static int acd_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int acd_handle_tpu_offload_config(struct acd_device_entry *entry, struct file *file,
+					 struct aoc_tpu_offload_config *config)
+{
+	return -EOPNOTSUPP;
+}
+
+static int acd_handle_tpu_offload_start(struct acd_device_entry *entry, struct file *file,
+					struct aoc_tpu_offload_start *start)
+{
+	return -EOPNOTSUPP;
+}
+
+static int acd_handle_tpu_offload_stop(struct acd_device_entry *entry, struct file *file,
+				       struct aoc_tpu_offload_stop *stop)
+{
+	return -EOPNOTSUPP;
+}
+
 static long acd_unlocked_ioctl(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
-	/*
-	 * struct file_prvdata *private = file->private_data;
-	 *
-	 * if (!private)
-	 *	return -ENODEV;
-	 */
+	struct acd_device_entry *entry = file->private_data;
+	long rv = 0;
 
-	return -EINVAL;
+	if (!entry)
+		return -ENODEV;
+
+	switch (cmd) {
+	case AOC_IOCTL_TPU_OFFLOAD_CONFIG: {
+		struct aoc_tpu_offload_config config;
+
+		if (copy_from_user(&config, (void __user *)arg, sizeof(config)) == 0)
+			rv = acd_handle_tpu_offload_config(entry, file, &config);
+		else
+			rv = -EFAULT;
+	}
+	break;
+	case AOC_IOCTL_TPU_OFFLOAD_START: {
+		struct aoc_tpu_offload_start start;
+
+		if (copy_from_user(&start, (void __user *)arg, sizeof(start)) == 0)
+			rv = acd_handle_tpu_offload_start(entry, file, &start);
+		else
+			rv = -EFAULT;
+	}
+	break;
+	case AOC_IOCTL_TPU_OFFLOAD_STOP: {
+		struct aoc_tpu_offload_stop stop;
+
+		if (copy_from_user(&stop, (void __user *)arg, sizeof(stop)) == 0)
+			rv = acd_handle_tpu_offload_stop(entry, file, &stop);
+		else
+			rv = -EFAULT;
+	}
+	break;
+	default:
+		rv = -ENOTTY;
+		break;
+	}
+
+	return rv;
 }
 
 static ssize_t acd_read(struct file *file, char __user *buf, size_t count,
@@ -338,6 +389,8 @@ static int __init acd_init(void)
 		goto fail;
 	}
 
+	acd_major_dev = MKDEV(acd_major, 0);
+
 	acd_class = class_create(ACD_CHARDEV_NAME);
 	if (!acd_class) {
 		pr_err("Failed to create class\n");
@@ -365,4 +418,5 @@ static void __exit acd_exit(void)
 module_init(acd_init);
 module_exit(acd_exit);
 
+MODULE_DESCRIPTION("Google AOC character device driver");
 MODULE_LICENSE("GPL v2");

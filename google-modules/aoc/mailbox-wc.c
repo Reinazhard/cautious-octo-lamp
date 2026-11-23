@@ -242,16 +242,12 @@ static bool wc_mbox_last_tx_done(struct mbox_chan *chan)
 {
 	struct wc_mbox_prvdata *prvdata = dev_get_drvdata(chan->mbox->dev);
 	u32 status;
-	int index = wc_mbox_channel_index(chan);
-
-	if (index < 0)
-		return true;
 
 	status = ioread32(prvdata->base + MB_INTSR0);
-	if (status & (1 << index))
-		pr_debug("Pending status %x for channel %d\n", status, index);
+	if (status != 0)
+		pr_debug("Pending status %x\n", status);
 
-	return (status & (1 << index)) == 0;
+	return status == 0;
 }
 
 static bool wc_mbox_peek_data(struct mbox_chan *chan)
@@ -332,11 +328,11 @@ static int wc_mbox_probe(struct platform_device *pdev)
 
 	ret = of_property_read_u32(dev->of_node, DT_NON_WAKE_CHANNEL_KEY, &non_wake_mask);
 	if (ret == 0) {
-		if (non_wake_mask > 0xffff)
+		if (prvdata->non_waking_services > 0xffff)
 			dev_err(dev, "Invalid non-waking services mask %#10x",
-				non_wake_mask);
-		else
-			prvdata->non_waking_services = non_wake_mask;
+				prvdata->non_waking_services);
+
+		prvdata->non_waking_services = non_wake_mask;
 	}
 
 	mbox->num_chans = MBOX_WC_INTERRUPTS;

@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 
+ccflags-y	+= -I$(srctree)/google-modules/aoc
+ccflags-y	+= -I$(srctree)/google-modules/aoc_ipc
 ccflags-y	+= -I$(ROOT_DIR)/private/google-modules/aoc_ipc
 ccflags-y	+= -I$(ROOT_DIR)/private/google-modules/soc/gs/drivers/dma-buf/heaps
+ccflags-y	+= -I$(srctree)/google-modules/soc/gs/drivers/dma-buf/heaps/samsung
 ccflags-y	+= -I$(ROOT_DIR)/private/google-modules/trusty/include
 ccflags-y	+= -I$(srctree)/drivers/dma-buf
 ccflags-y	+= -I$(srctree)/google-modules/soc/gs/drivers/dma-buf
