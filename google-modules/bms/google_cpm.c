@@ -6485,9 +6485,26 @@ static void google_cpm_remove(struct platform_device *pdev)
 	if (!gcpm)
 		return;
 
+	/*
+	 * gcpm_init_work() is the registrant of chg_nb and the creator of the
+	 * mdis election, and it re-arms itself while it still has power supply
+	 * retries left, so it has to be drained first.
+	 */
+	cancel_delayed_work_sync(&gcpm->init_work);
+
 	power_supply_unreg_notifier(&gcpm->chg_nb);
 
+	cancel_delayed_work_sync(&gcpm->reset_work);
+	cancel_delayed_work_sync(&gcpm->select_work);
+	cancel_delayed_work_sync(&gcpm->pps_work);
+	cancel_delayed_work_sync(&gcpm->fcc_retry_work);
+	cancel_delayed_work_sync(&gcpm->cop_warn_work);
+
+	if (gcpm->thermal_device.tcd)
+		thermal_cooling_device_unregister(gcpm->thermal_device.tcd);
+
 	gvotable_destroy_election(gcpm->dc_fcc_votable);
+	gvotable_destroy_election(gcpm->cp_votable);
 	gvotable_destroy_election(gcpm->wlc_cp_votable);
 
 	for (i = 0; i < gcpm->chgs.chg_psy_count; i++) {
