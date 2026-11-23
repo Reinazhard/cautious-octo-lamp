@@ -26,7 +26,15 @@ int dev_logbuffer_logk(struct device *dev, struct logbuffer *instance, int logle
 		       const char *fmt, ...);
 
 /*
- * Registers a new log buffer entry.
+ * Registers a new log buffer.
+ * param name: name of the file in the /d/logbuffer/ directory.
+ * param buf_size: size of the buffer to be allocated.
+ * returns the pointer to the logbuffer metadata.
+ */
+struct logbuffer *logbuffer_register_size(const char *name, size_t buf_size);
+
+/*
+ * Registers a new log buffer with default buffer size (64K Bytes).
  * param name: name of the file in the /d/logbuffer/ directory.
  * returns the pointer to the logbuffer metadata.
  */
@@ -50,6 +58,11 @@ static inline int dev_logbuffer_logk(struct device *dev, struct logbuffer *insta
 				     const char *fmt, ...)
 {
 	return 0;
+}
+
+static inline struct logbuffer *logbuffer_register_size(const char *name, size_t buf_size)
+{
+	return NULL;
 }
 
 static inline struct logbuffer *logbuffer_register(const char *name)
