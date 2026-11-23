@@ -1119,9 +1119,15 @@ static ssize_t store_target_load(struct device *dev,
 
 	new_target_load = get_tokenized_data(buf, &ntokens);
 	if (IS_ERR(new_target_load))
-		return PTR_ERR_OR_ZERO(new_target_load);
+		return PTR_ERR(new_target_load);
 
 	mutex_lock(&data->devfreq->lock);
+	if (ntokens != data->simple_interactive_data.alt_data.num_target_load) {
+		mutex_unlock(&data->devfreq->lock);
+		dev_err(data->dev, "Invalid counts of target_load\n");
+		kfree(new_target_load);
+		return -EINVAL;
+	}
 	kfree(data->simple_interactive_data.alt_data.target_load);
 	data->simple_interactive_data.alt_data.target_load = new_target_load;
 	data->simple_interactive_data.alt_data.num_target_load = ntokens;
@@ -2002,16 +2008,9 @@ static int exynos_devfreq_resume(struct device *dev)
 		exynos_devfreq_get_freq(data->dev, &cur_freq, data->clk, data) ?
 		0 : cur_freq);
 
-#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
-	ret = exynos_devfreq_um_init(data);
-	if (ret)
-		dev_err(data->dev, "failed to restart um\n");
-#endif
-
 #if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
 	if (data->use_acpm) {
 		mutex_lock(&data->devfreq->lock);
-		data->suspend_flag = false;
 		//send flag (retry?)
 #if IS_ENABLED(CONFIG_GS_ACPM)
 		ret = acpm_ipc_request_channel(dev->of_node, NULL, &ch_num,
@@ -2039,8 +2038,9 @@ static int exynos_devfreq_resume(struct device *dev)
 			return -EINVAL;
 		}
 #endif
+		data->suspend_flag = false;
 		ret = update_devfreq(data->devfreq);
-		if (ret) {
+		if (ret && ret != -EAGAIN) {
 			dev_err(&data->devfreq->dev,
 				"devfreq failed with (%d) error\n", ret);
 			mutex_unlock(&data->devfreq->lock);
@@ -2053,6 +2053,11 @@ static int exynos_devfreq_resume(struct device *dev)
 		exynos_pm_qos_update_request(&data->default_pm_qos_min,
 					     data->default_qos);
 
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
+	ret = exynos_devfreq_um_init(data);
+	if (ret)
+		dev_err(data->dev, "failed to restart um\n");
+#endif
 
 	return ret;
 }

@@ -54,7 +54,7 @@ static int gs_memlat_devfreq_target(struct device *parent,
 	struct exynos_devfreq_data *data = platform_get_drvdata(pdev);
 
 	if (exynos_pm_qos_request_active(&data->sys_pm_qos_min)) {
-		exynos_pm_qos_update_request(&data->sys_pm_qos_min, *target_freq);
+		exynos_pm_qos_update_request_async(&data->sys_pm_qos_min, *target_freq);
 		trace_clock_set_rate(dev_name(data->dev), *target_freq, raw_smp_processor_id());
 	}
 
@@ -184,6 +184,10 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 	if (of_property_read_u32(np, "cpu", &data->cpu))
 		return -ENODEV;
 
+	data->min_freq = 0;
+	if (of_property_read_u32(np, "max-freq", &data->max_freq))
+		data->max_freq = INT_MAX;
+
 #if IS_ENABLED(CONFIG_ECT)
 	if (of_property_read_string(np, "devfreq_domain_name",
 				    &devfreq_domain_name))
@@ -191,10 +195,6 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 
 	not_using_ect = exynos_devfreq_parse_ect(data, devfreq_domain_name);
 #endif
-
-
-	data->min_freq = 0;
-	data->max_freq = INT_MAX;
 
 	if (of_property_read_u32(np, "governor", &data->gov_type))
 		return -ENODEV;
