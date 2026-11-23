@@ -2057,13 +2057,16 @@ void trigger_aoc_ssr(bool ap_triggered_reset, char *reset_reason)
 
 static void prepend_fw_builder_to_crash_string(struct aoc_prvdata *prvdata, char *crash_info,
 									size_t max_len) {
-	char *fw_builder;
+	const char *fw_builder;
+	char *hyphen1, *hyphen2;
 	size_t prefix_size;
 
 	if (glob_match("*[0-9]-*[a-zA-Z]", prvdata->firmware_version)) {
-		fw_builder = strchrnul(prvdata->firmware_version, '-');
-		fw_builder = strchrnul(fw_builder, '-');
-		fw_builder++;
+		hyphen1 = strchr(prvdata->firmware_version, '-');
+		if (hyphen1 && (hyphen2 = strchr(hyphen1 + 1, '-')))
+			fw_builder = hyphen2 + 1;
+		else
+			fw_builder = "Unknown";
 	} else {
 		fw_builder = "Unknown";
 	}
