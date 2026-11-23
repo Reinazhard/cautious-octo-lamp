@@ -24,6 +24,7 @@
 #include <linux/devfreq-governor.h>
 #include <linux/tensor_aio.h>
 #include <linux/platform_device.h>
+#include <linux/sched/gs101_frame.h>
 #include <linux/sched/topology.h>
 
 /* SoC-specific ACPM constant definitions */
@@ -2042,12 +2043,20 @@ static void memperfd_work(void)
 		if (!stat.cpu_cyc || !stat.mem_cyc || !stat.cntpct)
 			continue;
 
+		gs101_frame_publish_cpu_stall(cpu,
+			(u16)min_t(u64, 1000ULL,
+				   div64_u64(stat.mem_cyc * 1000ULL, stat.cpu_cyc)));
+
 		/* Find the highest MIF freq step required among all the CPUs */
 		vote = min(vote, mif_cpu_vote(&stat, cpu, cur, &dsu_vote));
 	}
 
 	/* Find the highest PPC MIF vote and set the higher of the MIF votes */
 	vote = max((u32)mif->tbl[vote], mif_ppc_vote(mif->tbl[cur], &bus2_mif));
+	if (mif->tbl[0])
+		gs101_frame_publish_mif((u16)min_t(u64, SCHED_CAPACITY_SCALE,
+			div64_u64((u64)vote * SCHED_CAPACITY_SCALE, mif->tbl[0])),
+			false);
 
 	/*
 	 * A quiesce can land while this work is in flight. Applying these
