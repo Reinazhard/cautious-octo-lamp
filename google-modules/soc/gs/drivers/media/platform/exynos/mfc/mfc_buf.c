@@ -571,6 +571,7 @@ static int __mfc_alloc_enc_roi_buffer(struct mfc_core_ctx *core_ctx,
 {
 	struct mfc_core *core = core_ctx->core;
 	struct mfc_dev *dev = core->dev;
+	size_t old_size = roi_buf->size;
 
 	roi_buf->size = size;
 	roi_buf->buftype = MFCBUF_NORMAL;
@@ -578,6 +579,14 @@ static int __mfc_alloc_enc_roi_buffer(struct mfc_core_ctx *core_ctx,
 	if (roi_buf->dma_buf == NULL) {
 		if (mfc_mem_special_buf_alloc(dev, roi_buf)) {
 			mfc_err("[ROI] Allocating ROI buffer failed\n");
+			return -ENOMEM;
+		}
+	} else if (old_size < roi_buf->size) {
+		mfc_core_debug(2, "[MEMINFO][ROI] roi buf ctx[%d] size is changed %zu -> %zu, try reallocate\n",
+			       core_ctx->num, old_size, roi_buf->size);
+		mfc_mem_special_buf_free(dev, roi_buf);
+		if (mfc_mem_special_buf_alloc(dev, roi_buf)) {
+			mfc_err("[ROI] Re-allocating ROI buffer failed\n");
 			return -ENOMEM;
 		}
 	}

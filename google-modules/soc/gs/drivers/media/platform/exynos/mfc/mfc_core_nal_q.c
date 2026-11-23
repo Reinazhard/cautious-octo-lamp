@@ -1870,6 +1870,14 @@ static void __mfc_core_nal_q_get_img_size(struct mfc_core *core, struct mfc_ctx 
 	w = ctx->img_width;
 	h = ctx->img_height;
 
+	if (mfc_check_dec_resolution(ctx,
+			pOutStr->DisplayFrameWidth, pOutStr->DisplayFrameHeight)) {
+		mfc_ctx_err("[NALQ][DRC] unsupported resolution from F/W, %dx%d\n",
+			    pOutStr->DisplayFrameWidth, pOutStr->DisplayFrameHeight);
+		mfc_change_state(core->core_ctx[ctx->num], MFCINST_ERROR);
+		return;
+	}
+
 	ctx->img_width = pOutStr->DisplayFrameWidth;
 	ctx->img_height = pOutStr->DisplayFrameHeight;
 	ctx->crop_width = ctx->img_width;
