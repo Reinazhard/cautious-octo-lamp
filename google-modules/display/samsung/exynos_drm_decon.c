@@ -33,6 +33,7 @@
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
+#include <linux/sched/gs101_frame.h>
 #include <linux/pm_runtime.h>
 #include <linux/console.h>
 #include <linux/iommu.h>
@@ -1774,6 +1775,9 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 	if (old_decon_state == DECON_STATE_OFF)
 		return;
 
+	if (decon->id == 0)
+		gs101_frame_publish_vsync(0);
+
 	if (exynos_crtc_state->bypass) {
 		decon_debug(decon, "bypass mode: get extra power ref\n");
 		pm_runtime_get_sync(decon->dev);
@@ -2499,8 +2503,12 @@ static irqreturn_t decon_te_irq_handler(int irq, void *dev_id)
 	}
 	DPU_EVENT_LOG(DPU_EVT_TE_INTERRUPT, decon->id, NULL);
 
-	if (decon->config.mode.op_mode == DECON_COMMAND_MODE)
+	if (decon->config.mode.op_mode == DECON_COMMAND_MODE) {
+		if (decon->id == 0)
+			gs101_frame_publish_vsync(decon->bts.fps ?
+						  USEC_PER_SEC / decon->bts.fps : 0);
 		drm_crtc_handle_vblank(&decon->crtc->base);
+	}
 
 end:
 	return IRQ_HANDLED;
