@@ -1330,8 +1330,15 @@ static bool update_deadline(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 * nice) while the request time r_i is determined by
 	 * sysctl_sched_base_slice.
 	 */
-	if (!se->custom_slice)
+	if (!se->custom_slice) {
+		struct gs101_sched_hint fhint;
+
 		se->slice = sysctl_sched_base_slice;
+		if (entity_is_task(se) &&
+		    gs101_frame_task_hint(task_of(se), cpu_of(rq_of(cfs_rq)), &fhint) &&
+		    fhint.slice_ns)
+			se->slice = min(se->slice, fhint.slice_ns);
+	}
 
 	/*
 	 * EEVDF: vd_i = ve_i + r_i / w_i
@@ -2281,6 +2288,8 @@ static void update_curr(struct cfs_rq *cfs_rq)
 
 	if (!entity_is_task(curr))
 		return;
+
+	gs101_frame_note_exec(task_of(curr), delta_exec);
 
 	cfs_rq = &rq->cfs;
 
@@ -6448,8 +6457,15 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	bool update_zero = false;
 	s64 lag = 0;
 
-	if (!se->custom_slice)
+	if (!se->custom_slice) {
+		struct gs101_sched_hint fhint;
+
 		se->slice = sysctl_sched_base_slice;
+		if (entity_is_task(se) &&
+		    gs101_frame_task_hint(task_of(se), cpu_of(rq_of(cfs_rq)), &fhint) &&
+		    fhint.slice_ns)
+			se->slice = min(se->slice, fhint.slice_ns);
+	}
 	vslice = calc_delta_fair(se->slice, se);
 
 	if (flags & ENQUEUE_QUEUED)
@@ -9730,7 +9746,14 @@ eenv_pd_max_util(struct energy_env *eenv, struct cpumask *pd_cpus,
 
 		/* Task's uclamp can modify min and max value */
 		if (tsk && uclamp_is_used()) {
+			struct gs101_sched_hint fhint;
+
 			min = max(min, uclamp_eff_value(p, UCLAMP_MIN));
+			if (gs101_frame_task_hint(p, cpu, &fhint)) {
+				min = max(min, fhint.util_floor);
+				if (fhint.flags & GFH_MEM_BOUND)
+					eff_util = min(eff_util, fhint.util_cap);
+			}
 
 			/*
 			 * If there is no active max uclamp constraint,
@@ -9974,6 +9997,17 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
 			if (cur_delta < base_energy)
 				return target;
 			cur_delta -= base_energy;
+
+			{
+				struct gs101_sched_hint fhint;
+
+				if (gs101_frame_task_hint(p, max_spare_cap_cpu, &fhint) &&
+				    (fhint.flags & GFH_FRAME_CRITICAL) &&
+				    !gs101_frame_cluster_ready(max_spare_cap_cpu,
+							       fhint.util_floor,
+							       fhint.rem_frame_us))
+					cur_delta += cur_delta >> 2;
+			}
 
 			/*
 			 * Both fit for the task but best energy cpu has lower
