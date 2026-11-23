@@ -12,6 +12,7 @@
  * <arach.mohammed.brahim@st.com>
  */
 
+#include <linux/cleanup.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/ioctl.h>
@@ -176,7 +177,7 @@ static ssize_t st33spi_state_show(struct device *dev,
 		return -ENODEV;
 
 	return scnprintf(buf, PAGE_SIZE, "state:%d, st33spi_cs:%d\n",
-			st33spi->spi_state,
+			 st33spi->spi_state,
 			 gpiod_get_raw_value_cansleep(spi_get_csgpiod(st33spi->spi, 0)));
 }
 
@@ -605,10 +606,10 @@ static long st33spi_ioctl(struct file *filp, unsigned int cmd,
 	spi = spi_dev_get(st33spi->spi);
 	spin_unlock_irq(&st33spi->spi_lock);
 
+	dev_dbg(&st33spi->spi->dev, "st33spi ioctl cmd %d\n", cmd);
+
 	if (spi == NULL)
 		return -ESHUTDOWN;
-
-	dev_dbg(&spi->dev, "st33spi ioctl cmd %d\n", cmd);
 
 	/* use the buffer lock here for triple duty:
 	 *  - prevent I/O (from us) so calling spi_setup() is safe;
@@ -739,9 +740,10 @@ static long st33spi_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	}
 
-	dev_dbg(&spi->dev, "st33spi ioctl retval %d\n", retval);
 	mutex_unlock(&st33spi->buf_lock);
 	spi_dev_put(spi);
+
+	dev_dbg(&st33spi->spi->dev, "st33spi ioctl retval %d\n", retval);
 
 	return retval;
 }
@@ -819,21 +821,24 @@ static long st33spi_compat_ioctl(struct file *filp, unsigned int cmd,
 
 static int st33spi_open(struct inode *inode, struct file *filp)
 {
-	struct st33spi_data *entry, *st33spi = NULL;
+	struct st33spi_data *st33spi = NULL;
 	int status = -ENXIO;
 
 	mutex_lock(&device_list_lock);
 
-	list_for_each_entry (entry, &device_list, device_entry) {
-		if (entry->devt == inode->i_rdev) {
-			st33spi = entry;
+	list_for_each_entry (st33spi, &device_list, device_entry) {
+		if (st33spi->devt == inode->i_rdev) {
 			status = 0;
 			break;
 		}
 	}
 
-	if (!st33spi) {
-		pr_debug("st33spi: nothing for minor %d\n", iminor(inode));
+	if (st33spi == NULL)
+		return -ENODEV;
+
+	if (status) {
+		dev_dbg(&st33spi->spi->dev, "st33spi: nothing for minor %d\n",
+			iminor(inode));
 		goto err_find_dev;
 	}
 
@@ -1000,14 +1005,16 @@ static inline void st33spi_probe_acpi(struct spi_device *spi)
 
 static int st33spi_parse_dt(struct device *dev, struct st33spi_data *pdata)
 {
-	struct device_node *np = dev->of_node;
 	struct device_node *data_np;
 	const char *power_mode;
 	int st33spi_state;
 	int esereset_state;
 
 #ifndef GKI_MODULE
+	struct device_node *np __free(device_node);
 	np = of_find_compatible_node(NULL, NULL, "st,st33spi");
+#else
+	struct device_node *np = dev->of_node;
 #endif
 
 	if (!np) {
@@ -1062,8 +1069,8 @@ static int st33spi_parse_dt(struct device *dev, struct st33spi_data *pdata)
 	} else {
 		pdata->spi_state = 0;
 	}
-	of_node_put(data_np);
 	dev_info(dev, "Default st33spi state: %d\n", pdata->spi_state);
+	of_node_put(data_np);
 
 	pdata->pinctrl = devm_pinctrl_get(dev);
 	if (IS_ERR(pdata->pinctrl)) {
