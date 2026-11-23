@@ -13,6 +13,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/cleanup.h>
 #include <linux/configfs.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -521,12 +522,15 @@ static int odpm_parse_dt_rail(struct odpm_rail_data *rail_data,
 static int odpm_parse_dt_rails(struct device *dev, struct odpm_info *info,
 			       struct device_node *pmic_np)
 {
-	struct device_node *iter_np, *regulators_np;
+	struct device_node *rails_np __free(device_node);
+	struct device_node *regulators_np __free(device_node) = NULL;
 	bool use_regulators_as_rails = false;
 	struct odpm_rail_data *rail_data;
 	int rail_i = 0, num_rails = 0;
 
-	struct device_node *rails_np = of_find_node_by_name(pmic_np, "rails");
+	/* balance of_node_put() in of_find_node_by_name() */
+	of_node_get(pmic_np);
+	rails_np = of_find_node_by_name(pmic_np, "rails");
 
 	if (!rails_np) {
 		pr_err("odpm: cannot find rails DT node!\n");
@@ -537,6 +541,8 @@ static int odpm_parse_dt_rails(struct device *dev, struct odpm_info *info,
 	use_regulators_as_rails =
 		of_property_read_bool(rails_np, "use-regulators-as-rails");
 	if (use_regulators_as_rails) {
+		/* balance of_node_put() in of_find_node_by_name() */
+		of_node_get(pmic_np);
 		regulators_np = of_find_node_by_name(pmic_np, "regulators");
 		if (!regulators_np) {
 			pr_err("odpm: Could not find regulators sub-node\n");
@@ -563,7 +569,7 @@ static int odpm_parse_dt_rails(struct device *dev, struct odpm_info *info,
 
 	/* Populate rail data */
 	if (use_regulators_as_rails) {
-		for_each_child_of_node(regulators_np, iter_np) {
+		for_each_child_of_node_scoped(regulators_np, iter_np) {
 			int ret =
 				odpm_parse_dt_rail(&rail_data[rail_i], iter_np);
 			if (ret != 0)
@@ -571,7 +577,7 @@ static int odpm_parse_dt_rails(struct device *dev, struct odpm_info *info,
 			rail_i++;
 		}
 	}
-	for_each_child_of_node(rails_np, iter_np) {
+	for_each_child_of_node_scoped(rails_np, iter_np) {
 		int ret = odpm_parse_dt_rail(&rail_data[rail_i], iter_np);
 
 		if (ret != 0)
@@ -593,7 +599,6 @@ static int odpm_parse_dt_channels(struct odpm_info *info,
 {
 	int rail_i = 0, channel_i = 0;
 	int num_channels = of_get_child_count(channels_np);
-	struct device_node *iter_np;
 
 	/* Check channel count */
 	if (num_channels != ODPM_CHANNEL_MAX) {
@@ -603,7 +608,7 @@ static int odpm_parse_dt_channels(struct odpm_info *info,
 	}
 
 	/* Parse channels */
-	for_each_child_of_node(channels_np, iter_np) {
+	for_each_child_of_node_scoped(channels_np, iter_np) {
 		const char *rail_name;
 
 		/* Explicitly set enabled to false until we find the
@@ -645,7 +650,8 @@ static int odpm_parse_dt_channels(struct odpm_info *info,
 static int odpm_parse_dt(struct device *dev, struct odpm_info *info)
 {
 	struct device_node *pmic_np = dev->parent->parent->of_node;
-	struct device_node *odpm_np, *channels_np;
+	struct device_node *odpm_np __free(device_node) = NULL;
+	struct device_node *channels_np __free(device_node) = NULL;
 	u32 sampling_rate;
 	int sampling_rate_i;
 	int ret;
@@ -654,11 +660,15 @@ static int odpm_parse_dt(struct device *dev, struct odpm_info *info)
 		pr_err("odpm: cannot find parent DT node!\n");
 		return -EINVAL;
 	}
+	/* balance of_node_put() in of_find_node_by_name() */
+	of_node_get(pmic_np);
 	odpm_np = of_find_node_by_name(pmic_np, "odpm");
 	if (!odpm_np) {
 		pr_err("odpm: cannot find main DT node!\n");
 		return -EINVAL;
 	}
+	/* balance of_node_put() in of_find_node_by_name() */
+	of_node_get(pmic_np);
 	channels_np = of_find_node_by_name(pmic_np, "channels");
 	if (!channels_np) {
 		pr_err("odpm: cannot find channels DT node!\n");
@@ -1773,22 +1783,21 @@ static void odpm_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(&pdev->dev);
 	struct odpm_info *info = iio_priv(indio_dev);
-	int ret;
+	int ret = 0;
 
-	ret = alarm_cancel(&info->alarmtimer_refresh);
-	if (ret < 0) {
-		pr_err("odpm: cannot delete the refresh timer\n");
-	}
 	if (info->work_queue) {
+		ret = alarm_cancel(&info->alarmtimer_refresh);
+		if (ret < 0)
+			pr_err("odpm: cannot delete the refresh timer\n");
+
 		cancel_work_sync(&info->work_refresh);
 		flush_workqueue(info->work_queue);
 		destroy_workqueue(info->work_queue);
 	}
 
-	/* free the channel attributes memory */
-	kfree(indio_dev->channels);
-
-	iio_device_unregister(indio_dev);
+	/* channels points to static s2mpg1x_single_channel; clear without kfree */
+	if (indio_dev->channels)
+		indio_dev->channels = NULL;
 
 	if (info->ws)
 		wakeup_source_unregister(info->ws);
@@ -1865,6 +1874,7 @@ static int odpm_probe(struct platform_device *pdev)
 	struct iio_dev *indio_dev;
 	int ret;
 	void *iodev;
+	struct device_node *np;
 
 	pr_info("odpm: %s: init\n", pdev->name);
 
@@ -1907,11 +1917,12 @@ static int odpm_probe(struct platform_device *pdev)
 
 	/* Read device tree data */
 	if (!pdev->dev.parent->parent ||
-	    (!of_get_next_child(pdev->dev.parent->parent->of_node, NULL))) {
+	    (np = of_get_next_child(pdev->dev.parent->parent->of_node, NULL)) == NULL) {
 		pr_err("odpm: DT does not exist!\n");
 		odpm_remove(pdev);
 		return -EINVAL;
 	}
+	of_node_put(np);
 	/* Note: This function will call devm_kzalloc() in order to
 	 * dynamically allocate memory for the rails
 	 */
