@@ -23,6 +23,7 @@
 #include <linux/suspend.h>
 #include <linux/platform_device.h>
 #include <linux/tensor_aio.h>
+#include <linux/sched/gs101_frame.h>
 #include <linux/sched/topology.h>
 
 #include <soc/google/cal-if.h>
@@ -144,8 +145,16 @@ void exynos_acme_rate_latched(struct exynos_cpufreq_domain *domain,
 	/* Clear out the transition info if the last target rate latched */
 	write_lock(&domain->rate_info_lock);
 	if (domain->rate_info.set_time == cookie->set_time &&
-	    domain->rate_info.freq == cookie->freq)
+	    domain->rate_info.freq == cookie->freq) {
+		int first_cpu = cpumask_first(&domain->cpus);
+		u16 cap = domain->max_freq ?
+			(u16)min_t(u64, SCHED_CAPACITY_SCALE,
+				   (u64)cookie->freq * arch_scale_cpu_capacity(first_cpu) /
+				   domain->max_freq) : 0;
+
 		domain->rate_info.set_time = 0;
+		gs101_frame_dvfs_latched(first_cpu, cookie->freq, cap);
+	}
 	write_unlock(&domain->rate_info_lock);
 }
 
@@ -164,12 +173,18 @@ static int domain_set_rate(struct exynos_cpufreq_domain *domain,
 	ret = cal_dfs_set_rate(domain->cal_id, rate);
 	if (!ret) {
 		u64 now = __arch_counter_get_cntpct();
+		int first_cpu = cpumask_first(&domain->cpus);
+		u16 cap = domain->max_freq ?
+			(u16)min_t(u64, SCHED_CAPACITY_SCALE,
+				   (u64)rate * arch_scale_cpu_capacity(first_cpu) /
+				   domain->max_freq) : 0;
 
 		write_lock(&domain->rate_info_lock);
 		/* Only update the time if the previous rate switch latched */
 		if (!domain->rate_info.set_time)
 			domain->rate_info.set_time = now;
 		domain->rate_info.freq = rate;
+		gs101_frame_dvfs_submit(first_cpu, rate, cap);
 		write_unlock(&domain->rate_info_lock);
 	}
 	local_irq_restore(flags);
