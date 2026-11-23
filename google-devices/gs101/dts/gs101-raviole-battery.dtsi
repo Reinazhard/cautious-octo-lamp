@@ -19,13 +19,13 @@
 				google,fg-psy-name = "maxfg";
 
 				/* charge table */
-				google,chg-temp-limits = <0 100 200 420 460 480 550>;
+				google,chg-temp-limits = <0 100 200 400 450 480 550>;
 				google,chg-cv-limits = <4200000 4300000 4350000 4480000>;
 				google,chg-cc-limits = <
 					 50   30    0   0
 					 70   30   30  30
-					120  120  120  50
-					100  100  100  50
+					120  120  100  50
+					 80   65   55  40
 					 50   50    0   0
 					 30    0    0   0
 				>;
