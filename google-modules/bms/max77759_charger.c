@@ -469,7 +469,12 @@ static int max77759_foreach_callback(void *data, const char *reason,
 				     void *vote)
 {
 	struct max77759_foreach_cb_data *cb_data = data;
-	int mode = (long)vote; /* max77759_mode is an int election */
+	/*
+	 * Upper bits [31:16] carry usecase metadata (e.g. charger index
+	 * from gcpm_vote_chg_sel via BMS_USECASE_META_CHG_SEL_MASK).
+	 * Strip metadata so mode matches bits [15:0].
+	 */
+	int mode = (long)vote & 0xffff; /* max77759_mode is an int election */
 
 	switch (mode) {
 	/* Direct raw modes last come fist served */
@@ -608,6 +613,10 @@ static int max77759_foreach_callback(void *data, const char *reason,
 	case GBMS_CHG_OFF:
 		pr_debug("%s: GBMS_CHG_OFF vote=%x\n", __func__, mode);
 		cb_data->charge_off = true;
+		break;
+	case GBMS_CHG_SEL_WLC:
+	case GBMS_CHG_SEL_USB:
+		pr_debug("%s: CHG_SEL vote=0x%lx\n", __func__, (long)vote);
 		break;
 
 	default:
