@@ -2,8 +2,18 @@
  *
  * Copyright (C) 2022 Google LLC
  */
+
+/* This header is internal only.
+ *
+ * Public APIs are in //private/google-modules/soc/gs/include/linux/gsa/
+ *
+ * Include via //private/google-modules/soc/gs:gs_soc_headers
+ */
+
 #ifndef __LINUX_GSA_LOG_H
 #define __LINUX_GSA_LOG_H
+
+#define GSA_LOG_SIZE ((CONFIG_GSA_LOG_REGION_SIZE) / 2)
 
 struct gsa_log;
 
