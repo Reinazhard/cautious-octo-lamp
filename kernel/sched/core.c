@@ -1391,13 +1391,39 @@ int get_nohz_timer_target(void)
 	if (done)
 		return cpu;
 
+	hk_mask = housekeeping_cpumask(HK_TYPE_KERNEL_NOISE);
+
+	/*
+	 * On asymmetric SoCs, steer non-pinned timers queued on max-capacity
+	 * CPUs onto an online lower-capacity housekeeping CPU so deep-sleep
+	 * big cores are not woken for housekeeping timers.
+	 */
+	if (sched_asym_cpucap_active() &&
+	    arch_scale_cpu_capacity(cpu) == SCHED_CAPACITY_SCALE) {
+		int fallback_cpu = -1;
+		unsigned long min_cap = ULONG_MAX;
+
+		for_each_cpu_and(i, cpu_online_mask, hk_mask) {
+			unsigned long cap = arch_scale_cpu_capacity(i);
+
+			if (cap >= SCHED_CAPACITY_SCALE)
+				continue;
+			if (!idle_cpu(i))
+				return i;
+			if (cap <= min_cap) {
+				min_cap = cap;
+				fallback_cpu = i;
+			}
+		}
+		if (fallback_cpu >= 0)
+			return fallback_cpu;
+	}
+
 	if (housekeeping_cpu(cpu, HK_TYPE_KERNEL_NOISE)) {
 		if (!idle_cpu(cpu))
 			return cpu;
 		default_cpu = cpu;
 	}
-
-	hk_mask = housekeeping_cpumask(HK_TYPE_KERNEL_NOISE);
 
 	guard(rcu)();
 
