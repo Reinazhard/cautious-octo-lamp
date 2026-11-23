@@ -3728,6 +3728,14 @@ static inline unsigned long cpu_util_dl(struct rq *rq)
 
 extern unsigned long cpu_util_cfs(int cpu);
 extern unsigned long cpu_util_cfs_boost(int cpu);
+#ifdef CONFIG_SMP
+extern int sched_eas_select_cpu(struct task_struct *p, int prev_cpu);
+#else
+static inline int sched_eas_select_cpu(struct task_struct *p, int prev_cpu)
+{
+	return -1;
+}
+#endif
 
 static inline unsigned long cpu_util_rt(struct rq *rq)
 {

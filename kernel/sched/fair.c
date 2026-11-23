@@ -9998,6 +9998,14 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
 	return target;
 }
 
+int sched_eas_select_cpu(struct task_struct *p, int prev_cpu)
+{
+	if (!sched_energy_enabled() || is_rd_overutilized(this_rq()->rd))
+		return -1;
+
+	return find_energy_efficient_cpu(p, prev_cpu, 0);
+}
+
 /*
  * select_task_rq_fair: Select target runqueue for the waking task in domains
  * that have the relevant SD flag set. In practice, this is SD_BALANCE_WAKE,

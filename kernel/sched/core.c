@@ -3399,6 +3399,17 @@ static int __set_cpus_allowed_ptr_locked(struct task_struct *p,
 
 	do_set_cpus_allowed(p, ctx);
 
+	if (!kthread && !is_migration_disabled(p) && fair_policy(p->policy) &&
+	    (p->on_cpu || p->__state == TASK_WAKING || task_on_rq_queued(p)) &&
+	    !cpumask_test_cpu(task_cpu(p), ctx->new_mask)) {
+		int eas_cpu = sched_eas_select_cpu(p, task_cpu(p));
+
+		if (eas_cpu >= 0 &&
+		    cpumask_test_cpu(eas_cpu, cpu_valid_mask) &&
+		    cpumask_test_cpu(eas_cpu, ctx->new_mask))
+			dest_cpu = eas_cpu;
+	}
+
 	return affine_move_task(rq, p, rf, dest_cpu, ctx->flags);
 
 out:
