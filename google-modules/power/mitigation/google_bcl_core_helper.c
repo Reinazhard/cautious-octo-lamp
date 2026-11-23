@@ -447,6 +447,7 @@ void google_bcl_remove_thermal(struct bcl_device *bcl_dev)
 
 	if (bcl_dev->batt_psy_initialized)
 		power_supply_unreg_notifier(&bcl_dev->psy_nb);
+	google_bcl_remove_qos(bcl_dev);
 	for (i = 0; i < TRIGGERED_SOURCE_MAX; i++) {
 		if (!bcl_dev->zone[i])
 			continue;
@@ -477,11 +478,11 @@ void google_bcl_remove_thermal(struct bcl_device *bcl_dev)
 		cancel_delayed_work_sync(&bcl_dev->setup_main_odpm_work);
 	if (bcl_dev->setup_sub_odpm_work.work.func != NULL)
 		cancel_delayed_work_sync(&bcl_dev->setup_sub_odpm_work);
-	google_bcl_remove_qos(bcl_dev);
 	google_bcl_remove_data_logging(bcl_dev);
 	if (bcl_dev->qos_update_wq) {
 		flush_workqueue(bcl_dev->qos_update_wq);
 		destroy_workqueue(bcl_dev->qos_update_wq);
+		bcl_dev->qos_update_wq = NULL;
 	}
 	if (bcl_dev->non_monitored_module_ids != NULL)
 		kfree(bcl_dev->non_monitored_module_ids);
