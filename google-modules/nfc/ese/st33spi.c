@@ -1065,7 +1065,6 @@ static int st33spi_parse_dt(struct device *dev, struct st33spi_data *pdata)
 	} else {
 		pdata->spi_state = 0;
 	}
-	of_node_put(data_np);
 	dev_info(dev, "Default st33spi state: %d\n", pdata->spi_state);
 	of_node_put(data_np);
 
