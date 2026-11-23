@@ -1886,7 +1886,8 @@ static int find_least_loaded_rt_cpu(struct task_struct *sched_ctx,
 		unsigned int imp, lat = 0;
 		unsigned long util, cap;
 
-		if (idle || sched_idle_cpu(cpu)) {
+		if (idle ||
+		    (rq->nr_running && rq->nr_running == rq->cfs.h_nr_idle)) {
 			imp = 0;
 		} else if (uclamp_is_used()) {
 			imp = uclamp_rq_get(rq, UCLAMP_MIN) +
