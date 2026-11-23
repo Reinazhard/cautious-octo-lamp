@@ -213,7 +213,7 @@ static int _match_data(int id, void *p, void *data)
 
 static void *_alloc_shareable_mem(size_t sz, gfp_t gfp)
 {
-	return alloc_pages_exact(sz, gfp | __GFP_ZERO);
+	return alloc_pages_exact(sz, gfp);
 }
 
 static void _free_shareable_mem(size_t sz, void *va)
@@ -239,7 +239,6 @@ static struct tipc_msg_buf *vds_alloc_msg_buf(struct tipc_virtio_dev *vds,
 	if (!mb->buf_va)
 		goto err_alloc;
 
-	set_page_private(virt_to_page(mb->buf_va), (unsigned long)mb);
 	sg_init_one(&mb->sg, mb->buf_va, sz);
 	ret = trusty_share_memory_compat(vds->vdev->dev.parent->parent,
 					 &mb->buf_id, &mb->sg, 1, pgprot);
@@ -255,7 +254,6 @@ static struct tipc_msg_buf *vds_alloc_msg_buf(struct tipc_virtio_dev *vds,
 	return mb;
 
 err_share:
-	set_page_private(virt_to_page(mb->buf_va), 0);
 	_free_shareable_mem(sz, mb->buf_va);
 err_alloc:
 	kfree(mb);
@@ -279,7 +277,6 @@ static void vds_free_msg_buf(struct tipc_virtio_dev *vds,
 		 * fails. Leak it in that case.
 		 */
 	} else {
-		set_page_private(virt_to_page(mb->buf_va), 0);
 		_free_shareable_mem(mb->buf_sz, mb->buf_va);
 	}
 	kfree(mb);
@@ -443,8 +440,10 @@ static int vds_queue_txbuf(struct tipc_virtio_dev *vds,
 
 	mutex_lock(&vds->lock);
 	if (vds->state == VDS_ONLINE) {
-		sg_init_one(&sg, mb->buf_va, mb->wpos);
-		err = virtqueue_add_outbuf(vds->txvq, &sg, 1, mb, GFP_KERNEL);
+		sg_init_one(&sg, mb, mb->wpos);
+		sg_dma_address(&sg) = mb->buf_id;
+		sg_dma_len(&sg) = mb->wpos;
+		err = virtqueue_add_outbuf_premapped(vds->txvq, &sg, 1, mb, GFP_KERNEL);
 		need_notify = virtqueue_kick_prepare(vds->txvq);
 	} else {
 		err = -ENODEV;
@@ -707,8 +706,9 @@ static int tipc_shared_handle_drop(struct tipc_shared_handle *shared_handle)
 	}
 
 	if (shared_handle->sgt)
-		dma_buf_unmap_attachment(shared_handle->attach,
-					 shared_handle->sgt, DMA_BIDIRECTIONAL);
+		dma_buf_unmap_attachment_unlocked(shared_handle->attach,
+						  shared_handle->sgt,
+						  DMA_BIDIRECTIONAL);
 	if (shared_handle->attach)
 		dma_buf_detach(shared_handle->dma_buf, shared_handle->attach);
 	if (shared_handle->dma_buf)
@@ -831,13 +831,12 @@ int tipc_chan_connect(struct tipc_chan *chan, const char *name)
 	msg->body_len  = sizeof(*body);
 
 	strscpy_pad(body->name, name, sizeof(body->name));
-	body->name[sizeof(body->name)-1] = '\0';
 
 	mutex_lock(&chan->lock);
 	switch (chan->state) {
 	case TIPC_DISCONNECTED:
 		/* save service name we are connecting to */
-		strscpy(chan->srv_name, body->name, sizeof(chan->srv_name));
+		strcpy(chan->srv_name, body->name);
 
 		fill_msg_hdr(txbuf, chan->local, TIPC_CTRL_ADDR);
 		err = vds_queue_txbuf(chan->vds, txbuf);
@@ -993,13 +992,11 @@ static struct tipc_msg_buf *dn_handle_msg(void *data,
 			list_add_tail(&rxbuf->node, &dn->rx_msg_queue);
 			wake_up_interruptible(&dn->readq);
 		} else {
-			/*
-			 * return an old buffer effectively discarding
-			 * incoming message
-			 */
+			/* cannot return a new buffer */
 			dev_err(&dn->chan->vds->vdev->dev,
-				"%s: discard incoming message\n", __func__);
-			newbuf = rxbuf;
+				"%s: message buffer loss: empty=%d\n",
+				__func__, list_empty(&dn->rx_msg_queue));
+
 		}
 	}
 	mutex_unlock(&dn->lock);
@@ -1251,8 +1248,8 @@ static int dn_share_fd(struct tipc_dn_chan *dn, int fd,
 		goto cleanup_handle;
 	}
 
-	shared_handle->sgt = dma_buf_map_attachment(shared_handle->attach,
-						    DMA_BIDIRECTIONAL);
+	shared_handle->sgt = dma_buf_map_attachment_unlocked(
+		shared_handle->attach, DMA_BIDIRECTIONAL);
 	if (IS_ERR(shared_handle->sgt)) {
 		ret = PTR_ERR(shared_handle->sgt);
 		shared_handle->sgt = NULL;
@@ -1826,7 +1823,6 @@ static void _go_offline(struct tipc_virtio_dev *vds)
 		chan->remote = 0;
 		chan_trigger_event(chan, TIPC_CHANNEL_SHUTDOWN);
 		mutex_unlock(&chan->lock);
-		vds_del_channel(vds, chan);
 		kref_put(&chan->refcount, _free_chan);
 	}
 
@@ -2084,8 +2080,10 @@ static int _handle_rxbuf(struct tipc_virtio_dev *vds,
 
 drop_it:
 	/* add the buffer back to the virtqueue */
-	sg_init_one(&sg, rxbuf->buf_va, rxbuf->buf_sz);
-	err = virtqueue_add_inbuf(vds->rxvq, &sg, 1, rxbuf, GFP_KERNEL);
+	sg_init_one(&sg, rxbuf, rxbuf->buf_sz);
+	sg_dma_address(&sg) = rxbuf->buf_id;
+	sg_dma_len(&sg) = rxbuf->buf_sz;
+	err = virtqueue_add_inbuf_premapped(vds->rxvq, &sg, 1, rxbuf, NULL, GFP_KERNEL);
 	if (err < 0) {
 		dev_err(dev, "failed to add a virtqueue buffer: %d\n", err);
 		return err;
@@ -2141,16 +2139,8 @@ static int tipc_virtio_probe(struct virtio_device *vdev)
 	struct tipc_dev_config config;
 	struct virtqueue *vqs[2];
 	struct virtqueue_info vqs_info[] = {
-		{
-			.name = "rx",
-			.callback = _rxvq_cb,
-			.ctx = false,
-		},
-		{
-			.name = "tx",
-			.callback = _txvq_cb,
-			.ctx = false,
-		},
+		{ "rx", _rxvq_cb },
+		{ "tx", _txvq_cb },
 	};
 
 	vds = kzalloc(sizeof(*vds), GFP_KERNEL);
@@ -2179,7 +2169,6 @@ static int tipc_virtio_probe(struct virtio_device *vdev)
 
 	/* copy dev name */
 	strscpy(vds->cdev_name, config.dev_name, sizeof(vds->cdev_name));
-	vds->cdev_name[sizeof(vds->cdev_name)-1] = '\0';
 
 	/* find tx virtqueues (rx and tx and in this order) */
 	err = vdev->config->find_vqs(vdev, 2, vqs, vqs_info, NULL);
@@ -2205,8 +2194,10 @@ static int tipc_virtio_probe(struct virtio_device *vdev)
 			goto err_free_rx_buffers;
 		}
 
-		sg_init_one(&sg, rxbuf->buf_va, rxbuf->buf_sz);
-		err = virtqueue_add_inbuf(vds->rxvq, &sg, 1, rxbuf, GFP_KERNEL);
+		sg_init_one(&sg, rxbuf, rxbuf->buf_sz);
+		sg_dma_address(&sg) = rxbuf->buf_id;
+		sg_dma_len(&sg) = rxbuf->buf_sz;
+		err = virtqueue_add_inbuf_premapped(vds->rxvq, &sg, 1, rxbuf, NULL, GFP_KERNEL);
 		WARN_ON(err); /* sanity check; this can't really happen */
 	}
 
@@ -2248,6 +2239,7 @@ static void tipc_virtio_remove(struct virtio_device *vdev)
 	mutex_unlock(&vds->lock);
 
 	kref_put(&vds->refcount, _free_vds);
+	vdev->config->set_status(vdev, 0);
 }
 
 // TODO (b/207176288) This needs to be sent upstream

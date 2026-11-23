@@ -27,7 +27,6 @@
 #include <linux/virtio_ring.h>
 
 #include <linux/atomic.h>
-#include <linux/mm.h>
 
 #define  RSC_DESCR_VER  1
 
@@ -86,13 +85,11 @@ static void check_all_vqs(struct work_struct *work)
 					       check_vqs);
 	struct trusty_vdev *tvdev;
 
-	mutex_lock(&tctx->mlock);
 	list_for_each_entry(tvdev, &tctx->vdev_list, node) {
 		for (i = 0; i < tvdev->vring_num; i++)
 			if (tvdev->vrings[i].vq)
 				vring_interrupt(0, tvdev->vrings[i].vq);
 	}
-	mutex_unlock(&tctx->mlock);
 }
 
 static int trusty_call_notify(struct notifier_block *nb,
@@ -329,16 +326,14 @@ static void trusty_virtio_del_vqs(struct virtio_device *vdev)
 
 static struct virtqueue *_find_vq(struct virtio_device *vdev,
 				  unsigned int id,
-				  void (*callback)(struct virtqueue *vq),
-				  const char *name,
-				  bool ctx)
+				  struct virtqueue_info *vqi)
 {
 	struct trusty_vring *tvr;
 	struct trusty_vdev *tvdev = vdev_to_tvdev(vdev);
 	phys_addr_t pa;
 	int ret;
 
-	if (!name)
+	if (!vqi->name)
 		return ERR_PTR(-EINVAL);
 
 	if (id >= tvdev->vring_num)
@@ -380,11 +375,12 @@ static struct virtqueue *_find_vq(struct virtio_device *vdev,
 		 tvr->notifyid);
 
 	tvr->vq = vring_new_virtqueue(id, tvr->elem_num, tvr->align,
-				      vdev, true, ctx, tvr->vaddr,
-				      trusty_virtio_notify, callback, name);
+				      vdev, true, vqi->ctx, tvr->vaddr,
+				      trusty_virtio_notify, vqi->callback,
+				      vqi->name);
 	if (!tvr->vq) {
 		dev_err(&vdev->dev, "vring_new_virtqueue %s failed\n",
-			name);
+			vqi->name);
 		goto err_new_virtqueue;
 	}
 
@@ -415,17 +411,11 @@ static int trusty_virtio_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 				  struct virtqueue_info vqs_info[],
 				  struct irq_affinity *desc)
 {
-	struct virtqueue_info *vqi;
 	unsigned int i;
 	int ret;
-	bool ctx = false;
 
 	for (i = 0; i < nvqs; i++) {
-		vqi = &vqs_info[i];
-		ctx = false;
-		if (vqi->ctx)
-			ctx = vqi->ctx;
-		vqs[i] = _find_vq(vdev, i, vqi->callback, vqi->name, ctx);
+		vqs[i] = _find_vq(vdev, i, &vqs_info[i]);
 		if (IS_ERR(vqs[i])) {
 			ret = PTR_ERR(vqs[i]);
 			_del_vqs(vdev);
@@ -454,14 +444,6 @@ static const struct virtio_config_ops trusty_virtio_config_ops = {
 	.bus_name = trusty_virtio_bus_name,
 };
 
-static void trusty_virtio_dev_release(struct device *dev)
-{
-	struct virtio_device *vdev = dev_to_virtio(dev);
-	struct trusty_vdev *tvdev = vdev_to_tvdev(vdev);
-
-	kfree(tvdev);
-}
-
 static int trusty_virtio_add_device(struct trusty_ctx *tctx,
 				    struct fw_rsc_vdev *vdev_descr,
 				    struct fw_rsc_vdev_vring *vr_descr,
@@ -478,7 +460,6 @@ static int trusty_virtio_add_device(struct trusty_ctx *tctx,
 	/* setup vdev */
 	tvdev->tctx = tctx;
 	tvdev->vdev.dev.parent = tctx->dev;
-	tvdev->vdev.dev.release = trusty_virtio_dev_release;
 	tvdev->vdev.id.device  = vdev_descr->id;
 	tvdev->vdev.config = &trusty_virtio_config_ops;
 	tvdev->vdev_descr = vdev_descr;
@@ -610,6 +591,7 @@ static void _remove_devices_locked(struct trusty_ctx *tctx)
 	list_for_each_entry_safe(tvdev, next, &tctx->vdev_list, node) {
 		list_del(&tvdev->node);
 		unregister_virtio_device(&tvdev->vdev);
+		kfree(tvdev);
 	}
 }
 
@@ -715,34 +697,6 @@ err_share_memory:
 	return ret;
 }
 
-static dma_addr_t trusty_virtio_dma_map_phys(struct device *dev,
-					     phys_addr_t phys, size_t size,
-					     enum dma_data_direction dir,
-					     unsigned long attrs)
-{
-	struct tipc_msg_buf *buf =
-		(struct tipc_msg_buf *)page_private(phys_to_page(phys));
-
-	if (unlikely(attrs & DMA_ATTR_MMIO))
-		return DMA_MAPPING_ERROR;
-
-	return buf->buf_id;
-}
-
-static void trusty_virtio_dma_unmap_phys(struct device *dev,
-					 dma_addr_t dma_handle,
-					 size_t size,
-					 enum dma_data_direction dir,
-					 unsigned long attrs)
-{
-	return;
-}
-
-static const struct dma_map_ops trusty_virtio_dma_map_ops = {
-	.map_phys = trusty_virtio_dma_map_phys,
-	.unmap_phys = trusty_virtio_dma_unmap_phys,
-};
-
 static int trusty_virtio_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -759,8 +713,6 @@ static int trusty_virtio_probe(struct platform_device *pdev)
 	INIT_WORK(&tctx->check_vqs, check_all_vqs);
 	INIT_WORK(&tctx->kick_vqs, kick_vqs);
 	platform_set_drvdata(pdev, tctx);
-
-	set_dma_ops(&pdev->dev, &trusty_virtio_dma_map_ops);
 
 	tctx->check_wq = alloc_workqueue("trusty-check-wq",
 					 WQ_UNBOUND | WQ_HIGHPRI, 0);

@@ -67,6 +67,7 @@ struct trusty_state {
 	void *ffa_rx;
 	u16 ffa_local_id;
 	u16 ffa_remote_id;
+	u32 ffa_version;
 	struct mutex share_memory_msg_lock; /* protects share_memory_msg */
 };
 
@@ -204,22 +205,13 @@ err_out:
 	return ERR_PTR(ret);
 }
 
-/*
- * Trusty returns SM_ERR_BUSY while another std_call is still in progress.
- * Back off exponentially rather than in millisecond-scale sleeps: smc_lock is
- * held across this loop, so every millisecond spent sleeping is a millisecond
- * that every other Trusty user (keymaster, gatekeeper, DRM) is blocked for.
- */
-#define TRUSTY_BUSY_BACKOFF_MIN_US	50
-#define TRUSTY_BUSY_BACKOFF_MAX_US	2000
-
 static unsigned long trusty_std_call_helper(struct device *dev,
 					    unsigned long smcnr,
 					    unsigned long a0, unsigned long a1,
 					    unsigned long a2)
 {
 	unsigned long ret;
-	unsigned int sleep_us = TRUSTY_BUSY_BACKOFF_MIN_US;
+	int sleep_time = 1;
 	struct trusty_state *s = platform_get_drvdata(to_platform_device(dev));
 
 	while (true) {
@@ -272,21 +264,21 @@ static unsigned long trusty_std_call_helper(struct device *dev,
 		if ((int)ret != SM_ERR_BUSY)
 			break;
 
-		if (sleep_us == TRUSTY_BUSY_BACKOFF_MAX_US)
+		if (sleep_time == 256)
 			dev_warn(dev, "%s(0x%lx 0x%lx 0x%lx 0x%lx) returned busy\n",
 				 __func__, smcnr, a0, a1, a2);
-		dev_dbg(dev, "%s(0x%lx 0x%lx 0x%lx 0x%lx) returned busy, wait %u us\n",
-			__func__, smcnr, a0, a1, a2, sleep_us);
+		dev_dbg(dev, "%s(0x%lx 0x%lx 0x%lx 0x%lx) returned busy, wait %d ms\n",
+			__func__, smcnr, a0, a1, a2, sleep_time);
 
-		usleep_range(sleep_us, sleep_us * 2);
-		if (sleep_us < TRUSTY_BUSY_BACKOFF_MAX_US)
-			sleep_us <<= 1;
+		msleep(sleep_time);
+		if (sleep_time < 1000)
+			sleep_time <<= 1;
 
 		dev_dbg(dev, "%s(0x%lx 0x%lx 0x%lx 0x%lx) retry\n",
 			__func__, smcnr, a0, a1, a2);
 	}
 
-	if (sleep_us > TRUSTY_BUSY_BACKOFF_MIN_US)
+	if (sleep_time > 256)
 		dev_warn(dev, "%s(0x%lx 0x%lx 0x%lx 0x%lx) busy cleared\n",
 			 __func__, smcnr, a0, a1, a2);
 
@@ -378,15 +370,15 @@ int trusty_transfer_memory(struct device *dev, u64 *id,
 	size_t len = 0;
 	u64 ffa_handle = 0;
 	size_t total_len;
-	size_t endpoint_count = 1;
-	struct ffa_mtd *mtd = s->ffa_tx;
-	size_t comp_mrd_offset = offsetof(struct ffa_mtd, emad[endpoint_count]);
-	struct ffa_comp_mrd *comp_mrd = s->ffa_tx + comp_mrd_offset;
-	struct ffa_cons_mrd *cons_mrd = comp_mrd->address_range_array;
-	size_t cons_mrd_offset = (void *)cons_mrd - s->ffa_tx;
 	struct smc_ret8 smc_ret;
 	u32 cookie_low;
 	u32 cookie_high;
+	size_t endpoint_count = 1;
+	void *mtd_buf = s->ffa_tx;
+	size_t comp_mrd_offset;
+	size_t mtd_size;
+	struct ffa_cons_mrd *cons_mrd;
+	size_t cons_mrd_offset;
 
 	if (WARN_ON(dev->driver != &trusty_driver.driver))
 		return -EINVAL;
@@ -403,8 +395,6 @@ int trusty_transfer_memory(struct device *dev, u64 *id,
 	count = dma_map_sg(dev, sglist, nents, DMA_BIDIRECTIONAL);
 	if (count != nents) {
 		dev_err(s->dev, "failed to dma map sg_table\n");
-		if (count > 0)
-			dma_unmap_sg(dev, sglist, nents, DMA_BIDIRECTIONAL);
 		return -EINVAL;
 	}
 
@@ -430,23 +420,63 @@ int trusty_transfer_memory(struct device *dev, u64 *id,
 
 	mutex_lock(&s->share_memory_msg_lock);
 
-	mtd->sender_id = s->ffa_local_id;
-	mtd->memory_region_attributes = pg_inf.ffa_mem_attr;
-	mtd->reserved_3 = 0;
-	mtd->flags = 0;
-	mtd->handle = 0;
-	mtd->tag = tag;
-	mtd->reserved_24_27 = 0;
-	mtd->emad_count = endpoint_count;
-	for (i = 0; i < endpoint_count; i++) {
-		struct ffa_emad *emad = &mtd->emad[i];
-		/* TODO: support stream ids */
-		emad->mapd.endpoint_id = s->ffa_remote_id;
-		emad->mapd.memory_access_permissions = pg_inf.ffa_mem_perm;
-		emad->mapd.flags = 0;
-		emad->comp_mrd_offset = comp_mrd_offset;
-		emad->reserved_8_15 = 0;
+	if (s->ffa_version < FFA_VERSION(1, 1)) {
+		struct ffa_mtd_v1_0 *mtd = mtd_buf;
+
+		mtd_size = sizeof(*mtd);
+		comp_mrd_offset = offsetof(struct ffa_mtd_v1_0, emad[endpoint_count]);
+
+		mtd->sender_id = s->ffa_local_id;
+		mtd->memory_region_attributes = pg_inf.ffa_mem_attr;
+		mtd->reserved_3 = 0;
+		mtd->flags = 0;
+		mtd->handle = 0;
+		mtd->tag = tag;
+		mtd->reserved_24_27 = 0;
+		mtd->emad_count = endpoint_count;
+		for (i = 0; i < endpoint_count; i++) {
+			struct ffa_emad *emad = &mtd->emad[i];
+			/* TODO: support stream ids */
+			emad->mapd.endpoint_id = s->ffa_remote_id;
+			emad->mapd.memory_access_permissions = pg_inf.ffa_mem_perm;
+			emad->mapd.flags = 0;
+			emad->comp_mrd_offset = comp_mrd_offset;
+			emad->reserved_8_15 = 0;
+		}
+	} else {
+		struct ffa_mtd_v1_1 *mtd = mtd_buf;
+
+		mtd_size = sizeof(*mtd);
+
+		mtd->sender_id = s->ffa_local_id;
+		mtd->memory_region_attributes = pg_inf.ffa_mem_attr;
+		mtd->flags = 0;
+		mtd->handle = 0;
+		mtd->tag = tag;
+		mtd->emad_count = endpoint_count;
+		mtd->emad_size = sizeof(struct ffa_emad);
+		mtd->emad_offset = mtd_size;
+		mtd->reserved_36_39 = 0;
+		mtd->reserved_40_47 = 0;
+
+		comp_mrd_offset = mtd->emad_offset + mtd->emad_size * mtd->emad_count;
+
+		for (i = 0; i < endpoint_count; i++) {
+			struct ffa_emad *emad = mtd_buf + mtd->emad_offset + i * mtd->emad_size;
+			/* TODO: support stream ids */
+			emad->mapd.endpoint_id = s->ffa_remote_id;
+			emad->mapd.memory_access_permissions = pg_inf.ffa_mem_perm;
+			emad->mapd.flags = 0;
+			emad->comp_mrd_offset = comp_mrd_offset;
+			emad->reserved_8_15 = 0;
+		}
 	}
+
+	struct ffa_comp_mrd *comp_mrd = s->ffa_tx + comp_mrd_offset;
+
+	cons_mrd = comp_mrd->address_range_array;
+	cons_mrd_offset = (void *)cons_mrd - s->ffa_tx;
+
 	comp_mrd->total_page_count = len / FFA_PAGE_SIZE;
 	comp_mrd->address_range_count = nents;
 	comp_mrd->reserved_8_15 = 0;
@@ -454,11 +484,10 @@ int trusty_transfer_memory(struct device *dev, u64 *id,
 	total_len = cons_mrd_offset + nents * sizeof(*cons_mrd);
 	sg = sglist;
 	while (count) {
-		size_t lcount =
-			min_t(size_t, count, (PAGE_SIZE - cons_mrd_offset) /
-			      sizeof(*cons_mrd));
-		size_t fragment_len = lcount * sizeof(*cons_mrd) +
-				      cons_mrd_offset;
+		const size_t lcount = min_t(size_t, count, (PAGE_SIZE - cons_mrd_offset) /
+					sizeof(*cons_mrd));
+		const size_t fragment_len = lcount * sizeof(*cons_mrd) + cons_mrd_offset;
+		unsigned long smc;
 
 		for (i = 0; i < lcount; i++) {
 			cons_mrd[i].address = sg_dma_address(sg);
@@ -467,8 +496,10 @@ int trusty_transfer_memory(struct device *dev, u64 *id,
 			sg = sg_next(sg);
 		}
 		count -= lcount;
+
+		/* Call Trusty */
 		if (cons_mrd_offset) {
-			u32 smc = lend ? SMC_FC_FFA_MEM_LEND :
+			smc = lend ? SMC_FC_FFA_MEM_LEND :
 					 SMC_FC_FFA_MEM_SHARE;
 			/* First fragment */
 			trace_trusty_smc(smc, total_len, fragment_len, 0);
@@ -476,13 +507,15 @@ int trusty_transfer_memory(struct device *dev, u64 *id,
 					      fragment_len, 0, 0, 0, 0, 0);
 			trace_trusty_smc_done(smc_ret.r0);
 		} else {
-			trace_trusty_smc(SMC_FC_FFA_MEM_FRAG_TX, cookie_low,
-					cookie_high, fragment_len);
-			smc_ret = trusty_smc8(SMC_FC_FFA_MEM_FRAG_TX,
-					      cookie_low, cookie_high,
+			smc = SMC_FC_FFA_MEM_FRAG_TX;
+			trace_trusty_smc(smc, cookie_low, cookie_high,
+					fragment_len);
+			smc_ret = trusty_smc8(smc, cookie_low, cookie_high,
 					      fragment_len, 0, 0, 0, 0);
 			trace_trusty_smc_done(smc_ret.r0);
 		}
+
+		/* Check the result */
 		if (smc_ret.r0 == SMC_FC_FFA_MEM_FRAG_RX) {
 			cookie_low = smc_ret.r1;
 			cookie_high = smc_ret.r2;
@@ -517,9 +550,15 @@ int trusty_transfer_memory(struct device *dev, u64 *id,
 				break;
 			}
 		} else {
-			dev_err(s->dev, "%s: fragment_len %zu/%zu, SMC_FC_FFA_MEM_SHARE failed 0x%lx 0x%lx 0x%lx",
+			dev_err(s->dev, "%s: fragment_len %zu/%zu, SMC(0x%lx) failed 0x%lx 0x%lx 0x%lx",
 				__func__, fragment_len, total_len,
-				smc_ret.r0, smc_ret.r1, smc_ret.r2);
+				smc, smc_ret.r0, smc_ret.r1, smc_ret.r2);
+
+			for (i = 0; i < lcount; i++) {
+				dev_err(s->dev, "%s: 0x%llx x %u", __func__, cons_mrd[i].address,
+						cons_mrd[i].page_count);
+			}
+
 			ret = -EIO;
 			break;
 		}
@@ -690,6 +729,7 @@ static int trusty_init_msg_buf(struct trusty_state *s, struct device *dev)
 		ret = -EIO;
 		goto err_version;
 	}
+	s->ffa_version = min(FFA_CURRENT_VERSION, (u32)smc_ret.r0);
 
 	/* Check that SMC_FC_FFA_MEM_SHARE is implemented */
 	smc_ret = trusty_smc8(SMC_FC_FFA_FEATURES, SMC_FC_FFA_MEM_SHARE, 0, 0,
@@ -728,7 +768,7 @@ static int trusty_init_msg_buf(struct trusty_state *s, struct device *dev)
 	 * TODO: This can be made more generic by discovering the required size
 	 * through SMC_FC_FFA_FEATURES later.
 	 */
-	s->ffa_tx = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	s->ffa_tx = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!s->ffa_tx) {
 		ret = -ENOMEM;
 		goto err_alloc_tx;
@@ -739,7 +779,7 @@ static int trusty_init_msg_buf(struct trusty_state *s, struct device *dev)
 		goto err_unaligned_tx_buf;
 	}
 
-	s->ffa_rx = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	s->ffa_rx = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!s->ffa_rx) {
 		ret = -ENOMEM;
 		goto err_alloc_rx;
@@ -793,6 +833,7 @@ static void trusty_free_msg_buf(struct trusty_state *s, struct device *dev)
 static void trusty_init_version(struct trusty_state *s, struct device *dev)
 {
 	char *ver = trusty_get_string(dev, GFP_KERNEL, SMC_FC_GET_VERSION_STR);
+
 	if (!IS_ERR(ver)) {
 		dev_info(dev, "trusty version: %s\n", ver);
 		s->version_str = ver;
@@ -972,6 +1013,8 @@ static void nop_work_func(struct trusty_work *tw)
 		if (kthread_should_park())
 			kthread_parkme();
 
+		preempt_disable();
+
 		if (tw != this_cpu_ptr(s->nop_works)) {
 			dev_warn_ratelimited(s->dev,
 					     "trusty-nop-%d ran on wrong cpu, %u\n",
@@ -1000,6 +1043,8 @@ static void nop_work_func(struct trusty_work *tw)
 				do_nop = true;
 			}
 		}
+
+		preempt_enable();
 	}
 	dev_dbg(s->dev, "%s: done\n", __func__);
 }
@@ -1253,7 +1298,7 @@ static void trusty_remove(struct platform_device *pdev)
 
 	trusty_unregister_sched_share(s->trusty_sched_share_state);
 
-	device_for_each_child(&pdev->dev, NULL, trusty_remove_child);
+	of_platform_depopulate(&pdev->dev);
 
 	cpuhp_state_remove_instance(trusty_cpuhp_slot, &s->cpuhp_node);
 
