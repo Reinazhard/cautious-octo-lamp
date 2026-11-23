@@ -68,25 +68,6 @@ void pcie_iommu_tlb_invalidate_all(int hsi_block_num)
 }
 EXPORT_SYMBOL_GPL(pcie_iommu_tlb_invalidate_all);
 
-void pcie_iommu_tlb_invalidate_range(dma_addr_t iova, size_t size, int hsi_block_num)
-{
-	void * __iomem sfrbase = g_sysmmu_drvdata[hsi_block_num]->sfrbase;
-	int pcie_vid = g_sysmmu_drvdata[hsi_block_num]->pcie_vid;
-	u32 start_addr, end_addr;
-
-	if (!is_sysmmu_active(g_sysmmu_drvdata[hsi_block_num])) /* SKIP invalidation */
-		return;
-
-	start_addr = (iova >> 4) & 0xffffff00;
-	writel_relaxed(start_addr, sfrbase + REG_FLUSH_RANGE_START_VID(pcie_vid));
-
-	end_addr = ((iova + size - 1) >> 4) & 0xffffff00;
-	writel_relaxed(end_addr, sfrbase + REG_FLUSH_RANGE_END_VID(pcie_vid));
-
-	writel(0x1, sfrbase + REG_MMU_FLUSH_RANGE_VID(pcie_vid));
-}
-EXPORT_SYMBOL_GPL(pcie_iommu_tlb_invalidate_range);
-
 static inline void pgtable_flush(void *vastart, void *vaend)
 {
 	/* __dma_flush_area(vastart, vaend - vastart); */
@@ -325,17 +306,6 @@ static unsigned int dump_tlb_entry_port_type(void __iomem *sfrbase,
 	}
 	return 0;
 }
-
-int pcie_sysmmu_register_fault_handler(struct notifier_block *pcie_sysmmu_nb, int hsi_block_num)
-{
-	struct sysmmu_drvdata *drvdata = g_sysmmu_drvdata[hsi_block_num];
-
-	dev_info(drvdata->sysmmu, "Add SysMMU Page Fault Handler.\n");
-	atomic_notifier_chain_register(&drvdata->fault_notifiers, pcie_sysmmu_nb);
-
-	return 0;
-}
-EXPORT_SYMBOL(pcie_sysmmu_register_fault_handler);
 
 #define MMU_NUM_TLB_SUBLINE		4
 static void dump_sysmmu_tlb_port(struct sysmmu_drvdata *drvdata)
