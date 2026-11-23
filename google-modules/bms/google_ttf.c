@@ -1166,7 +1166,7 @@ void ttf_stats_update(struct batt_ttf_stats *stats,
 
 static int ttf_as_default(struct ttf_adapter_stats *as, int i, int table_i)
 {
-	while (i > as->soc_table[table_i] && table_i < as->table_count)
+	while (table_i < as->table_count - 1 && i > as->soc_table[table_i])
 		table_i++;
 
 	return table_i;

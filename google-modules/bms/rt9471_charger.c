@@ -2133,6 +2133,9 @@ static void rt9471_remove(struct i2c_client *client)
 	dev_info(chip->dev, "%s\n", __func__);
 	disable_irq(chip->irq);
 	disable_irq_wake(chip->irq);
+	cancel_work_sync(&chip->init_work);
+	cancel_delayed_work_sync(&chip->buck_dwork);
+	device_remove_file(chip->dev, &dev_attr_registers_dump);
 	mutex_destroy(&chip->io_lock);
 	mutex_destroy(&chip->bc12_lock);
 	mutex_destroy(&chip->hidden_mode_lock);

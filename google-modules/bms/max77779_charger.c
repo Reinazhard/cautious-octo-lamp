@@ -3613,8 +3613,17 @@ void max77779_charger_remove(struct max77779_chgr_data *data)
 
 	debugfs_remove(data->de);
 
-	cancel_delayed_work(&data->cop_enable_work);
-	cancel_delayed_work(&data->wcin_inlim_work);
+	cancel_delayed_work_sync(&data->cop_enable_work);
+	cancel_delayed_work_sync(&data->wcin_inlim_work);
+
+	if (data->fg_psy) {
+		power_supply_put(data->fg_psy);
+		data->fg_psy = NULL;
+	}
+	if (data->wlc_psy) {
+		power_supply_put(data->wlc_psy);
+		data->wlc_psy = NULL;
+	}
 
 	mutex_destroy(&data->io_lock);
 	mutex_destroy(&data->prot_lock);

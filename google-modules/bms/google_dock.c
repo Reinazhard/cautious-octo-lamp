@@ -76,6 +76,7 @@ struct dock_drv {
 	int voltage_max;		/* > 10.5V mean Ext1 else > 5V mean Ext2. */
 	int detect_retries;
 	struct wakeup_source *detect_ws;
+	struct dentry *de;
 };
 
 /* ------------------------------------------------------------------------- */
@@ -154,14 +155,12 @@ static int dock_init_fs(struct dock_drv *dock)
 
 static int dock_init_debugfs(struct dock_drv *dock)
 {
-	struct dentry *de = NULL;
-
-	de = debugfs_create_dir("google_dock", 0);
-	if (IS_ERR_OR_NULL(de))
+	dock->de = debugfs_create_dir("google_dock", 0);
+	if (IS_ERR_OR_NULL(dock->de))
 		return 0;
 
 	/* pogo_vout */
-	debugfs_create_file("pogo_vout", 0600, de, dock,
+	debugfs_create_file("pogo_vout", 0600, dock->de, dock,
 			    &debug_pogo_vout_fops);
 
 	return 0;
@@ -682,16 +681,18 @@ static void google_dock_remove(struct platform_device *pdev)
 		return;
 
 	power_supply_unreg_notifier(&dock->nb);
-	cancel_delayed_work(&dock->init_work);
-	cancel_delayed_work(&dock->notifier_work);
-	cancel_delayed_work(&dock->icl_ramp_work);
-	alarm_try_to_cancel(&dock->icl_ramp_alarm);
-	cancel_delayed_work(&dock->detect_work);
+	cancel_delayed_work_sync(&dock->init_work);
+	cancel_delayed_work_sync(&dock->notifier_work);
+	cancel_delayed_work_sync(&dock->icl_ramp_work);
+	alarm_cancel(&dock->icl_ramp_alarm);
+	cancel_delayed_work_sync(&dock->detect_work);
 	wakeup_source_unregister(dock->detect_ws);
 	if (dock->dc_psy) {
 		power_supply_put(dock->dc_psy);
 		dock->dc_psy = NULL;
 	}
+	if (dock->de)
+		debugfs_remove_recursive(dock->de);
 }
 
 static void google_dock_shutdown(struct platform_device *pdev)

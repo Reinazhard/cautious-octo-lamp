@@ -958,8 +958,8 @@ int gbms_init_aact_profile_internal(struct gbms_chg_profile *profile,
 						 cccm_array_size);
 	if (ret < 0) {
 		gbms_err(profile, "cannot read aact-cc-limits table, ret=%d\n", ret);
-		kfree(profile->cccm_limits);
-		profile->cccm_limits = 0;
+		kfree(profile->aact_cccm_limits);
+		profile->aact_cccm_limits = NULL;
 		return -EINVAL;
 	}
 

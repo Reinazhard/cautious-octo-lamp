@@ -6316,6 +6316,7 @@ static void ln8411_remove(struct i2c_client *client)
 {
 	struct ln8411_charger *ln8411_charger = i2c_get_clientdata(client);
 
+	cancel_delayed_work_sync(&ln8411_charger->init_hw_work);
 	/* stop charging if it is active */
 	ln8411_stop_charging(ln8411_charger);
 

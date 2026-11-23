@@ -4007,7 +4007,7 @@ mdis_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	lvl = gvotable_get_int_vote(el, MDIS_REASON_SETUP);
 
-	return sprintf(buf, "%d\n", lvl);
+	return sysfs_emit(buf, "%d\n", lvl);
 }
 
 static ssize_t

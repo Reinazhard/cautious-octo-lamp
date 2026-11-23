@@ -1137,6 +1137,7 @@ static int max77729_setup_votables(struct max77729_chgr_data *data)
 	if (IS_ERR_OR_NULL(data->dc_suspend_votable)) {
 		ret = PTR_ERR(data->dc_suspend_votable);
 		dev_err(data->dev, "no dc_suspend votable (%d)\n", ret);
+		gvotable_destroy_election(data->mode_votable);
 		return ret;
 	}
 
@@ -1151,6 +1152,8 @@ static int max77729_setup_votables(struct max77729_chgr_data *data)
 	if (IS_ERR_OR_NULL(data->dc_icl_votable)) {
 		ret = PTR_ERR(data->dc_icl_votable);
 		dev_err(data->dev, "no dc_icl votable (%d)\n", ret);
+		gvotable_destroy_election(data->dc_suspend_votable);
+		gvotable_destroy_election(data->mode_votable);
 		return ret;
 	}
 
@@ -1222,6 +1225,11 @@ static int max77729_charger_probe(struct i2c_client *client)
 	dev_info(dev, "registered as %s\n", max77729_psy_desc.psy_dsc.name);
 
 exit:
+	if (ret) {
+		gvotable_destroy_election(data->dc_icl_votable);
+		gvotable_destroy_election(data->dc_suspend_votable);
+		gvotable_destroy_election(data->mode_votable);
+	}
 	return ret;
 }
 

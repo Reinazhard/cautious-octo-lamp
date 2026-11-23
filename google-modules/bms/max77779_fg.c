@@ -3718,9 +3718,14 @@ static int max77779_fg_init_chip(struct max77779_fg_chip *chip)
 	 * 1. The battery ID cannot be read.
 	 * 2. The battery ID is not in supported specifications.
 	 */
-	if (!chip->batt_id_defer_cnt || !max77779_fg_find_batt_node(chip)) {
-		chip->batt_id = DEFAULT_BATTERY_ID;
-		dev_info(chip->dev, "default device battery ID = %d\n", chip->batt_id);
+	{
+		struct device_node *test_node = max77779_fg_find_batt_node(chip);
+
+		if (!chip->batt_id_defer_cnt || !test_node) {
+			chip->batt_id = DEFAULT_BATTERY_ID;
+			dev_info(chip->dev, "default device battery ID = %d\n", chip->batt_id);
+		}
+		of_node_put(test_node);
 	}
 
 	/* TODO: b/283489811 - fix this */
@@ -4218,9 +4223,9 @@ void max77779_fg_remove(struct max77779_fg_chip *chip)
 
 	if (chip->model_data)
 		max77779_free_data(chip->model_data);
-	cancel_delayed_work(&chip->init_work);
-	cancel_delayed_work(&chip->model_work);
-	cancel_delayed_work(&chip->stuck_monitor_work);
+	cancel_delayed_work_sync(&chip->init_work);
+	cancel_delayed_work_sync(&chip->model_work);
+	cancel_delayed_work_sync(&chip->stuck_monitor_work);
 
 	disable_irq_wake(chip->irq);
 	device_init_wakeup(chip->dev, false);

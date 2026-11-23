@@ -1567,6 +1567,16 @@ static void google_dual_batt_gauge_remove(struct platform_device *pdev)
 		device_link_del(dual_fg_drv->second_fg_link);
 
 	power_supply_unreg_notifier(&dual_fg_drv->fg_nb);
+	cancel_delayed_work_sync(&dual_fg_drv->init_work);
+	cancel_delayed_work_sync(&dual_fg_drv->gdbatt_work);
+
+	if (dual_fg_drv->first_fg_psy)
+		power_supply_put(dual_fg_drv->first_fg_psy);
+	if (dual_fg_drv->second_fg_psy)
+		power_supply_put(dual_fg_drv->second_fg_psy);
+	if (dual_fg_drv->batt_psy)
+		power_supply_put(dual_fg_drv->batt_psy);
+
 	gbms_free_chg_profile(&dual_fg_drv->chg_profile);
 	kfree(dual_fg_drv->base_profile.cccm_limits);
 	kfree(dual_fg_drv->sec_profile.cccm_limits);

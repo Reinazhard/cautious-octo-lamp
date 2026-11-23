@@ -3546,6 +3546,10 @@ static void max77759_charger_remove(struct i2c_client *client)
 	device_init_wakeup(data->dev, false);
 	wakeup_source_unregister(data->usecase_wake_lock);
 	wakeup_source_unregister(data->otg_fccm_wake_lock);
+	if (data->wlc_psy) {
+		power_supply_put(data->wlc_psy);
+		data->wlc_psy = NULL;
+	}
 }
 
 

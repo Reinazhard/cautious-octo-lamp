@@ -9036,8 +9036,13 @@ static void p9221_charger_remove(struct i2c_client *client)
 	disable_irq_wake(charger->pdata->irq_int);
 	device_init_wakeup(charger->dev, false);
 	cancel_delayed_work_sync(&charger->notifier_work);
+	cancel_delayed_work_sync(&charger->soc_work);
 	if (!IS_ERR_OR_NULL(charger->batt_psy))
 		power_supply_put(charger->batt_psy);
+	if (!IS_ERR_OR_NULL(charger->dc_psy))
+		power_supply_put(charger->dc_psy);
+	if (charger->debug_entry)
+		debugfs_remove_recursive(charger->debug_entry);
 	mutex_destroy(&charger->io_lock);
 	mutex_destroy(&charger->stats_lock);
 	mutex_destroy(&charger->chg_features.feat_lock);
