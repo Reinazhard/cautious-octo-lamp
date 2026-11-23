@@ -84,17 +84,25 @@ void *samsung_dma_buffer_protect(struct samsung_dma_buffer *buffer,
 
 	if (protdesc->chunk_count > 1) {
 		void *vaddr = phys_to_virt(paddr);
+		dma_addr_t map_addr;
 
 		array_size = sizeof(paddr) * nr_pages;
 
 		kmemleak_ignore(vaddr);
-		dma_map_single(dev, vaddr, array_size, DMA_TO_DEVICE);
+		map_addr = dma_map_single(dev, vaddr, array_size, DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, map_addr)) {
+			kfree(protdesc);
+			return ERR_PTR(-EIO);
+		}
 	}
 
 	buf_size = protdesc->chunk_count * protdesc->chunk_size;
 
 	dma_addr = secure_iova_alloc(buf_size, max_t(u32, protalign, PAGE_SIZE));
 	if (!dma_addr) {
+		if (protdesc->chunk_count > 1)
+			dma_unmap_single(dev, phys_to_dma(dev, paddr), array_size, DMA_TO_DEVICE);
+
 		kfree(protdesc);
 		return ERR_PTR(-ENOMEM);
 	}
