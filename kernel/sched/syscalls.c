@@ -404,7 +404,7 @@ static void __setscheduler_uclamp(struct task_struct *p,
 	}
 
 	if (likely(!(attr->sched_flags & SCHED_FLAG_UTIL_CLAMP)))
-		return;
+		goto note;
 
 	if (attr->sched_flags & SCHED_FLAG_UTIL_CLAMP_MIN &&
 	    attr->sched_util_min != -1) {
@@ -419,6 +419,10 @@ static void __setscheduler_uclamp(struct task_struct *p,
 			      attr->sched_util_max, true);
 		trace_android_vh_setscheduler_uclamp(p, UCLAMP_MAX, attr->sched_util_max);
 	}
+
+note:
+	gs101_frame_note_uclamp(p, p->uclamp_req[UCLAMP_MIN].value,
+				p->uclamp_req[UCLAMP_MAX].value);
 }
 
 #else /* !CONFIG_UCLAMP_TASK: */
