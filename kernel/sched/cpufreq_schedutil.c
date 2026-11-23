@@ -163,6 +163,19 @@ static bool sugov_update_next_freq(struct sugov_policy *sg_policy, u64 time,
 	if (next_freq == sg_policy->next_freq)
 		return false;
 
+	switch (gs101_frame_sugov_advise(sg_policy->policy,
+					 sg_policy->next_freq, next_freq,
+					 time - sg_policy->last_freq_update_time)) {
+	case GS101_SUGOV_HOLD_FLOOR:
+	case GS101_SUGOV_SKIP_INFLIGHT:
+		sg_policy->cached_raw_freq_valid = false;
+		return false;
+	case GS101_SUGOV_URGENT_UP:
+		goto must_update;
+	case GS101_SUGOV_NORMAL:
+		break;
+	}
+
 	if (next_freq < sg_policy->next_freq &&
 	    sugov_should_rate_limit(sg_policy, time)) {
 		/*
@@ -280,6 +293,14 @@ static void sugov_get_util(struct sugov_cpu *sg_cpu, unsigned long boost)
 	if (!scx_switched_all())
 		util += cpu_util_cfs_boost(sg_cpu->cpu);
 	util = effective_cpu_util(sg_cpu->cpu, util, &min, &max);
+	{
+		struct task_struct *donor = READ_ONCE(cpu_rq(sg_cpu->cpu)->donor);
+		struct gs101_sched_hint fhint;
+
+		if (donor && gs101_frame_task_hint(donor, sg_cpu->cpu, &fhint) &&
+		    (fhint.flags & GFH_OVERRUN_RESCUE))
+			min = max(min, fhint.util_floor);
+	}
 	util = max(util, boost);
 	sg_cpu->bw_min = min;
 	sg_cpu->bw_max = max;
