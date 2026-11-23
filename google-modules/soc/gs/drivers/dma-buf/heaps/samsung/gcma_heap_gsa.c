@@ -345,6 +345,7 @@ static int gcma_gsa_heap_init(struct gcma_heap *heap, struct platform_device *pd
 		return -ENODEV;
 
 	rmem = of_reserved_mem_lookup(rmem_np);
+	of_node_put(rmem_np);
 	if (!rmem) {
 		perrdev(&pdev->dev, "memory-region handle not found");
 		return -ENODEV;

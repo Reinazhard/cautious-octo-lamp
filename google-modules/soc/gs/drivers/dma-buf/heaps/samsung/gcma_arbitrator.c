@@ -64,6 +64,7 @@ static struct gcma_region *gcma_get_or_create_region(struct device_node *rmem_np
 	region = kzalloc(sizeof(*region), GFP_KERNEL);
 	if (!region) {
 		mutex_unlock(&gcma_region_list_lock);
+		of_node_put(rmem_np);
 		return ERR_PTR(-ENOMEM);
 	}
 
