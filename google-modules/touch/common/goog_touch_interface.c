@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/power_supply.h>
 #include <linux/proc_fs.h>
+#include <linux/sched/gs101_frame.h>
 #include <linux/seq_file.h>
 #include <trace/hooks/systrace.h>
 
@@ -3496,6 +3497,7 @@ void goog_offload_input_report(void *handle,
 	}
 	input_report_key(gti->vendor_input_dev, BTN_TOUCH, touch_down);
 	input_sync(gti->vendor_input_dev);
+	gs101_frame_publish_touch(touch_down ? GS101_TOUCH_ACTIVE : GS101_TOUCH_FLING);
 	goog_input_unlock(gti);
 
 	if (touch_down)
@@ -3832,6 +3834,7 @@ static void goog_input_flush_offload_fingers(struct goog_touch_interface *gti)
 	}
 	input_report_key(gti->vendor_input_dev, BTN_TOUCH, touch_down);
 	input_sync(gti->vendor_input_dev);
+	gs101_frame_publish_touch(touch_down ? GS101_TOUCH_ACTIVE : GS101_TOUCH_FLING);
 	goog_input_unlock(gti);
 }
 
