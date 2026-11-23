@@ -24,6 +24,7 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_vblank.h>
 
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/console.h>
 #include <linux/errno.h>
@@ -718,16 +719,20 @@ static int dsim_set_clock_mode(struct dsim_device *dsim,
 	return 0;
 }
 
-static int dsim_of_parse_modes(struct device_node *entry,
-		struct dsim_pll_param *pll_param)
+static int dsim_of_parse_modes(struct device *dev, struct device_node *entry,
+			       struct dsim_pll_param *pll_param)
 {
+	const char *name;
 	u32 res[14];
 	int cnt;
 
 	memset(pll_param, 0, sizeof(*pll_param));
 
-	of_property_read_string(entry, "mode-name",
-			(const char **)&pll_param->name);
+	if (!of_property_read_string(entry, "mode-name", &name)) {
+		pll_param->name = devm_kstrdup(dev, name, GFP_KERNEL);
+		if (name && !pll_param->name)
+			return -ENOMEM;
+	}
 
 	cnt = of_property_count_u32_elems(entry, "pmsk");
 	if (cnt != 4 && cnt != 14) {
@@ -896,7 +901,7 @@ read_node_fail:
 static struct dsim_pll_params *dsim_of_get_clock_mode(struct dsim_device *dsim)
 {
 	struct device *dev = dsim->dev;
-	struct device_node *np, *mode_np, *entry;
+	struct device_node *np, *mode_np;
 	struct dsim_pll_params *pll_params;
 
 	np = of_parse_phandle(dev->of_node, "dsim_mode", 0);
@@ -915,12 +920,6 @@ static struct dsim_pll_params *dsim_of_get_clock_mode(struct dsim_device *dsim)
 	if (!pll_params)
 		goto err_put_mode_np;
 
-	entry = of_get_next_child(mode_np, NULL);
-	if (!entry) {
-		dsim_err(dsim, "could not find child node of dsim-modes");
-		goto err_put_mode_np;
-	}
-
 	pll_params->num_modes = of_get_child_count(mode_np);
 	if (pll_params->num_modes == 0) {
 		dsim_err(dsim, "%pOF: no modes specified\n", np);
@@ -934,14 +933,14 @@ static struct dsim_pll_params *dsim_of_get_clock_mode(struct dsim_device *dsim)
 
 	pll_params->num_modes = 0;
 
-	for_each_child_of_node(mode_np, entry) {
+	for_each_child_of_node_scoped(mode_np, entry) {
 		struct dsim_pll_param *pll_param;
 
 		pll_param = devm_kzalloc(dsim->dev, sizeof(*pll_param), GFP_KERNEL);
 		if (!pll_param)
-			goto err_put_entry;
+			goto err_put_mode_np;
 
-		if (dsim_of_parse_modes(entry, pll_param) < 0) {
+		if (dsim_of_parse_modes(dev, entry, pll_param) < 0) {
 			devm_kfree(dsim->dev, pll_param);
 			continue;
 		}
@@ -957,8 +956,6 @@ static struct dsim_pll_params *dsim_of_get_clock_mode(struct dsim_device *dsim)
 
 	return pll_params;
 
-err_put_entry:
-	of_node_put(entry);
 err_put_mode_np:
 	of_node_put(mode_np);
 err_put_np:
@@ -984,100 +981,113 @@ static void dsim_restart(struct dsim_device *dsim)
 
 #ifdef CONFIG_DEBUG_FS
 
-static int dsim_of_parse_diag(struct device_node *np, struct dsim_dphy_diag *diag)
+static int dsim_of_parse_diag(struct device *dev, struct device_node *np,
+			      struct dsim_dphy_diag *diag)
 {
-        int count;
-        u8 bit_range[2];
-        const char *reg_base = NULL;
+	int count;
+	u8 bit_range[2];
+	const char *reg_base = NULL;
+	const char *name;
 
-        of_property_read_string(np, "reg-base", &reg_base);
-        if (!strcmp(reg_base, "dphy")) {
-                diag->reg_base = REGS_DSIM_PHY;
-        } else if (!strcmp(reg_base, "dphy-extra")) {
-                diag->reg_base = REGS_DSIM_PHY_BIAS;
-        } else {
-                pr_err("%s: invalid reg-base: %s\n", __func__, reg_base);
-                return -EINVAL;
-        }
+	of_property_read_string(np, "reg-base", &reg_base);
+	if (!strcmp(reg_base, "dphy")) {
+		diag->reg_base = REGS_DSIM_PHY;
+	} else if (!strcmp(reg_base, "dphy-extra")) {
+		diag->reg_base = REGS_DSIM_PHY_BIAS;
+	} else {
+		pr_err("%s: invalid reg-base: %s\n", __func__, reg_base);
+		return -EINVAL;
+	}
 
-        of_property_read_string(np, "diag-name", &diag->name);
-        if (!diag->name || !diag->name[0]) {
-                pr_err("%s: empty diag-name\n", __func__);
-                return -EINVAL;
-        }
+	of_property_read_string(np, "diag-name", &diag->name);
+	if (!diag->name || !diag->name[0]) {
+		pr_err("%s: empty diag-name\n", __func__);
+		return -EINVAL;
+	}
+	diag->name = devm_kstrdup(dev, diag->name, GFP_KERNEL);
+	if (!diag->name)
+		return -ENOMEM;
 
-        of_property_read_string(np, "desc", &diag->desc);
-        of_property_read_string(np, "help", &diag->help);
+	name = NULL;
+	of_property_read_string(np, "desc", &name);
+	diag->desc = devm_kstrdup(dev, name, GFP_KERNEL);
+	if (name && !diag->desc)
+		return -ENOMEM;
 
-        count = of_property_count_u16_elems(np, "reg-offset");
-        if (count <= 0 || count > MAX_DIAG_REG_NUM) {
-                pr_err("%s: wrong number of reg-offset: %d\n", __func__, count);
-                return -ERANGE;
-        }
+	name = NULL;
+	of_property_read_string(np, "help", &name);
+	diag->help = devm_kstrdup(dev, name, GFP_KERNEL);
+	if (name && !diag->help)
+		return -ENOMEM;
 
-        if (of_property_read_u16_array(np, "reg-offset", diag->reg_offset, count) < 0) {
-                pr_err("%s: failed to read reg-offset\n", __func__);
-                return -EINVAL;
-        }
-        diag->num_reg = count;
+	count = of_property_count_u16_elems(np, "reg-offset");
+	if (count <= 0 || count > MAX_DIAG_REG_NUM) {
+		pr_err("%s: wrong number of reg-offset: %d\n", __func__, count);
+		return -ERANGE;
+	}
 
-        if (of_property_read_u8_array(np, "bit-range", bit_range, 2) < 0) {
-                pr_err("%s: failed to read bit-range\n", __func__);
-                return -EINVAL;
-        }
+	if (of_property_read_u16_array(np, "reg-offset", diag->reg_offset, count) < 0) {
+		pr_err("%s: failed to read reg-offset\n", __func__);
+		return -EINVAL;
+	}
+	diag->num_reg = count;
 
-        if (bit_range[0] >= 32 || bit_range[1] >= 32) {
-                pr_err("%s: invalid bit range %d, %d\n", __func__, bit_range[0], bit_range[1]);
-                return -EINVAL;
-        }
-        if (bit_range[0] < bit_range[1]) {
-                diag->bit_start = bit_range[0];
-                diag->bit_end = bit_range[1];
-        } else {
-                diag->bit_start = bit_range[1];
-                diag->bit_end = bit_range[0];
-        }
-        diag->read_only = of_property_read_bool(np, "read_only");
+	if (of_property_read_u8_array(np, "bit-range", bit_range, 2) < 0) {
+		pr_err("%s: failed to read bit-range\n", __func__);
+		return -EINVAL;
+	}
 
-        return 0;
+	if (bit_range[0] >= 32 || bit_range[1] >= 32) {
+		pr_err("%s: invalid bit range %d, %d\n", __func__, bit_range[0], bit_range[1]);
+		return -EINVAL;
+	}
+	if (bit_range[0] < bit_range[1]) {
+		diag->bit_start = bit_range[0];
+		diag->bit_end = bit_range[1];
+	} else {
+		diag->bit_start = bit_range[1];
+		diag->bit_end = bit_range[0];
+	}
+	diag->read_only = of_property_read_bool(np, "read_only");
+
+	return 0;
 }
 
 static void dsim_of_get_pll_diags(struct dsim_device *dsim)
 {
-	struct device_node *np, *entry;
+	struct device_node *np __free(device_node);
 	struct device *dev = dsim->dev;
-        uint32_t index = 0;
+	uint32_t index = 0;
 
 	np = of_parse_phandle(dev->of_node, "dphy_diag", 0);
-        dsim->config.num_dphy_diags = of_get_child_count(np);
-        if (dsim->config.num_dphy_diags == 0) {
-                goto nochild;
-        }
+	dsim->config.num_dphy_diags = of_get_child_count(np);
+	if (dsim->config.num_dphy_diags == 0)
+		goto nochild;
 
 	dsim->config.dphy_diags = devm_kzalloc(dsim->dev, sizeof(struct dsim_dphy_diag) *
-					dsim->config.num_dphy_diags, GFP_KERNEL);
+					       dsim->config.num_dphy_diags, GFP_KERNEL);
 	if (!dsim->config.dphy_diags) {
-                dsim_warn(dsim, "%s: no memory for %u diag items\n",
-                          __func__, dsim->config.num_dphy_diags);
-                dsim->config.num_dphy_diags = 0;
-                goto nochild;
-        }
+		dsim_warn(dsim, "%s: no memory for %u diag items\n",
+			  __func__, dsim->config.num_dphy_diags);
+		dsim->config.num_dphy_diags = 0;
+		goto nochild;
+	}
 
-        for_each_child_of_node(np, entry) {
-                if (index >= dsim->config.num_dphy_diags) {
-                      dsim_warn(dsim, "%s: diag parsing error with unexpected index %u\n",
-                                __func__, index);
-                      goto get_diag_fail;
-                }
+	for_each_child_of_node_scoped(np, entry) {
+		if (index >= dsim->config.num_dphy_diags) {
+			dsim_warn(dsim, "%s: diag parsing error with unexpected index %u\n",
+				  __func__, index);
+			goto get_diag_fail;
+		}
 
-                if (dsim_of_parse_diag(entry, &dsim->config.dphy_diags[index]) < 0) {
-                      dsim_warn(dsim, "%s: diag parsing error for item %u\n",
-                                __func__, index);
-                      goto get_diag_fail;
-                }
-                ++index;
-        }
-        return;
+		if (dsim_of_parse_diag(dev, entry, &dsim->config.dphy_diags[index]) < 0) {
+			dsim_warn(dsim, "%s: diag parsing error for item %u\n",
+				  __func__, index);
+			goto get_diag_fail;
+		}
+		++index;
+	}
+	return;
 
 get_diag_fail:
         dsim->config.num_dphy_diags = 0;
@@ -2020,20 +2030,22 @@ static int dsim_remap_regs(struct dsim_device *dsim)
 	i = of_property_match_string(np, "reg-names", "sys");
 	if (of_address_to_resource(np, i, &res)) {
 		dsim_err(dsim, "failed to get sys resource\n");
-		goto err_dphy_ext;
+		goto err_node_put;
 	}
 	dsim->res.ss_reg_base = ioremap(res.start, resource_size(&res));
 	if (!dsim->res.ss_reg_base) {
 		dsim_err(dsim, "failed to map sysreg-disp address.");
 		ret = -ENOMEM;
-		goto err_dphy_ext;
+		goto err_node_put;
 	}
 	dsim_regs_desc_init(dsim->res.ss_reg_base, res.start, np->name, REGS_DSIM_SYS,
 			dsim->id);
+	of_node_put(np);
 
 	return ret;
 
-err_dphy_ext:
+err_node_put:
+	of_node_put(np);
 	iounmap(dsim->res.phy_regs_ex);
 	iounmap(dsim->res.phy_regs);
 err_dsi:
