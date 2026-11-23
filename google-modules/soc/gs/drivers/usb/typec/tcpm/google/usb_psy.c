@@ -44,7 +44,7 @@
 
 /* At least get one more try to meet sub state sync requirement */
 #define ERR_RETRY_DELAY_MS 20
-#define ERR_RETRY_COUNT    3
+#define ERR_RETRY_COUNT    10
 /* EAGAIN is only returned when charger init is pending */
 #define EAGAIN_RETRY_DELAY_MS 100
 
