@@ -1515,6 +1515,16 @@ config SCHED_CASS
 	  their lowest P-state necessary to satisfy the overall load at any
 	  given moment.
 
+config SCHED_GS101_FRAME
+	bool "GS101 zero-UAPI implicit frame-budget scheduler bus"
+	depends on SMP && UCLAMP_TASK
+	help
+	  Enables a lockless 3-tier hardware signal bus (VSync/TE, touch,
+	  ACPM DVFS submit/latch, and MIF/CPU memory stall) paired with
+	  implicit per-task frame-budget tracking driven by standard Android
+	  PowerHAL ADPF sched_setattr(uclamp_min) updates. Requires no
+	  userspace changes and no GKI vendor hooks.
+
 config SCHED_AUTOGROUP
 	bool "Automatic process group scheduling"
 	select CGROUPS

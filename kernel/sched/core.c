@@ -5451,6 +5451,7 @@ int sched_fork(u64 clone_flags, struct task_struct *p)
 	trace_android_rvh_prepare_prio_fork(p);
 
 	uclamp_fork(p);
+	gs101_frame_task_init(p);
 
 	/*
 	 * Revert to default priority/policy on fork if requested.
