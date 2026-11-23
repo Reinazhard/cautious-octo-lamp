@@ -231,7 +231,7 @@ static void gcma_kobj_release(struct kobject *obj)
 	/* Never released the static objects */
 }
 
-static struct kobj_type gcma_ktype = {
+static const struct kobj_type gcma_ktype = {
 	.release = gcma_kobj_release,
 	.sysfs_ops = &kobj_sysfs_ops,
 	.default_groups = gcma_attr_groups,

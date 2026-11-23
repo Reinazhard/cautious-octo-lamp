@@ -6,9 +6,7 @@
 
 #define pr_fmt(fmt) "gcma: " fmt
 
-#ifdef CONFIG_ANDROID_VENDOR_HOOKS
 #include <soc/google/gcma.h>
-#endif
 
 #include <linux/cleancache.h>
 #include <linux/slab.h>
@@ -28,7 +26,7 @@
 /*
  * page->page_type : area id
  * page->mapping : struct gcma_inode
- * page->index : page offset from inode
+ * page->__folio_index : page offset from inode
  */
 
 static inline int get_area_id(struct page *page)
@@ -43,12 +41,12 @@ static inline void set_area_id(struct page *page, int id)
 
 static inline unsigned long get_inode_index(struct page *page)
 {
-	return page->index;
+	return page->__folio_index;
 }
 
 static inline void set_inode_index(struct page *page, unsigned long index)
 {
-	page->index = index;
+	page->__folio_index = index;
 }
 
 static inline struct gcma_inode *get_inode_mapping(struct page *page)
@@ -727,7 +725,7 @@ static void gcma_cc_store_page(int hash_id, struct cleancache_filekey key,
 	bool workingset = true;
 
 	if (workingset_filter_enabled())
-		workingset = PageWorkingset(page);
+		workingset = folio_test_workingset(page_folio(page));
 
 	/*
 	 * This cleancache function is called under irq disabled so every
@@ -786,11 +784,11 @@ load_page:
 	gcma_put_page(g_page);
 	is_new = true;
 copy:
-	src = kmap_atomic(page);
-	dst = kmap_atomic(g_page);
+	src = kmap_local_page(page);
+	dst = kmap_local_page(g_page);
 	memcpy(dst, src, PAGE_SIZE);
-	kunmap_atomic(dst);
-	kunmap_atomic(src);
+	kunmap_local(dst);
+	kunmap_local(src);
 
 	if (is_new)
 		add_page_to_lru(g_page);
@@ -829,11 +827,11 @@ static int gcma_cc_load_page(int hash_id, struct cleancache_filekey key,
 		return -1;
 	}
 
-	src = kmap_atomic(g_page);
-	dst = kmap_atomic(page);
+	src = kmap_local_page(g_page);
+	dst = kmap_local_page(page);
 	memcpy(dst, src, PAGE_SIZE);
-	kunmap_atomic(dst);
-	kunmap_atomic(src);
+	kunmap_local(dst);
+	kunmap_local(src);
 	rotate_lru_page(g_page);
 	xa_unlock_irq(&inode->pages);
 
