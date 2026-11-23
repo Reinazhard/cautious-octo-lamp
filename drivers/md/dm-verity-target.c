@@ -1646,7 +1646,7 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	 * doesn't have required hashes).
 	 */
 	v->verify_wq = alloc_workqueue("kverityd",
-				       WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_PERCPU,
+				       WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_UNBOUND,
 				       0);
 	if (!v->verify_wq) {
 		ti->error = "Cannot allocate workqueue";
