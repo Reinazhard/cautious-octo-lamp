@@ -1906,6 +1906,11 @@ static int find_least_loaded_rt_cpu(struct task_struct *sched_ctx,
 			util = cpu_util_cfs(cpu) + cpu_util_rt(rq);
 		}
 
+		if (!gs101_frame_cluster_ready(cpu,
+					       uclamp_is_used() ? uclamp_eff_value(sched_ctx, UCLAMP_MIN) : 0,
+					       2500U))
+			lat += 500U;
+
 		cap = arch_scale_cpu_capacity(cpu);
 
 		if (imp > best_imp)
