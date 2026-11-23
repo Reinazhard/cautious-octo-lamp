@@ -24,8 +24,6 @@
 #include <linux/of.h>
 #include <soc/google/meminfo.h>
 
-
-#include "../deferred-free-helper.h"
 #include "../page_pool.h"
 
 #include "samsung-dma-heap.h"
@@ -34,22 +32,29 @@
 				| __GFP_NORETRY) & ~__GFP_RECLAIM) \
 				| __GFP_COMP)
 #define LOW_ORDER_GFP (GFP_HIGHUSER | __GFP_ZERO | __GFP_COMP)
-static gfp_t order_flags[] = {HIGH_ORDER_GFP, HIGH_ORDER_GFP, HIGH_ORDER_GFP, LOW_ORDER_GFP};
 /*
- * The selection of the orders used for allocation (2MB, 1MB, 64K, 4K) is designed
- * to match with the sizes often found in IOMMUs. Using high order pages instead
- * of order 0 pages can significantly improve the performance of many IOMMUs
- * by reducing TLB pressure and time spent updating page tables.
+ * The selection of the orders used for allocation is designed to include the
+ * sizes often found in IOMMUs. Using high order pages instead of order 0 pages
+ * can significantly improve the performance of many IOMMUs by reducing TLB
+ * pressure and time spent updating page tables. In addition, using higher
+ * order pages also reduces the length of sg lists which also reduces time
+ * spent in iommu_map_sg().
  *
  * Note: When the order is 0, the minimum allocation is PAGE_SIZE. The possible
  * page sizes for ARM devices could be 4K, 16K and 64K.
  */
-#define ORDER_2M (21 - PAGE_SHIFT)
-#define ORDER_1M (20 - PAGE_SHIFT)
-#define ORDER_64K (16 - PAGE_SHIFT)
-#define ORDER_FOR_PAGE_SIZE (0)
-
-static const unsigned int orders[] = {ORDER_2M, ORDER_1M, ORDER_64K, ORDER_FOR_PAGE_SIZE};
+#if (PAGE_SIZE == SZ_4K)
+static gfp_t order_flags[] = {HIGH_ORDER_GFP, HIGH_ORDER_GFP, HIGH_ORDER_GFP, HIGH_ORDER_GFP,
+			      HIGH_ORDER_GFP, HIGH_ORDER_GFP, LOW_ORDER_GFP};
+static const unsigned int orders[] = {9, 8, 4, 3, 2, 1, 0};
+#elif (PAGE_SIZE == SZ_16K)
+static gfp_t order_flags[] = {HIGH_ORDER_GFP, HIGH_ORDER_GFP, HIGH_ORDER_GFP, HIGH_ORDER_GFP,
+			      LOW_ORDER_GFP};
+static const unsigned int orders[] = {7, 6, 2, 1, 0};
+#else
+static gfp_t order_flags[] = {LOW_ORDER_GFP};
+static const unsigned int orders[] = {0};
+#endif
 #define NUM_ORDERS ARRAY_SIZE(orders)
 struct dmabuf_page_pool *pools[NUM_ORDERS];
 
@@ -192,8 +197,10 @@ free_export:
 		free_dma_heap_page(sg_page(sg), false);
 	samsung_dma_buffer_free(buffer);
 free_buffer:
-	list_for_each_entry_safe(page, tmp_page, &pages, lru)
+	list_for_each_entry_safe(page, tmp_page, &pages, lru) {
+		list_del(&page->lru);
 		free_dma_heap_page(page, false);
+	}
 
 	return ERR_PTR(ret);
 }
@@ -276,6 +283,7 @@ int __init system_dma_heap_init(void)
 {
 	int i;
 
+	BUILD_BUG_ON(ARRAY_SIZE(order_flags) != NUM_ORDERS);
 	for (i = 0; i < NUM_ORDERS; i++) {
 		pools[i] = dmabuf_page_pool_create(order_flags[i], orders[i]);
 		if (!pools[i]) {

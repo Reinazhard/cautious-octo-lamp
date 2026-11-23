@@ -196,7 +196,7 @@ static struct samsung_dma_heap *__samsung_heap_add(struct device *dev, void *pri
 
 	heap->dma_heap = dma_heap_add(&exp_info);
 	if (IS_ERR(heap->dma_heap))
-		return ERR_CAST(heap->dma_heap);
+		return heap;
 
 	pr_info("Registered %s dma-heap successfully\n", heap_name);
 
@@ -308,8 +308,8 @@ struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, u32 fd_
 }
 EXPORT_SYMBOL_GPL(samsung_export_dmabuf);
 
-int trusty_dma_buf_get_shared_mem_id(struct dma_buf *dma_buf,
-				     trusty_shared_mem_id_t *id)
+static int trusty_dma_buf_get_shared_mem_id(struct dma_buf *dma_buf,
+					    trusty_shared_mem_id_t *id)
 {
 	struct samsung_dma_buffer *buffer = dma_buf->priv;
 
@@ -321,7 +321,6 @@ int trusty_dma_buf_get_shared_mem_id(struct dma_buf *dma_buf,
 
 	return -ENODATA;
 }
-EXPORT_SYMBOL_GPL(trusty_dma_buf_get_shared_mem_id);
 
 #ifdef CONFIG_TRUSTY_DMA_BUF_FFA_TAG
 static struct buffer_prot_info *samsung_dma_buf_prot_info(struct dma_buf
@@ -355,7 +354,7 @@ static u64 pack_tag(u32 prot_id, u32 dma_va)
 	return tag;
 }
 
-u64 trusty_dma_buf_get_ffa_tag(struct dma_buf *dma_buf)
+static u64 trusty_dma_buf_get_ffa_tag(struct dma_buf *dma_buf)
 {
 	struct buffer_prot_info *prot_info = samsung_dma_buf_prot_info(dma_buf);
 	/*
@@ -366,10 +365,9 @@ u64 trusty_dma_buf_get_ffa_tag(struct dma_buf *dma_buf)
 
 	return pack_tag(prot_info->flags, prot_info->dma_addr);
 }
-EXPORT_SYMBOL_GPL(trusty_dma_buf_get_ffa_tag);
 #endif
 
-void trusty_register_dma_buf_callbacks(void)
+static void trusty_register_dma_buf_callbacks(void)
 {
 #if IS_ENABLED(CONFIG_TRUSTY_DMA_BUF_FFA_TAG)
 	trusty_register_func_for_dma_buf(trusty_dma_buf_get_ffa_tag,
