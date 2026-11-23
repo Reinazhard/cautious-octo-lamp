@@ -4,6 +4,7 @@
  * policies)
  */
 
+#include <linux/cpuidle.h>
 #include <trace/hooks/sched.h>
 #undef TRACE_INCLUDE_PATH
 #include "sched.h"
@@ -1865,6 +1866,75 @@ EXPORT_SYMBOL_GPL(pick_highest_pushable_task);
 
 static DEFINE_PER_CPU(cpumask_var_t, local_cpu_mask);
 
+static int find_least_loaded_rt_cpu(struct task_struct *sched_ctx,
+				    const struct cpumask *lowest_mask)
+{
+	int prev_cpu = task_cpu(sched_ctx);
+	unsigned int best_imp = UINT_MAX;
+	unsigned long best_util = ULONG_MAX;
+	unsigned int best_lat = UINT_MAX;
+	unsigned long best_cap = ULONG_MAX;
+	int cpu, best_cpu = -1;
+
+	if (cpumask_weight(lowest_mask) == 1)
+		return cpumask_first(lowest_mask);
+
+	rcu_read_lock();
+	for_each_cpu(cpu, lowest_mask) {
+		struct rq *rq = cpu_rq(cpu);
+		bool idle = available_idle_cpu(cpu);
+		unsigned int imp, lat = 0;
+		unsigned long util, cap;
+
+		if (idle || sched_idle_cpu(cpu)) {
+			imp = 0;
+		} else if (uclamp_is_used()) {
+			imp = uclamp_rq_get(rq, UCLAMP_MIN) +
+			      uclamp_rq_get(rq, UCLAMP_MAX);
+		} else {
+			imp = SCHED_CAPACITY_SCALE;
+		}
+
+		if (idle) {
+			struct cpuidle_state *idle_state = idle_get_state(rq);
+
+			if (idle_state)
+				lat = idle_state->exit_latency;
+			util = 0;
+		} else {
+			util = cpu_util_cfs(cpu) + cpu_util_rt(rq);
+		}
+
+		cap = arch_scale_cpu_capacity(cpu);
+
+		if (imp > best_imp)
+			continue;
+		if (imp == best_imp) {
+			if (util > best_util)
+				continue;
+			if (util == best_util) {
+				if (lat > best_lat)
+					continue;
+				if (lat == best_lat) {
+					if (cap > best_cap)
+						continue;
+					if (cap == best_cap && best_cpu == prev_cpu)
+						continue;
+				}
+			}
+		}
+
+		best_imp = imp;
+		best_util = util;
+		best_lat = lat;
+		best_cap = cap;
+		best_cpu = cpu;
+	}
+	rcu_read_unlock();
+
+	return best_cpu;
+}
+
 static int find_lowest_rq(struct task_struct *sched_ctx, struct task_struct *exec_ctx)
 {
 	struct sched_domain *sd;
@@ -1904,6 +1974,12 @@ static int find_lowest_rq(struct task_struct *sched_ctx, struct task_struct *exe
 
 	if (!ret)
 		return -1; /* No targets found */
+
+	if (sched_asym_cpucap_active()) {
+		cpu = find_least_loaded_rt_cpu(sched_ctx, lowest_mask);
+		if (cpu >= 0)
+			return cpu;
+	}
 
 	cpu = task_cpu(sched_ctx);
 
