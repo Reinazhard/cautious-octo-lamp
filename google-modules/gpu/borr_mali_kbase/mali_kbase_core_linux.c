@@ -771,6 +771,9 @@ static int kbase_open(struct inode *inode, struct file *filp)
 	struct kbase_file *kfile;
 	int ret = 0;
 
+	if (WARN_ON_ONCE(!(filp->f_op->fop_flags & FOP_UNSIGNED_OFFSET)))
+		return -EINVAL;
+
 	kbdev = kbase_find_device((int)iminor(inode));
 
 	if (!kbdev)

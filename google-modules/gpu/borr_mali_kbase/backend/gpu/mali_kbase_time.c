@@ -364,6 +364,10 @@ KBASE_EXPORT_TEST_API(kbase_get_timeout_ms);
 
 u64 kbase_backend_get_cycle_cnt(struct kbase_device *kbdev)
 {
+#if IS_ENABLED(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD) && !MALI_USE_CSF
+	if (kbdev->pm.backend.l2_state != KBASE_L2_ON)
+		return kbdev->last_cycle_count;
+#endif
 	return kbase_reg_read64_coherent(kbdev, GPU_CONTROL_ENUM(CYCLE_COUNT));
 }
 
