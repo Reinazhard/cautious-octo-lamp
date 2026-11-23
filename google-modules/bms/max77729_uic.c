@@ -18,7 +18,6 @@
 #include <linux/bitops.h>
 #include <linux/completion.h>
 #include <linux/ctype.h>
-#include <linux/debugfs.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -99,7 +98,10 @@
 #define MAX77729_STORAGE_SIZE	8
 #define MAX77729_STORAGE_BASE	(MAX77729_AP_DATAOUT0 + MAX77729_STORAGE_SIZE)
 
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+#include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#endif
 
 #define MAX77729_INT_DEFAULT_MASK (MAX77729_UIC_INT_VBUSDETI |	\
 				   MAX77729_UIC_INT_APCMDRESI |	\
@@ -111,7 +113,7 @@ struct max77729_uic_data {
 	struct i2c_client *client;
 	struct regmap *regmap;
 	int irq;
-	int irq_gpio;
+	struct gpio_desc *irq_gpio;
 	uint8_t bc_ctrl1;
 	uint8_t cmd_pending;
 	struct delayed_work noautoibus_work;
@@ -497,7 +499,7 @@ static void max77729_noautoibus_worker(struct work_struct *work)
 }
 
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 static int max77729_dbg_set_noautoibus(void *d, u64 val)
 {
 	struct max77729_uic_data *data = d;
@@ -551,8 +553,6 @@ static int max77729_uic_storage_read(gbms_tag_t tag, void *buff, size_t size,
 		return -ENOENT;
 	if ((tag + size - 1) > GBMS_TAG_RRS7)
 		return -ERANGE;
-	if (!data->probe_done)
-		return -ENODEV;
 
 	ret = max77729_uic_read(data->regmap, base, buff, size);
 	if (ret < 0)
@@ -571,8 +571,6 @@ static int max77729_uic_storage_write(gbms_tag_t tag, const void *buff,
 		return -ENOENT;
 	if ((tag + size - 1) > GBMS_TAG_RRS7)
 		return -ERANGE;
-	if (!data->probe_done)
-		return -ENODEV;
 
 	ret = max77729_uic_write(data->regmap, base, buff, size);
 	if (ret < 0)
@@ -585,11 +583,6 @@ static struct gbms_storage_desc max77729_uic_storage_dsc = {
 	.read = max77729_uic_storage_read,
 	.write = max77729_uic_storage_write,
 };
-
-static void max77729_uic_put_usb_psy(void *psy)
-{
-	power_supply_put(psy);
-}
 
 static int max77729_uic_probe(struct i2c_client *client)
 {
@@ -612,10 +605,6 @@ static int max77729_uic_probe(struct i2c_client *client)
 		dev_err(&client->dev, "usb psy not up, retrying....\n");
 		return -EPROBE_DEFER;
 	}
-
-	ret = devm_add_action_or_reset(dev, max77729_uic_put_usb_psy, usb_psy);
-	if (ret)
-		return ret;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -648,13 +637,12 @@ static int max77729_uic_probe(struct i2c_client *client)
 
 	data->bc_ctrl1 = max77729_get_bc_ctrl1(dev);
 
-	data->irq_gpio = of_get_named_gpio(dev->of_node,
-					   "max77729,irq-gpio", 0);
-	if (data->irq_gpio < 0) {
+	data->irq_gpio = devm_gpiod_get(dev, "max77729,irq", GPIOD_IN);
+	if (IS_ERR(data->irq_gpio)) {
 		dev_err(dev, "failed get irq_gpio\n");
 		return -EINVAL;
 	}
-	client->irq = gpio_to_irq(data->irq_gpio);
+	client->irq = gpiod_to_irq(data->irq_gpio);
 
 	ret = devm_request_threaded_irq(data->dev, client->irq, NULL,
 					max77729_uic_irq,
@@ -694,25 +682,7 @@ static void max77729_uic_remove(struct i2c_client *client)
 {
 	struct max77729_uic_data *data = i2c_get_clientdata(client);
 
-	/*
-	 * Withdraw the provider first: gbms_storage holds the devm_kzalloc()'d
-	 * `data` in a global slot with no other release path, and devres frees
-	 * it as soon as this returns.
-	 */
-	gbms_storage_unregister("max77729uic");
-
-	data->probe_done = false;
-	/*
-	 * The threaded IRQ is devm-managed, so it is still live inside
-	 * remove(): max77729_uic_irq() can enqueue noautoibus_work after
-	 * cancel_delayed_work_sync() has already returned, leaving the worker
-	 * to run against the freed data.  disable_irq() waits for a handler in
-	 * flight and blocks new ones, so the cancel below is final.
-	 */
-	disable_irq(client->irq);
-	cancel_delayed_work_sync(&data->noautoibus_work);
-	if (data->de)
-		debugfs_remove_recursive(data->de);
+	cancel_delayed_work(&data->noautoibus_work);
 }
 
 static const struct of_device_id max77729_uic_of_match_table[] = {
@@ -750,7 +720,7 @@ static struct i2c_driver max77729_uic_i2c_driver = {
 		.name = "max77729-uic",
 		.owner = THIS_MODULE,
 		.of_match_table = max77729_uic_of_match_table,
-#ifdef CONFIG_PM
+#if IS_ENABLED(CONFIG_PM)
 		.pm = &max77729_uic_pm_ops,
 #endif
 	},

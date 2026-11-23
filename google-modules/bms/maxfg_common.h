@@ -445,7 +445,7 @@ static inline int maxfg_regmap_write(const struct maxfg_regmap *map,
 	if (rtn)
 		pr_err("Failed to write %s\n", name);
 
-#ifdef CONFIG_MAX1720X_REGLOG_LOG
+#if IS_ENABLED(CONFIG_MAX1720X_REGLOG_LOG)
 	max17x0x_reglog_log(map->reglog, reg, data, rtn);
 #endif
 	return rtn;
@@ -589,7 +589,7 @@ int maxfg_aafv_apply(struct logbuffer *mon, struct device *dev, struct maxfg_reg
 		     int aafv, const struct aafv_fg_config *cfgs, const int cfg_max,
 		     int fus_clear, int fus_shift, bool *fus_set, int *aafv_cur_index);
 int maxfg_aafv_restore_fus(struct maxfg_regmap *regmap, int fus_clear, int fus_shift, u16 fus);
-int maxfg_aafv_init(struct device_node *node, const char * prop,
+int maxfg_aafv_init(struct device_node *node, const char *prop,
 		    struct aafv_fg_config *config, int *config_limits);
 ssize_t maxfg_aafv_config_store(struct device *dev, const int batt_id,
 				const char *buf, size_t count,

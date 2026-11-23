@@ -97,11 +97,19 @@ config CHARGER_MAX77759
 	help
 	  Say Y to enable support for the Maxim MAX77759 battery charger.
 
+config MAX77779_USECASE
+	tristate "Maxim MAX77779 usecase state machine driver"
+	depends on CHARGER_MAX77779
+	help
+	  Say Y to enable support for the Maxim MAX77779 usecase state machine driver.
+	  Enables BMS usecase state machine version control via DTS
+
 config CHARGER_MAX77779
 	tristate "Maxim MAX77779 battery charger driver"
 	depends on OF
 	help
 	  Say Y to enable support for the Maxim MAX77779 battery charger.
+	select MAX77779_USECASE
 choice
 	default CHARGER_MAX77779_I2C
 	prompt "MAX77779 Charger Bus module"

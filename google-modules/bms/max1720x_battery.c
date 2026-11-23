@@ -16,6 +16,10 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": %s " fmt, __func__
 
+#pragma clang diagnostic ignored "-Wenum-conversion"
+#pragma clang diagnostic ignored "-Wswitch"
+
+#include <linux/cleanup.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/iio/consumer.h>
@@ -31,6 +35,7 @@
 #include <linux/device.h>
 #include <linux/fs.h> /* register_chrdev, unregister_chrdev */
 #include <linux/seq_file.h> /* seq_read, seq_lseek, single_release */
+#include <misc/logbuffer.h>
 #include "max1720x_battery.h"
 
 #include <linux/debugfs.h>
@@ -258,6 +263,7 @@ struct max1720x_chip {
 	struct maxfg_bypss_charglimt bypass_chargelimit;
 
 	bool present;
+	ktime_t not_present_start_time;
 
 	/* monitor timer register and battery removal bit */
 	struct delayed_work stuck_monitor_work;
@@ -500,12 +506,6 @@ static inline int reg_to_cycles(u32 val, int gauge_type)
 		/* LSB: 16% of one cycle */
 		return DIV_ROUND_CLOSEST(val * 16, 100);
 	}
-}
-
-static inline int reg_to_seconds(s16 val)
-{
-	/* LSB: 5.625 seconds */
-	return DIV_ROUND_CLOSEST((int) val * 5625, 1000);
 }
 
 /* b/177099997 TaskPeriod ----------------------------------------------- */
@@ -1589,7 +1589,7 @@ static int max1720x_find_entry(int *first_empty, int *first_misplaced,
 static int max1720x_erase_history(int dst_entry)
 {
 	struct maxfg_eeprom_history hist_empty;
-	int ret = 0, retry;
+	int ret, retry;
 
 	memset(&hist_empty, 0xff, sizeof(hist_empty));
 	for (retry = 3; retry && ret != sizeof(hist_empty); retry--)
@@ -2430,7 +2430,7 @@ static int max1720x_current_offset_fix(struct max1720x_chip *chip)
 	return ret;
 }
 
-static int max1720x_monitor_log_learning_extend(char* buf, int len, struct maxfg_regmap *regmap)
+static int max1720x_monitor_log_learning_extend(char *buf, int len, struct maxfg_regmap *regmap)
 {
 	u16 cotrim, coff;
 	u16 data[2] = { 0 };
@@ -2521,6 +2521,56 @@ static int max1720x_clear_por(struct max1720x_chip *chip)
 				  MAX1720X_STATUS,
 				  MAX1720X_STATUS_POR,
 				  0x0);
+}
+
+#define NOT_PRESENT_TIME_THRESHOLD_S 3
+static int max1720x_battery_present_check(struct max1720x_chip *chip, const u16 data)
+{
+	int is_present = !(data & MAX1720X_STATUS_BST);
+
+	/* honest to the initial probe value */
+	if (chip->not_present_start_time == -1) {
+		chip->not_present_start_time = 0;
+		chip->present = is_present;
+		gbms_logbuffer_devlog(chip->monitor_log, chip->dev,
+				      LOGLEVEL_INFO, 0, LOGLEVEL_INFO,
+				      "initial present:%d (%#x)", chip->present, data);
+
+		return is_present;
+	}
+
+	/* Handle state changes */
+	if (chip->present != is_present) {
+		gbms_logbuffer_devlog(chip->monitor_log, chip->dev,
+				      LOGLEVEL_INFO, 0, LOGLEVEL_INFO,
+				      "Present status changed: %d -> %d (%#x)",
+				      chip->present, is_present, data);
+
+		chip->present = is_present;
+
+		/* hold if the battery just became not present */
+		if (!is_present) {
+			is_present = 1;
+			chip->not_present_start_time = get_boot_sec();
+		} else {
+			/* Battery became present, reset counter */
+			chip->not_present_start_time = 0;
+		}
+	} else if (!is_present && chip->not_present_start_time) {
+		const ktime_t now = get_boot_sec();
+
+		/* Report as "present" until the threshold is met */
+		if ((now - chip->not_present_start_time) < NOT_PRESENT_TIME_THRESHOLD_S)
+			return 1;
+
+		gbms_logbuffer_devlog(chip->monitor_log, chip->dev,
+				      LOGLEVEL_INFO, 0, LOGLEVEL_INFO,
+				      "Battery not present confirmed: status=%#x, t=%lld",
+				      data, (long long)(now - chip->not_present_start_time));
+		chip->not_present_start_time = 0; // The threshold has passed, report "not present"
+	}
+
+	return is_present;
 }
 
 /* call holding chip->model_lock */
@@ -2714,14 +2764,11 @@ static int max1720x_get_property(struct power_supply *psy,
 			if (rc < 0)
 				break;
 
-			/* BST is 0 when the battery is present */
-			val->intval = !(data & MAX1720X_STATUS_BST);
-			if (chip->present != val->intval)
-				dev_warn(chip->dev, "present update:%d->%d (%#x)",
-					 chip->present, val->intval, data);
-			chip->present = val->intval;
+			/* filtering unstable momentary status bst bit readings */
+			val->intval = max1720x_battery_present_check(chip, data);
 
-			if (!val->intval)
+			/* BST is 0 when the battery is present */
+			if (data & MAX1720X_STATUS_BST)
 				break;
 
 			if (!chip->por)
@@ -2740,35 +2787,10 @@ static int max1720x_get_property(struct power_supply *psy,
 		max1720x_handle_update_filtercfg(chip, val->intval);
 		max1720x_handle_update_empty_voltage(chip, val->intval);
 		break;
-	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG:
-		err = REGMAP_READ(map, MAX1720X_TTE, &data);
-		if (err == 0)
-			val->intval = reg_to_seconds(data);
-		break;
-	case POWER_SUPPLY_PROP_TIME_TO_FULL_AVG:
-		err = REGMAP_READ(map, MAX1720X_TTF, &data);
-		if (err == 0)
-			val->intval = reg_to_seconds(data);
-		break;
-	case POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
-		val->intval = -1;
-		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
 		rc = REGMAP_READ(map, MAX1720X_AVGVCELL, &data);
 		if (rc == 0)
 			val->intval = reg_to_micro_volt(data);
-		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
-		/* LSB: 20mV */
-		err = maxfg_reg_read(map, MAXFG_TAG_mmdv, &data);
-		if (err == 0)
-			val->intval = ((data >> 8) & 0xFF) * 20000;
-		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
-		/* LSB: 20mV */
-		err = maxfg_reg_read(map, MAXFG_TAG_mmdv, &data);
-		if (err == 0)
-			val->intval = (data & 0xFF) * 20000;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		rc = maxfg_reg_read(map, MAXFG_TAG_vcel, &data);
@@ -3053,13 +3075,9 @@ static int max1720x_gbms_get_property(struct power_supply *psy,
 							       chip->aafv_modified_fus;
 		break;
 	default:
-		pr_debug("%s: route to max1720x_get_property, psp:%d\n", __func__, psp);
 		err = -ENODATA;
 		break;
 	}
-
-	if (err < 0)
-		pr_debug("error %d reading prop %d\n", err, psp);
 
 	mutex_unlock(&chip->model_lock);
 
@@ -3671,20 +3689,14 @@ static struct device_node *max1720x_find_batt_node(struct max1720x_chip *chip)
 {
 	const int batt_id = chip->batt_id;
 	const struct device *dev = chip->dev;
-	struct device_node *config_node, *child_node;
-	struct device_node *fg_data;
+	struct device_node *config_node __free(device_node);
+	struct device_node *child_node;
 	u32 batt_id_range = 20, batt_id_kohm;
 	int ret;
 
-	fg_data = of_get_child_by_name(dev->of_node, "maxim,fg-data");
-	if (fg_data) {
-		config_node = of_get_child_by_name(fg_data, "maxim,config");
-		of_node_put(fg_data);
-	} else {
-		config_node = of_get_child_by_name(dev->of_node, "maxim,config");
-	}
-	if (!config_node)
-		config_node = of_find_node_by_name(of_node_get(dev->of_node), "maxim,config");
+	/* balance of_node_put() in of_find_node_by_name() */
+	of_node_get(dev->of_node);
+	config_node = of_find_node_by_name(dev->of_node, "maxim,config");
 	if (!config_node) {
 		dev_warn(dev, "Failed to find maxim,config setting\n");
 		return NULL;
@@ -3712,23 +3724,18 @@ static struct device_node *max1720x_find_batt_node(struct max1720x_chip *chip)
 				continue;
 		}
 
-		if (!batt_id_range && batt_id == batt_id_kohm) {
-			of_node_put(config_node);
+		if (!batt_id_range && batt_id == batt_id_kohm)
 			return child_node;
-		}
 		if ((batt_id < (batt_id_kohm * (100 + batt_id_range) / 100)) &&
-		    (batt_id > (batt_id_kohm * (100 - batt_id_range) / 100))) {
-			of_node_put(config_node);
+		    (batt_id > (batt_id_kohm * (100 - batt_id_range) / 100)))
 			return child_node;
-		}
 	}
 
-	of_node_put(config_node);
 	return NULL;
 }
 
 static int max17x0x_apply_regval_shadow(struct max1720x_chip *chip,
-					struct device_node *node,
+					const struct device_node *node,
 					struct max17x0x_cache_data *nRAM,
 					int nb)
 {
@@ -3936,7 +3943,7 @@ error_out:
 }
 
 static int max17x0x_apply_regval_register(struct max1720x_chip *chip,
-					struct device_node *node)
+					  const struct device_node *node)
 {
 	int cnt, ret = 0, idx, err;
 	u16 *regs, data;
@@ -5074,8 +5081,8 @@ static int max1720x_model_load(struct max1720x_chip *chip)
 				ret);
 
 		/* update fullsocthr based on aafv */
-		max_m5_model_apply_aaf_fullsoc(chip->model_data,
-					       &chip->aafv_cfgs[chip->aafv_cur_idx]);
+		max_m5_model_apply_aafv_fullsoc(chip->model_data,
+						&chip->aafv_cfgs[chip->aafv_cur_idx]);
 
 		/* use the state from the DT when GMSR is invalid */
 	}
@@ -5671,16 +5678,11 @@ static int max1720x_init_chip(struct max1720x_chip *chip)
 	 * 1. The battery ID cannot be read.
 	 * 2. The battery ID is not in supported specifications.
 	 */
-	struct device_node *test_node = NULL;
-
-	if (chip->gauge_type == MAX_M5_GAUGE_TYPE)
-		test_node = max1720x_find_batt_node(chip);
 	if (!chip->batt_id_defer_cnt ||
-	   (chip->gauge_type == MAX_M5_GAUGE_TYPE && !test_node)) {
+	   (chip->gauge_type == MAX_M5_GAUGE_TYPE && !max1720x_find_batt_node(chip))) {
 		chip->batt_id = DEFAULT_BATTERY_ID;
 		dev_info(chip->dev, "default device battery ID = %d\n", chip->batt_id);
 	}
-	of_node_put(test_node);
 
 	if (chip->batt_id == DEFAULT_BATTERY_ID || chip->batt_id == DUMMY_BATTERY_ID) {
 		ret = REGMAP_WRITE(&chip->regmap, MAX_M5_CONFIG2, 0x0);
@@ -6369,12 +6371,11 @@ static int max1720x_init_irq(struct max1720x_chip *chip)
 						 "maxim,irqf-shared");
 	irqno = chip->primary->irq;
 	if (!irqno) {
-		int irq_gpio;
+		struct gpio_desc *irq_gpio;
 
-		irq_gpio = of_get_named_gpio(chip->dev->of_node,
-					     "maxim,irq-gpio", 0);
-		if (irq_gpio >= 0) {
-			chip->primary->irq = gpio_to_irq(irq_gpio);
+		irq_gpio = devm_gpiod_get(chip->dev, "maxim,irq", GPIOD_IN);
+		if (!IS_ERR(irq_gpio)) {
+			chip->primary->irq = gpiod_to_irq(irq_gpio);
 			if (chip->primary->irq <= 0) {
 				chip->primary->irq = 0;
 				dev_warn(chip->dev, "fg irq not available\n");
@@ -6658,6 +6659,7 @@ static int max1720x_probe(struct i2c_client *client)
 	chip->fake_battery = of_property_read_bool(dev->of_node, "maxim,no-battery") ? 0 : -1;
 	chip->primary = client;
 	chip->batt_id_defer_cnt = DEFAULT_BATTERY_ID_RETRIES;
+	chip->not_present_start_time = -1; /* initial value */
 	i2c_set_clientdata(client, chip);
 
 	/* NOTE: < 0 not avalable, it could be a bare MLB */
@@ -6704,7 +6706,7 @@ static int max1720x_probe(struct i2c_client *client)
 						       "maxim,zero-irq");
 
 	psy_cfg.drv_data = chip;
-	psy_cfg.fwnode = dev_fwnode(chip->dev);
+	psy_cfg.fwnode = of_fwnode_handle(chip->dev->of_node);
 
 	ret = of_property_read_string(dev->of_node,
 				      "maxim,dual-battery", &psy_name);
@@ -6878,6 +6880,7 @@ static void max1720x_remove(struct i2c_client *client)
 		i2c_unregister_device(chip->secondary);
 
 	maxfg_free_capture_buf(&chip->cb_lh);
+
 	of_node_put(chip->batt_node);
 }
 
@@ -6895,7 +6898,7 @@ static const struct i2c_device_id max1720x_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max1720x_id);
 
-#ifdef CONFIG_PM_SLEEP
+#if IS_ENABLED(CONFIG_PM_SLEEP)
 static int max1720x_pm_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);

@@ -7,12 +7,16 @@
  */
 
 
+#include <linux/cleanup.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/version.h>
 #include <linux/delay.h>
 #include <linux/dev_printk.h>
+#include <linux/of_device.h>
 #include <linux/regmap.h>
+
+#include <misc/logbuffer.h>
 
 #include "hl7132_regs.h"
 #include "hl7132_charger.h"
@@ -31,17 +35,19 @@ static struct device_node *hl7132_find_config(struct device_node *node)
 	struct device_node *temp;
 
 	if (!node)
-		return NULL;
+		return node;
+
 	temp = of_parse_phandle(node, "hl7132,google_cpm", 0);
 	if (temp)
 		return temp;
+
 	return of_node_get(node);
 }
 
 int hl7132_probe_pps(struct hl7132_charger *hl7132_chg)
 {
 	bool pps_available = false;
-	struct device_node *node;
+	struct device_node *node __free(device_node);
 	int ret;
 
 	node = hl7132_find_config(hl7132_chg->dev->of_node);
@@ -50,7 +56,6 @@ int hl7132_probe_pps(struct hl7132_charger *hl7132_chg)
 
 	ret = of_property_read_u32(node, "google,tcpm-power-supply",
 				   &hl7132_chg->tcpm_phandle);
-	of_node_put(node);
 	if (ret < 0)
 		dev_warn(hl7132_chg->dev,
 			"hl7132: google,tcpm-power-supply not defined\n");
@@ -108,13 +113,13 @@ int hl7132_usbpd_setup(struct hl7132_charger *hl7132)
 
 		hl7132->pd = tcpm_psy;
 	} else if (hl7132->tcpm_phandle) {
-		struct device_node *node;
+		struct device_node *node __free(device_node);
 
 		node = hl7132_find_config(hl7132->dev->of_node);
 		if (!node)
 			return -ENODEV;
 
-		tcpm_psy = pps_get_tcpm_psy(node, 2);
+		tcpm_psy = pps_get_tcpm_psy(of_fwnode_handle(node), 2);
 		if (IS_ERR(tcpm_psy))
 			return PTR_ERR(tcpm_psy);
 		if (!tcpm_psy) {
@@ -242,7 +247,7 @@ int hl7132_send_pd_message(struct hl7132_charger *hl7132,
 	/* PPS_Work: will reschedule */
 	dev_dbg(hl7132->dev, "%s: pps_ui = %d\n", __func__, pps_ui);
 	if (pps_ui > 0)
-		mod_delayed_work(system_wq, &hl7132->pps_work,
+		mod_delayed_work(system_percpu_wq, &hl7132->pps_work,
 				 msecs_to_jiffies(pps_ui));
 
 	return pps_ui;

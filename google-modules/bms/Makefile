@@ -17,6 +17,7 @@ GBMS_MODULES =	GOOGLE_BMS \
 		CHARGER_MAX77759 \
 		CHARGER_MAX77779 \
 		CHARGER_MAX77779_I2C \
+		MAX77779_USECASE \
 		MAXQ_MAX77759 \
 		MAX77779_SP \
 		MAX77779_SP_I2C \
@@ -45,6 +46,9 @@ GBMS_MODULES =	GOOGLE_BMS \
 obj-$(CONFIG_GOOGLE_BMS)	+= google-bms.o
 google-bms-objs += google_bms.o
 google-bms-objs += gbms_storage.o
+google-bms-objs += google_bms_usecase.o
+google-bms-objs += google_dc_pps.o
+google-bms-objs += gbms_irq.o
 # TODO(166536889): enable bee only on the devices supporting it. This will
 # require a change in the API since right now storage call into eeprom that
 # calls back into storage.
@@ -53,6 +57,7 @@ google-bms-objs += gbms_storage.o
 google-bms-objs += google_eeprom.o
 google-bms-objs += google_eeprom_01.o
 google-bms-objs += google_eeprom_02.o
+google-bms-objs += maxfg_common.o
 
 # Battery
 obj-$(CONFIG_GOOGLE_BATTERY) += google-battery.o
@@ -62,7 +67,6 @@ google-battery-objs += google_ttf.o
 # google_charger
 obj-$(CONFIG_GOOGLE_CHARGER) += google-charger.o
 google-charger-objs += google_charger.o
-google-charger-objs += google_dc_pps.o
 
 # google_dual_batt_gauge
 obj-$(CONFIG_GOOGLE_DUAL_BATT_GAUGE)	+= google_dual_batt_gauge.o
@@ -71,7 +75,6 @@ obj-$(CONFIG_GOOGLE_DUAL_BATT_GAUGE)	+= google_dual_batt_gauge.o
 # requires google_dc_pps
 obj-$(CONFIG_GOOGLE_CPM)	+= google-cpm.o
 google-cpm-objs += google_cpm.o
-google-cpm-objs += google_dc_pps.o
 
 # google_dock
 obj-$(CONFIG_GOOGLE_DOCK)	+= google_dock.o
@@ -95,7 +98,11 @@ max77759-charger-objs += max77759_usecase.o
 # max77779 if-pmic based device (todo use the standalone)
 obj-$(CONFIG_CHARGER_MAX77779)  += max77779-charger.o
 max77779-charger-objs += max77779_charger.o
-max77779-charger-objs += max77779_usecase.o
+
+obj-$(CONFIG_MAX77779_USECASE)  += max77779-usecase.o
+max77779-usecase-objs += max77779_usecase.o
+max77779-usecase-objs += max77779_usecase_v1.o
+max77779-usecase-objs += max77779_usecase_v2.o
 
 obj-$(CONFIG_CHARGER_MAX77779_I2C) += max77779-charger-i2c.o
 max77779-charger-i2c-objs += max77779_charger_i2c.o
@@ -115,7 +122,6 @@ p9221-objs += p9221_chip.o
 obj-$(CONFIG_PCA9468)		+= pca9468.o
 pca9468-objs += pca9468_charger.o
 pca9468-objs += pca9468_gbms_pps.o
-pca9468-objs += google_dc_pps.o
 
 # Alternate (untested) standalone for max77729f sans FG
 # needs the usecases
@@ -141,12 +147,10 @@ obj-$(CONFIG_MAX1720X_BATTERY)  += max1720x-battery.o
 max1720x-battery-objs += max1720x_battery.o
 max1720x-battery-objs += max1720x_outliers.o
 max1720x-battery-objs += max_m5.o
-max1720x-battery-objs += maxfg_common.o
 
 obj-$(CONFIG_FG_MAX77779)  += max77779-fg.o
 max77779-fg-objs += max77779_fg.o
 max77779-fg-objs += max77779_fg_model.o
-max77779-fg-objs += maxfg_common.o
 
 obj-$(CONFIG_FG_MAX77779_I2C)  += max77779-fg-i2c.o
 max77779-fg-i2c-objs += max77779_fg_i2c.o
@@ -176,7 +180,6 @@ obj-$(CONFIG_MAX77779_PMIC_I2C) += max77779_pmic_i2c.o
 obj-$(CONFIG_LN8411)	+= ln8411.o
 ln8411-objs += ln8411_driver.o
 ln8411-objs += ln8411_gbms_pps.o
-ln8411-objs += google_dc_pps.o
 
 # MAX77779 Firmware Update
 obj-$(CONFIG_FWUPDATE_MAX77779) += max77779-fwupdate.o
@@ -189,7 +192,6 @@ obj-$(CONFIG_CHARGER_RT9471) += rt9471_charger.o
 obj-$(CONFIG_HL7132)		+= hl7132.o
 hl7132-objs += hl7132_charger.o
 hl7132-objs += hl7132_gbms_pps.o
-hl7132-objs += google_dc_pps.o
 
 # prevent warnings
 WENUMS=-Wno-enum-conversion -Wno-switch

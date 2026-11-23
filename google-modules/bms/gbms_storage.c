@@ -15,6 +15,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/cleanup.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/suspend.h>
@@ -242,7 +243,7 @@ static int gbms_storage_register_internal(struct gbms_storage_desc *desc,
 	if (index == gbms_providers_count)
 		gbms_providers_count += 1;
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 	if (!IS_ERR_OR_NULL(rootdir) && name) {
 		/* TODO: create debugfs entries for the providers */
 	}
@@ -263,55 +264,6 @@ int gbms_storage_register(struct gbms_storage_desc *desc, const char *name,
 	return gbms_storage_register_internal(desc, name, ptr);
 }
 EXPORT_SYMBOL_GPL(gbms_storage_register);
-
-/*
- * Withdraw a provider registered with gbms_storage_register().
- *
- * A provider slot holds the registering driver's opaque pointer for the
- * lifetime of the kernel, and the tag cache stores the slot rather than the
- * name, so a driver being torn down has no other way to stop its callbacks
- * from being invoked with a pointer whose lifetime has ended.
- *
- * The offline flag is raised before the descriptor is cleared because
- * gbms_cache_read() and gbms_cache_write() test that flag before they
- * dereference the descriptor.
- *
- * Return: 0 on success, -ENOENT if no provider is registered under @name,
- * -EINVAL if @name is NULL, -EPROBE_DEFER before the storage is initialized.
- */
-int gbms_storage_unregister(const char *name)
-{
-	struct gbms_storage_provider *slot;
-	unsigned long flags;
-	int index, ret = -ENOENT;
-
-	if (!name)
-		return -EINVAL;
-	if (!gbms_storage_init_done)
-		return -EPROBE_DEFER;
-
-	spin_lock_irqsave(&providers_lock, flags);
-
-	for (index = 0; index < gbms_providers_count; index++) {
-		slot = &gbms_providers[index];
-		if (strncmp(slot->name, name, strlen(slot->name)) != 0)
-			continue;
-
-		if (!slot->dsc)
-			break;
-
-		slot->offline = true;
-		slot->dsc = NULL;
-		slot->ptr = NULL;
-		ret = 0;
-		break;
-	}
-
-	spin_unlock_irqrestore(&providers_lock, flags);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(gbms_storage_unregister);
 
 /* ------------------------------------------------------------------------- */
 
@@ -1237,13 +1189,14 @@ static void gbee_destroy(struct gbee_data *beed)
 	gbms_storage_offline(beed->bee_name, true);
 	nvmem_device_put(beed->bee_nvram);
 	kfree(beed->bee_name);
+	of_node_put(beed->node);
 }
 
 /* ------------------------------------------------------------------------ */
 
 #define entry_size(x) (ilog2(x) + (((x) & ((x) - 1)) != 0))
 
-static void gbms_storage_parse_provider_refs(struct device_node *node)
+static void gbms_storage_parse_provider_refs(const struct device_node *node)
 {
 	const char *s;
 	int i, ret, count;
@@ -1269,7 +1222,7 @@ static void gbms_storage_parse_provider_refs(struct device_node *node)
 
 static int __init gbms_storage_init(void)
 {
-	struct device_node *node;
+	struct device_node *node __free(device_node) = NULL;
 	const int pe_size = entry_size(sizeof(struct gbms_cache_entry));
 	bool has_bee = false;
 
@@ -1323,7 +1276,7 @@ static int __init gbms_storage_init(void)
 			if (!beed->bee_name)
 				return -ENOMEM;
 			beed->bee_status = GBEE_STATUS_PROBE;
-			beed->node = node;
+			beed->node = of_node_get(node);
 
 			/* add the bee to the late arrivals */
 			gbms_storage_register_internal(NULL, beed->bee_name,
@@ -1369,7 +1322,7 @@ static void __exit gbms_storage_exit(void)
 {
 	int ret;
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 	if (!IS_ERR_OR_NULL(rootdir))
 		debugfs_remove(rootdir);
 #endif

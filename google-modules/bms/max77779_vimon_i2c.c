@@ -86,6 +86,7 @@ static int max77779_vimon_direct_i2c_write(struct max77779_vimon_data *data, u8 
 
 	return -EIO;
 }
+
 static int max77779_vimon_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -107,6 +108,7 @@ static int max77779_vimon_i2c_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	data->dev = dev;
+	data->dev->init_name = "i2c-max77779-vimon";
 	data->regmap = regmap;
 	data->irq = client->irq;
 	i2c_set_clientdata(client, data);
