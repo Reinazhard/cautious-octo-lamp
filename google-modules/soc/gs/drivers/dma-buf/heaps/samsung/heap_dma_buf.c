@@ -244,10 +244,8 @@ static int samsung_heap_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 
 	mutex_lock(&buffer->lock);
 	list_for_each_entry(iovm_map, &buffer->attachments, list) {
-		if (iovm_map->mapcnt && !dev_is_dma_coherent(iovm_map->dev)) {
+		if (iovm_map->mapcnt && !dev_is_dma_coherent(iovm_map->dev))
 			dma_sync_sgtable_for_cpu(iovm_map->dev, &iovm_map->table, direction);
-			break;
-		}
 	}
 	mutex_unlock(&buffer->lock);
 
@@ -265,10 +263,8 @@ static int samsung_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 
 	mutex_lock(&buffer->lock);
 	list_for_each_entry(iovm_map, &buffer->attachments, list) {
-		if (iovm_map->mapcnt && !dev_is_dma_coherent(iovm_map->dev)) {
+		if (iovm_map->mapcnt && !dev_is_dma_coherent(iovm_map->dev))
 			dma_sync_sgtable_for_device(iovm_map->dev, &iovm_map->table, direction);
-			break;
-		}
 	}
 	mutex_unlock(&buffer->lock);
 
@@ -356,6 +352,9 @@ static int samsung_heap_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 		perr("mmap() to protected buffer is not allowed");
 		return -EACCES;
 	}
+
+	if (vma->vm_pgoff + vma_pages(vma) > (buffer->len >> PAGE_SHIFT))
+		return -EINVAL;
 
 	if (dma_heap_flags_uncached(buffer->flags))
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
