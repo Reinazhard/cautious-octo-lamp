@@ -285,6 +285,13 @@ struct gcpm_drv  {
 	struct gcpm_chgs_config chgs;
 
 	struct mutex chg_psy_lock;
+	/*
+	 * Serialises the MDIS cooling device's registration. Always taken
+	 * OUTSIDE chg_psy_lock so thermal_cooling_device_unregister() cannot
+	 * ABBA deadlock with cur_state_store() -> chg_psy_lock.
+	 */
+	struct mutex mdis_reg_lock;
+	bool removed;
 
 	/* wakelock */
 	struct wakeup_source *gcpm_ws;
@@ -4185,6 +4192,7 @@ static void chg_mdis_tdev_free(struct mdis_thermal_device *tdev,
 {
 	devm_kfree(gcpm->device, tdev->thermal_mitigation);
 	tdev->thermal_mitigation = NULL;
+	tdev->thermal_levels = 0;
 }
 
 static int mdis_tdev_register(const char *of_name, const char *tcd_name,
@@ -4192,6 +4200,7 @@ static int mdis_tdev_register(const char *of_name, const char *tcd_name,
 			      const struct thermal_cooling_device_ops *ops)
 {
 	struct device_node *cooling_node = NULL;
+	struct thermal_cooling_device *tcd;
 	int ret;
 
 	/* FIXME: this leaks cooling_node */
@@ -4201,16 +4210,18 @@ static int mdis_tdev_register(const char *of_name, const char *tcd_name,
 		return -EINVAL;
 	}
 
-	ctdev->tcd = thermal_of_cooling_device_register(cooling_node, 0,
-							tcd_name,
-							ctdev,
-							ops);
-	if (IS_ERR_OR_NULL(ctdev->tcd)) {
-		const long err = PTR_ERR(ctdev->tcd);
+	tcd = thermal_of_cooling_device_register(cooling_node, 0,
+						 tcd_name,
+						 ctdev,
+						 ops);
+	if (IS_ERR_OR_NULL(tcd)) {
+		const long err = PTR_ERR(tcd);
 
 		pr_err("error registering %s cooling device (%ld)\n", tcd_name, err);
 		return err;
 	}
+
+	ctdev->tcd = tcd;
 
 	ret = device_create_file(&ctdev->tcd->device, &dev_attr_state2power_table);
 	if (ret)
@@ -4231,62 +4242,101 @@ static int mdis_size_show(void *data, u64 *val)
 	return 0;
 }
 
-static int mdis_size_store(void *data, u64 val)
+static int gcpm_mdis_tdev_reload(struct gcpm_drv *gcpm)
 {
-	struct gcpm_drv *gcpm = data;
 	struct mdis_thermal_device *tdev = &gcpm->thermal_device;
-	const int newsize = val;
-	const int newsize_bytes = newsize * sizeof(u32);
-	u32 *limits;
-	int bytes, index, i;
 	int ret;
 
-	mutex_lock(&gcpm->chg_psy_lock);
-
-	bytes = (newsize <= tdev->thermal_levels ? newsize : tdev->thermal_levels) * sizeof(u32);
-
-	for (index = 0; index < gcpm->mdis_out_count; index++) {
-		limits = devm_kzalloc(gcpm->device, newsize_bytes * gcpm->mdis_in_count, GFP_KERNEL);
-		if (!limits) {
-			ret = -ENOMEM;
-			tdev->thermal_levels = 0;
-			goto exit;
-		}
-		for (i = 0; i < gcpm->mdis_in_count; i++)
-			memcpy(limits + (i * newsize), gcpm->mdis_out_limits[index] + (i * tdev->thermal_levels), bytes);
-		devm_kfree(gcpm->device, gcpm->mdis_out_limits[index]);
-		gcpm->mdis_out_limits[index] = limits;
+	if (tdev->tcd) {
+		thermal_cooling_device_unregister(tdev->tcd);
+		tdev->tcd = NULL;
 	}
-
-	limits = devm_kzalloc(gcpm->device, newsize_bytes, GFP_KERNEL);
-	if (!limits) {
-		ret = -ENOMEM;
-		goto exit;
-	}
-	memcpy(limits, tdev->thermal_mitigation, bytes);
-
-	devm_kfree(gcpm->device, tdev->thermal_mitigation);
-	tdev->thermal_mitigation = limits;
-	tdev->thermal_levels = newsize;
-	ret = 0;
-
-	/* Need to re-register cooling device because size is stored in the thermal framework */
-	thermal_cooling_device_unregister(tdev->tcd);
 
 	ret = mdis_tdev_register(MDIS_OF_CDEV_NAME, MDIS_CDEV_NAME,
 				 tdev, &chg_mdis_tcd_ops);
 	if (ret) {
 		dev_err(gcpm->device,
 			"Couldn't register %s rc=%d\n", MDIS_OF_CDEV_NAME, ret);
-
-		/* Free the limits too! */
 		chg_mdis_tdev_free(tdev, gcpm);
-		ret = -EINVAL;
-		goto exit;
+		return -EINVAL;
 	}
 
-exit:
+	return 0;
+}
+
+static int mdis_update_limits(struct gcpm_drv *gcpm, int newsize)
+{
+	struct mdis_thermal_device *tdev = &gcpm->thermal_device;
+	const int old_levels = tdev->thermal_levels;
+	const int bytes = (newsize <= old_levels ? newsize : old_levels) * sizeof(u32);
+	const int newsize_bytes = newsize * sizeof(u32);
+	u32 *new_limits[MDIS_OUT_MAX];
+	u32 *new_mitigation;
+	int index, i;
+
+	if (newsize <= 0)
+		return -EINVAL;
+
+	for (index = 0; index < gcpm->mdis_out_count; index++) {
+		new_limits[index] = devm_kzalloc(gcpm->device,
+						 newsize_bytes * gcpm->mdis_in_count,
+						 GFP_KERNEL);
+		if (!new_limits[index])
+			goto free_new;
+
+		for (i = 0; old_levels && i < gcpm->mdis_in_count; i++)
+			memcpy(new_limits[index] + (i * newsize),
+			       gcpm->mdis_out_limits[index] + (i * old_levels),
+			       bytes);
+	}
+
+	new_mitigation = devm_kzalloc(gcpm->device, newsize_bytes, GFP_KERNEL);
+	if (!new_mitigation)
+		goto free_new;
+	if (old_levels)
+		memcpy(new_mitigation, tdev->thermal_mitigation, bytes);
+
+	for (index = 0; index < gcpm->mdis_out_count; index++) {
+		devm_kfree(gcpm->device, gcpm->mdis_out_limits[index]);
+		gcpm->mdis_out_limits[index] = new_limits[index];
+	}
+	devm_kfree(gcpm->device, tdev->thermal_mitigation);
+	tdev->thermal_mitigation = new_mitigation;
+	tdev->thermal_levels = newsize;
+
+	return 0;
+
+free_new:
+	while (index--)
+		devm_kfree(gcpm->device, new_limits[index]);
+
+	return -ENOMEM;
+}
+
+static int mdis_size_store(void *data, u64 val)
+{
+	struct gcpm_drv *gcpm = data;
+	int ret;
+
+	mutex_lock(&gcpm->mdis_reg_lock);
+
+	if (gcpm->removed) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	mutex_lock(&gcpm->chg_psy_lock);
+	ret = mdis_update_limits(gcpm, val);
 	mutex_unlock(&gcpm->chg_psy_lock);
+
+	if (ret)
+		goto out;
+
+	/* Need to re-register cooling device because size is stored in the thermal framework */
+	ret = gcpm_mdis_tdev_reload(gcpm);
+
+out:
+	mutex_unlock(&gcpm->mdis_reg_lock);
 	return ret;
 }
 
@@ -5010,8 +5060,13 @@ static void gcpm_init_work(struct work_struct *work)
 			/* PPS charging: needs an APDO */
 			ret = pps_init(&gcpm->tcpm_pps_data, gcpm->device,
 				       gcpm->tcpm_psy, "wired-pps");
-			if (ret == 0 && gcpm->debug_entry)
-				pps_init_fs(&gcpm->tcpm_pps_data, gcpm->debug_entry);
+			if (ret == 0 && gcpm->debug_entry) {
+				struct dentry *de;
+
+				de = debugfs_create_dir("tcpm", gcpm->debug_entry);
+				if (!IS_ERR_OR_NULL(de))
+					pps_init_fs(&gcpm->tcpm_pps_data, de);
+			}
 			if (ret < 0) {
 				pr_err("PPS init failure for %s (%d)\n",
 				       name, ret);
@@ -5060,8 +5115,13 @@ static void gcpm_init_work(struct work_struct *work)
 			/* PPS charging: needs an APDO */
 			ret = pps_init(&gcpm->wlc_pps_data, gcpm->device,
 					gcpm->wlc_dc_psy, "wireless-pps");
-			if (ret == 0 && gcpm->debug_entry)
-				pps_init_fs(&gcpm->wlc_pps_data, gcpm->debug_entry);
+			if (ret == 0 && gcpm->debug_entry) {
+				struct dentry *de;
+
+				de = debugfs_create_dir("wlc", gcpm->debug_entry);
+				if (!IS_ERR_OR_NULL(de))
+					pps_init_fs(&gcpm->wlc_pps_data, de);
+			}
 			if (ret < 0) {
 				pr_err("PPS init failure for %s (%d)\n",
 				       name, ret);
@@ -6165,6 +6225,7 @@ static int google_cpm_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&gcpm->cop_warn_work, gcpm_cop_warn_work);
 
 	mutex_init(&gcpm->chg_psy_lock);
+	mutex_init(&gcpm->mdis_reg_lock);
 	mutex_init(&gcpm->chgs.chg_avail.lock);
 	mutex_init(&gcpm->stats_lock);
 
@@ -6500,8 +6561,13 @@ static void google_cpm_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&gcpm->fcc_retry_work);
 	cancel_delayed_work_sync(&gcpm->cop_warn_work);
 
-	if (gcpm->thermal_device.tcd)
+	mutex_lock(&gcpm->mdis_reg_lock);
+	gcpm->removed = true;
+	if (gcpm->thermal_device.tcd) {
 		thermal_cooling_device_unregister(gcpm->thermal_device.tcd);
+		gcpm->thermal_device.tcd = NULL;
+	}
+	mutex_unlock(&gcpm->mdis_reg_lock);
 
 	gvotable_destroy_election(gcpm->dc_fcc_votable);
 	gvotable_destroy_election(gcpm->cp_votable);
