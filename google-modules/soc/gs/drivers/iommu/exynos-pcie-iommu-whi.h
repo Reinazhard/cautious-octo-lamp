@@ -248,7 +248,7 @@ typedef u32 sysmmu_pte_t;
 #define TLB_USED_RW_REQ			(0x3 << 8)
 
 #define MAX_EXT_BUFF_NUM		(400)
-#define LV2_GENPOOL_SZIE		(SZ_1M * 3)
+#define LV2_GENPOOL_SIZE		(SZ_1M * 3)
 /* Level2 table size + reference counter region */
 #define LV2TABLE_AND_REFBUF_SZ		(LV2TABLE_SIZE * 2)
 #define NUM_DRAM_REGION			(10)

@@ -600,7 +600,6 @@ static int lv2set_page(sysmmu_pte_t *pent, phys_addr_t paddr, size_t size,
 			/* Duplicated IOMMU map 4KB */
 			refcnt_buf = pent + NUM_LV2ENTRIES;
 			*refcnt_buf = *refcnt_buf + 1;
-			atomic_dec(pgcnt);
 			return 0;
 		}
 
@@ -818,7 +817,6 @@ static size_t exynos_iommu_unmap(unsigned long l_iova, size_t size,
 		refcnt_buf = (pent + NUM_LV2ENTRIES);
 		if (*refcnt_buf != 0) {
 			*refcnt_buf = *refcnt_buf - 1;
-			atomic_inc(lv2entcnt);
 			goto done;
 		}
 
@@ -1191,6 +1189,8 @@ size_t pcie_iommu_unmap(unsigned long iova, size_t size, int hsi_block_num)
 			unmapped = exynos_iommu_unmap_once(iova, size, domain, hsi_block_num);
 			if (unmapped == size)
 				goto end_unmap;
+			else
+				unmapped = 0;
 		}
 	}
 
@@ -1236,8 +1236,8 @@ end_unmap:
 }
 EXPORT_SYMBOL_GPL(pcie_iommu_unmap);
 
-static int __init sysmmu_parse_dt(struct device *sysmmu,
-				  struct sysmmu_drvdata *drvdata)
+static int sysmmu_parse_dt(struct device *sysmmu,
+			   struct sysmmu_drvdata *drvdata)
 {
 	unsigned int qos = DEFAULT_QOS_VALUE, val;
 	const char *use_tlb_pinning;
@@ -1377,7 +1377,7 @@ err_pgtable:
 	return NULL;
 }
 
-static int __init exynos_sysmmu_probe(struct platform_device *pdev)
+static int exynos_sysmmu_probe(struct platform_device *pdev)
 {
 	int irq, ret;
 	struct device *dev = &pdev->dev;
@@ -1517,7 +1517,7 @@ static int __init pcie_iommu_init(void)
 	}
 
 #ifndef USE_DYNAMIC_MEM_ALLOC /* USE gen_pool */
-	gen_buff = kzalloc(LV2_GENPOOL_SZIE, GFP_KERNEL);
+	gen_buff = kzalloc(LV2_GENPOOL_SIZE, GFP_KERNEL);
 	if (!gen_buff)
 		return -ENOMEM;
 
@@ -1529,12 +1529,12 @@ static int __init pcie_iommu_init(void)
 	}
 
 	ret = gen_pool_add(lv2table_pool, (unsigned long)buff_paddr,
-			   LV2_GENPOOL_SZIE, -1);
+			   LV2_GENPOOL_SIZE, -1);
 	if (ret)
 		return -ENOMEM;
 #endif
 
-	ret = platform_driver_probe(&exynos_sysmmu_driver, exynos_sysmmu_probe);
+	ret = platform_driver_register(&exynos_sysmmu_driver);
 	if (ret != 0) {
 		kmem_cache_destroy(lv2table_kmem_cache);
 #ifndef USE_DYNAMIC_MEM_ALLOC /* USE gen_pool */
