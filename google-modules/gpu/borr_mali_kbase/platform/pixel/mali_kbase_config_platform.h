@@ -71,7 +71,14 @@ extern struct kbase_platform_funcs_conf platform_funcs;
  * The amount of time (in milliseconds) between sucessive measurements of the
  * GPU utilization. This also affects how frequently the DVFS update logic runs.
  */
-#define DEFAULT_PM_DVFS_PERIOD (20)
+#define DEFAULT_PM_DVFS_PERIOD (10)
+
+/*
+ * Keep shader cores warm across short inter-pass/inter-frame bubbles
+ * (5 * 400us = 2.0ms vs default 0.8ms); adaptive policy still drops to
+ * 0 ticks on sustained idle.
+ */
+#define DEFAULT_PM_POWEROFF_TICK_SHADER (5)
 
 /* Linux includes */
 #ifdef CONFIG_MALI_MIDGARD_DVFS
