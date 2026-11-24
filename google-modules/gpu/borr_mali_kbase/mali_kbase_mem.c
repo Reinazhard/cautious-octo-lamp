@@ -2051,6 +2051,12 @@ void kbase_set_phy_alloc_page_status(struct kbase_context *kctx, struct kbase_me
 
 		spin_lock(&page_md->migrate_lock);
 		page_md->status = PAGE_STATUS_SET(page_md->status, (u8)status);
+		if (status == ALLOCATED_MAPPED)
+			page_md->data.mapped.kctx_id = kctx->id;
+		else if (status == PT_MAPPED)
+			page_md->data.pt_mapped.kctx_id = kctx->id;
+		else
+			kbase_clear_page_metadata_kctx_id(page_md);
 		spin_unlock(&page_md->migrate_lock);
 	}
 }

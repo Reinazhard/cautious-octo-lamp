@@ -480,6 +480,12 @@ struct kbase_page_metadata {
 			struct kbase_mmu_table *mmut;
 			/* GPU virtual page frame number, in GPU_PAGE_SIZE units */
 			u64 vpfn;
+			/*
+			 * @kctx_id: Id of Kbase context the page belongs to.
+			 *           Set this field with the id when page is mapped.
+			 *           Otherwise set to RESERVED_CONTEXT_ID.
+			 */
+			u32 kctx_id;
 		} mapped;
 		struct {
 			struct kbase_mmu_table *mmut;
@@ -506,6 +512,12 @@ struct kbase_page_metadata {
 			 */
 			s8 num_allocated_sub_pages;
 #endif
+			/*
+			 * @kctx_id: Id of Kbase context the page belongs to.
+			 *           Set this field with the id when pt_page is mapped.
+			 *           Otherwise set to RESERVED_CONTEXT_ID.
+			 */
+			u32 kctx_id;
 		} pt_mapped;
 	} data;
 
@@ -513,6 +525,21 @@ struct kbase_page_metadata {
 	u8 vmap_count;
 	u8 group_id;
 };
+
+/**
+ * kbase_clear_page_metadata_kctx_id - Clear kctx_id in page metadata.
+ *
+ * @page_md:  Pointer to the page metadata
+ *
+ * kctx_id is set with kctx id when the page is associated with a kctx.
+ * When @page_md is newly allocated or its association with a kctx is gone
+ * clear kctx_id in metadata.
+ */
+static inline void kbase_clear_page_metadata_kctx_id(struct kbase_page_metadata *page_md)
+{
+	page_md->data.mapped.kctx_id = RESERVED_CONTEXT_ID;
+	page_md->data.pt_mapped.kctx_id = RESERVED_CONTEXT_ID;
+}
 
 /**
  * enum kbase_jit_report_flags - Flags for just-in-time memory allocation

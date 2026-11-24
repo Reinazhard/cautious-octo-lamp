@@ -24,6 +24,11 @@
 
 #include <linux/atomic.h>
 
+/* RESERVED_CONTEXT_ID is reserved for special purpose.
+ * This value won't be used for kbase context creation.
+ */
+#define RESERVED_CONTEXT_ID U32_MAX
+
 /**
  * kbase_context_debugfs_init - Initialize the kctx platform
  *                              specific debugfs
