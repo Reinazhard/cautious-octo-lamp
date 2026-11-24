@@ -2674,12 +2674,15 @@ static int core_mask_parse(struct kbase_device *const kbdev, const char *const b
 			   struct kbase_core_mask *const mask)
 {
 	int items;
+	char *alloc_buf = NULL;
 	char *buf_tmp;
 	char *token;
 
-	buf_tmp = kstrdup(buf, GFP_KERNEL);
-	if (buf_tmp == NULL)
-		goto error;
+	alloc_buf = kstrdup(buf, GFP_KERNEL);
+	if (alloc_buf == NULL)
+		return -ENOMEM;
+
+	buf_tmp = alloc_buf;
 
 	for (items = 0; items < BASE_JM_MAX_NR_SLOTS; items++) {
 		token = strsep(&buf_tmp, " ");
@@ -2687,10 +2690,9 @@ static int core_mask_parse(struct kbase_device *const kbdev, const char *const b
 			break;
 	}
 
-	kfree(buf_tmp);
+	kfree(alloc_buf);
 
 	if (items != 1 && items != BASE_JM_MAX_NR_SLOTS) {
-error:
 		dev_err(kbdev->dev, "Couldn't process core mask write operation.\n"
 				    "Use format <core_mask>\n"
 				    "or <core_mask_js0> <core_mask_js1> <core_mask_js2>\n");
@@ -2935,43 +2937,55 @@ static ssize_t js_timeouts_store(struct device *dev, struct device_attribute *at
 	kbdev = to_kbase_device(dev);
 	if (!kbdev)
 		return -ENODEV;
-	buf_tmp = kstrdup(buf, GFP_KERNEL);
-	if (buf_tmp == NULL)
-		goto error;
 
-	token = strsep(&buf_tmp, " ");
-	if (token == NULL || kstrtol(token, 10, &js_soft_stop_ms) < 0)
-		goto error;
+	{
+		char *alloc_buf = kstrdup(buf, GFP_KERNEL);
 
-	token = strsep(&buf_tmp, " ");
-	if (token == NULL || kstrtol(token, 10, &js_soft_stop_ms_cl) < 0)
-		goto error;
+		if (alloc_buf == NULL)
+			return -ENOMEM;
 
-	token = strsep(&buf_tmp, " ");
-	if (token == NULL || kstrtol(token, 10, &js_hard_stop_ms_ss) < 0)
-		goto error;
+		buf_tmp = alloc_buf;
 
-	token = strsep(&buf_tmp, " ");
-	if (token == NULL || kstrtol(token, 10, &js_hard_stop_ms_cl) < 0)
-		goto error;
+		token = strsep(&buf_tmp, " ");
+		if (token == NULL || kstrtol(token, 10, &js_soft_stop_ms) < 0)
+			goto err_free;
 
-	token = strsep(&buf_tmp, " ");
-	if (token == NULL || kstrtol(token, 10, &js_hard_stop_ms_dumping) < 0)
-		goto error;
+		token = strsep(&buf_tmp, " ");
+		if (token == NULL || kstrtol(token, 10, &js_soft_stop_ms_cl) < 0)
+			goto err_free;
 
-	token = strsep(&buf_tmp, " ");
-	if (token == NULL || kstrtol(token, 10, &js_reset_ms_ss) < 0)
-		goto error;
+		token = strsep(&buf_tmp, " ");
+		if (token == NULL || kstrtol(token, 10, &js_hard_stop_ms_ss) < 0)
+			goto err_free;
 
-	token = strsep(&buf_tmp, " ");
-	if (token == NULL || kstrtol(token, 10, &js_reset_ms_cl) < 0)
-		goto error;
+		token = strsep(&buf_tmp, " ");
+		if (token == NULL || kstrtol(token, 10, &js_hard_stop_ms_cl) < 0)
+			goto err_free;
 
-	token = strsep(&buf_tmp, " ");
-	if (token == NULL || kstrtol(token, 10, &js_reset_ms_dumping) < 0)
-		goto error;
+		token = strsep(&buf_tmp, " ");
+		if (token == NULL || kstrtol(token, 10, &js_hard_stop_ms_dumping) < 0)
+			goto err_free;
 
-	kfree(buf_tmp);
+		token = strsep(&buf_tmp, " ");
+		if (token == NULL || kstrtol(token, 10, &js_reset_ms_ss) < 0)
+			goto err_free;
+
+		token = strsep(&buf_tmp, " ");
+		if (token == NULL || kstrtol(token, 10, &js_reset_ms_cl) < 0)
+			goto err_free;
+
+		token = strsep(&buf_tmp, " ");
+		if (token == NULL || kstrtol(token, 10, &js_reset_ms_dumping) < 0)
+			goto err_free;
+
+		kfree(alloc_buf);
+		goto parsed_ok;
+
+err_free:
+		kfree(alloc_buf);
+		goto error;
+	}
+parsed_ok:
 	js_data = &kbdev->js_data;
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
@@ -3001,7 +3015,6 @@ static ssize_t js_timeouts_store(struct device *dev, struct device_attribute *at
 
 	return (ssize_t)count;
 error:
-	kfree(buf_tmp);
 	dev_err(kbdev->dev,
 		"Couldn't process js_timeouts write operation.\n"
 		"Use format <soft_stop_ms> <soft_stop_ms_cl> <hard_stop_ms_ss> <hard_stop_ms_cl> <hard_stop_ms_dumping> <reset_ms_ss> <reset_ms_cl> <reset_ms_dumping>\n"
@@ -3654,6 +3667,7 @@ static ssize_t pm_poweroff_store(struct device *dev, struct device_attribute *at
 	u64 gpu_poweroff_time;
 	unsigned int poweroff_shader_ticks, poweroff_gpu_ticks;
 	unsigned long flags;
+	char *alloc_buf = NULL;
 	char *buf_tmp;
 	char *token;
 
@@ -3663,9 +3677,11 @@ static ssize_t pm_poweroff_store(struct device *dev, struct device_attribute *at
 	if (!kbdev)
 		return -ENODEV;
 
-	buf_tmp = kstrdup(buf, GFP_KERNEL);
-	if (buf_tmp == NULL)
-		goto error;
+	alloc_buf = kstrdup(buf, GFP_KERNEL);
+	if (alloc_buf == NULL)
+		return -ENOMEM;
+
+	buf_tmp = alloc_buf;
 
 	token = strsep(&buf_tmp, " ");
 	if (token == NULL || kstrtoull(token, 10, &gpu_poweroff_time) < 0)
@@ -3678,7 +3694,7 @@ static ssize_t pm_poweroff_store(struct device *dev, struct device_attribute *at
 	token = strsep(&buf_tmp, " ");
 	if (token == NULL || kstrtou32(token, 10, &poweroff_gpu_ticks) < 0)
 		goto error;
-	kfree(buf_tmp);
+	kfree(alloc_buf);
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
 	stt = &kbdev->pm.backend.shader_tick_timer;
@@ -3693,7 +3709,7 @@ static ssize_t pm_poweroff_store(struct device *dev, struct device_attribute *at
 
 	return (ssize_t)count;
 error:
-	kfree(buf_tmp);
+	kfree(alloc_buf);
 	dev_err(kbdev->dev,
 		"Couldn't process pm_poweroff write operation.\n"
 		"Use format <gpu_poweroff_time_ns> <poweroff_shader_ticks> <poweroff_gpu_ticks>\n");

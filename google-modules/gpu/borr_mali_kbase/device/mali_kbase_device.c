@@ -523,7 +523,7 @@ int kbase_device_early_init(struct kbase_device *kbdev)
 	 */
 	err = kbase_device_backend_init(kbdev);
 	if (err != 0 && err != -EPERM)
-		goto pm_runtime_term;
+		goto regmap_term;
 
 	/*
 	 * Initialize register mapping LUTs. This would have been initialized on HW
@@ -578,8 +578,8 @@ gpuprops_term:
 	kbase_gpuprops_term(kbdev);
 backend_term:
 	kbase_device_backend_term(kbdev);
+regmap_term:
 	kbase_regmap_term(kbdev);
-pm_runtime_term:
 	if (kbdev->pm.backend.gpu_powered)
 		kbase_pm_register_access_disable(kbdev);
 
