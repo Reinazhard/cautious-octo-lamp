@@ -610,6 +610,15 @@ void kbase_release_device(struct kbase_device *kbdev)
 }
 EXPORT_SYMBOL(kbase_release_device);
 
+static int kbase_infinite_cache_enable_check(struct device *dev)
+{
+	if (!kbase_is_page_migration_enabled())
+		return 0;
+
+	dev_warn(dev, "infinite_cache is unsupported while page migration is enabled\n");
+	return -EINVAL;
+}
+
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 static ssize_t write_ctx_infinite_cache(struct file *f, const char __user *ubuf, size_t size,
 					loff_t *off)
@@ -624,10 +633,14 @@ static ssize_t write_ctx_infinite_cache(struct file *f, const char __user *ubuf,
 	if (err)
 		return err;
 
-	if (value)
+	if (value) {
+		err = kbase_infinite_cache_enable_check(kctx->kbdev->dev);
+		if (err)
+			return err;
 		kbase_ctx_flag_set(kctx, KCTX_INFINITE_CACHE);
-	else
+	} else {
 		kbase_ctx_flag_clear(kctx, KCTX_INFINITE_CACHE);
+	}
 
 	return (ssize_t)size;
 }
@@ -651,6 +664,51 @@ static const struct file_operations kbase_infinite_cache_fops = {
 	.open = simple_open,
 	.write = write_ctx_infinite_cache,
 	.read = read_ctx_infinite_cache,
+};
+
+static ssize_t write_ctx_defaults_infinite_cache(struct file *f,
+						 const char __user *ubuf,
+						 size_t size, loff_t *off)
+{
+	struct kbase_device *kbdev = f->private_data;
+	int err;
+	bool value;
+
+	CSTD_UNUSED(off);
+
+	err = kstrtobool_from_user(ubuf, size, &value);
+	if (err)
+		return err;
+
+	if (value) {
+		err = kbase_infinite_cache_enable_check(kbdev->dev);
+		if (err)
+			return err;
+	}
+
+	kbdev->infinite_cache_active_default = value;
+
+	return (ssize_t)size;
+}
+
+static ssize_t read_ctx_defaults_infinite_cache(struct file *f, char __user *ubuf, size_t size,
+						loff_t *off)
+{
+	struct kbase_device *kbdev = f->private_data;
+	char buf[32];
+	size_t count;
+
+	count = (size_t)scnprintf(buf, sizeof(buf), "%s\n",
+				  kbdev->infinite_cache_active_default ? "Y" : "N");
+
+	return simple_read_from_buffer(ubuf, size, off, buf, count);
+}
+
+static const struct file_operations kbase_defaults_infinite_cache_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = write_ctx_defaults_infinite_cache,
+	.read = read_ctx_defaults_infinite_cache,
 };
 
 static ssize_t write_ctx_force_same_va(struct file *f, const char __user *ubuf, size_t size,
@@ -733,7 +791,8 @@ static int kbase_file_create_kctx(struct kbase_file *const kfile,
 	if (!kctx)
 		return -ENOMEM;
 
-	if (kbdev->infinite_cache_active_default)
+	if (kbdev->infinite_cache_active_default &&
+	    !kbase_infinite_cache_enable_check(kbdev->dev))
 		kbase_ctx_flag_set(kctx, KCTX_INFINITE_CACHE);
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -5106,8 +5165,8 @@ static struct dentry *debugfs_ctx_defaults_init(struct kbase_device *const kbdev
 		return dentry;
 	}
 
-	debugfs_create_bool("infinite_cache", mode, debugfs_ctx_defaults_directory,
-			    &kbdev->infinite_cache_active_default);
+	debugfs_create_file("infinite_cache", mode, debugfs_ctx_defaults_directory, kbdev,
+			    &kbase_defaults_infinite_cache_fops);
 
 	dentry = debugfs_create_file("mem_pool_max_size", mode, debugfs_ctx_defaults_directory,
 				     &kbdev->mem_pool_defaults.small,
