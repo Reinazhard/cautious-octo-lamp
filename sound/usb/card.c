@@ -55,6 +55,7 @@
 #include "power.h"
 #include "stream.h"
 #include "media.h"
+#include <trace/hooks/audio_usboffload.h>
 
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("USB Audio");
@@ -1098,6 +1099,8 @@ static int usb_audio_probe(struct usb_interface *intf,
 	if (platform_ops && platform_ops->connect_cb)
 		platform_ops->connect_cb(chip);
 
+	trace_android_vh_audio_usb_offload_connect(intf, chip);
+
 	return 0;
 
  __error:
@@ -1131,6 +1134,8 @@ static bool __usb_audio_disconnect(struct usb_interface *intf,
 
 	if (platform_ops && platform_ops->disconnect_cb)
 		platform_ops->disconnect_cb(chip);
+
+	trace_android_rvh_audio_usb_offload_disconnect(intf);
 
 	if (atomic_inc_return(&chip->shutdown) == 1) {
 		/* wait until all pending tasks done;
