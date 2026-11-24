@@ -227,7 +227,7 @@ static bool kbase_pm_get_dvfs_utilisation_calc(struct kbase_device *kbdev)
 	} else {
 		u64 diff_ns;
 		s64 diff_ns_signed;
-		u32 ns_time;
+		u64 ns_time;
 		ktime_t diff = ktime_sub(now, kbdev->pm.backend.metrics.time_period_start);
 
 		diff_ns_signed = ktime_to_ns(diff);
@@ -287,7 +287,7 @@ static bool kbase_pm_get_dvfs_utilisation_calc(struct kbase_device *kbdev)
 		}
 #endif
 		/* Calculate time difference in units of 256ns */
-		ns_time = (u32)(diff_ns >> KBASE_PM_TIME_SHIFT);
+		ns_time = diff_ns >> KBASE_PM_TIME_SHIFT;
 
 		/* Add protected_time to gpu_iter_active_counter so that time in
 		 * protected mode is included in the apparent GPU active time,
@@ -346,7 +346,7 @@ static bool kbase_pm_get_dvfs_utilisation_calc(struct kbase_device *kbdev, ktime
 		return false;
 
 	if (kbdev->pm.backend.metrics.gpu_active) {
-		u32 ns_time = (u32)(ktime_to_ns(diff) >> KBASE_PM_TIME_SHIFT);
+		u64 ns_time = (u64)ktime_to_ns(diff) >> KBASE_PM_TIME_SHIFT;
 
 		kbdev->pm.backend.metrics.values.time_busy += ns_time;
 		if (kbdev->pm.backend.metrics.active_cl_ctx[0])
@@ -361,7 +361,7 @@ static bool kbase_pm_get_dvfs_utilisation_calc(struct kbase_device *kbdev, ktime
 			kbdev->pm.backend.metrics.values.busy_gl += ns_time;
 	} else {
 		kbdev->pm.backend.metrics.values.time_idle +=
-			(u32)(ktime_to_ns(diff) >> KBASE_PM_TIME_SHIFT);
+			(u64)ktime_to_ns(diff) >> KBASE_PM_TIME_SHIFT;
 	}
 
 	kbdev->pm.backend.metrics.time_period_start = now;
@@ -413,7 +413,7 @@ void kbase_pm_get_dvfs_action(struct kbase_device *kbdev)
 	int utilisation;
 	struct kbasep_pm_metrics *diff;
 #if !MALI_USE_CSF
-	int busy;
+	u64 busy;
 	int util_gl_share;
 	int util_cl_share[2];
 #else
@@ -426,23 +426,24 @@ void kbase_pm_get_dvfs_action(struct kbase_device *kbdev)
 
 	kbase_pm_get_dvfs_metrics(kbdev, &kbdev->pm.backend.metrics.dvfs_last, diff);
 
-	utilisation = (100 * diff->time_busy) / max(diff->time_busy + diff->time_idle, 1u);
+	utilisation =
+		div64_u64(100 * diff->time_busy, max(diff->time_busy + diff->time_idle, 1ull));
 #if IS_ENABLED(CONFIG_SOC_ZUMA)
 	if (utilisation > GPU_UTIL_MIN) {
 		utilisation = clamp(utilisation + GPU_UTIL_OFFSET, GPU_UTIL_MIN, GPU_UTIL_MAX);
 	}
 #endif
 #if !MALI_USE_CSF
-	busy = max(diff->busy_gl + diff->busy_cl[0] + diff->busy_cl[1], 1u);
+	busy = max(diff->busy_gl + diff->busy_cl[0] + diff->busy_cl[1], 1ull);
 
-	util_gl_share = (100 * diff->busy_gl) / busy;
-	util_cl_share[0] = (100 * diff->busy_cl[0]) / busy;
-	util_cl_share[1] = (100 * diff->busy_cl[1]) / busy;
+	util_gl_share = div64_u64(100 * diff->busy_gl, busy);
+	util_cl_share[0] = div64_u64(100 * diff->busy_cl[0], busy);
+	util_cl_share[1] = div64_u64(100 * diff->busy_cl[1], busy);
 
 	kbase_platform_dvfs_event(kbdev, utilisation, util_gl_share, util_cl_share);
 #else
-	mcu_utilisation = (100 * diff->busy_mcu) /
-			  max(diff->busy_mcu + diff->idle_mcu, 1u);
+	mcu_utilisation =
+		div64_u64(100 * diff->busy_mcu, max(diff->busy_mcu + diff->idle_mcu, 1ull));
 
 	/* Note that, at present, we don't pass protected-mode time to the
 	 * platform here. It's unlikely to be useful, however, as the platform

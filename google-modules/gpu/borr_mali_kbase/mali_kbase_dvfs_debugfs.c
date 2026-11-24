@@ -39,14 +39,14 @@ static int kbasep_dvfs_utilization_debugfs_show(struct seq_file *file, void *dat
 
 	CSTD_UNUSED(data);
 #if MALI_USE_CSF
-	seq_printf(file, "busy_time: %u idle_time: %u protm_time: %u\n",
-		   kbdev->pm.backend.metrics.values.time_busy,
-		   kbdev->pm.backend.metrics.values.time_idle,
-		   kbdev->pm.backend.metrics.values.time_in_protm);
+	seq_printf(file, "busy_time: %llu idle_time: %llu protm_time: %llu\n",
+		   (unsigned long long)kbdev->pm.backend.metrics.values.time_busy,
+		   (unsigned long long)kbdev->pm.backend.metrics.values.time_idle,
+		   (unsigned long long)kbdev->pm.backend.metrics.values.time_in_protm);
 #else
-	seq_printf(file, "busy_time: %u idle_time: %u\n",
-		   kbdev->pm.backend.metrics.values.time_busy,
-		   kbdev->pm.backend.metrics.values.time_idle);
+	seq_printf(file, "busy_time: %llu idle_time: %llu\n",
+		   (unsigned long long)kbdev->pm.backend.metrics.values.time_busy,
+		   (unsigned long long)kbdev->pm.backend.metrics.values.time_idle);
 #endif
 
 	return 0;
