@@ -330,11 +330,10 @@ int kbase_device_init(struct kbase_device *kbdev)
 	if (err)
 		return err;
 
-	kthread_init_worker(&kbdev->event_worker);
-	kbdev->event_worker.task =
-		kthread_run(kthread_worker_fn, &kbdev->event_worker, "mali_event_thread");
-	if (IS_ERR(kbdev->event_worker.task)) {
-		err = -ENOMEM;
+	err = kbase_kthread_run_worker_rt(kbdev, &kbdev->event_worker, "mali_event_thread");
+	if (err) {
+		kthread_stop(kbdev->job_done_worker.task);
+		kbdev->job_done_worker.task = NULL;
 	}
 
 	return err;
