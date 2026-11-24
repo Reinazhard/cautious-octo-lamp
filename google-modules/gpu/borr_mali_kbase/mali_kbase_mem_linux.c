@@ -449,7 +449,6 @@ struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx, u64 va_pages
 		/* return a cookie */
 		cookie_nr = find_first_bit(kctx->cookies, BITS_PER_LONG);
 		bitmap_clear(kctx->cookies, cookie_nr, 1);
-		BUG_ON(kctx->pending_regions[cookie_nr]);
 		kctx->pending_regions[cookie_nr] = reg;
 
 		/* relocate to correct base */
@@ -923,15 +922,6 @@ bool kbase_mem_evictable_unmake(struct kbase_mem_phy_alloc *gpu_alloc)
 					kctx, gpu_alloc->reg, gpu_alloc->evicted, 0, mmu_sync_info);
 
 			gpu_alloc->evicted = 0;
-
-			/* Since the allocation is no longer evictable, and we ensure that
-			 * it grows back to its pre-eviction size, we will consider the
-			 * state of it to be ALLOCATED_MAPPED, as that is the only state
-			 * in which a physical allocation could transition to NOT_MOVABLE
-			 * from.
-			 */
-			if (kbase_is_page_migration_enabled())
-				kbase_set_phy_alloc_page_status(kctx, gpu_alloc, ALLOCATED_MAPPED);
 		}
 	}
 
@@ -1528,13 +1518,21 @@ static struct kbase_va_region *kbase_mem_from_umm(struct kbase_context *kctx, in
 	if (IS_ERR_OR_NULL(reg->gpu_alloc))
 		goto no_alloc;
 
+	/* No pages to map yet */
+	reg->gpu_alloc->nents = 0;
+	reg->gpu_alloc->type = KBASE_MEM_TYPE_IMPORTED_UMM;
+	reg->gpu_alloc->imported.umm.sgt = NULL;
+	reg->gpu_alloc->imported.umm.dma_buf = dma_buf;
+	reg->gpu_alloc->imported.umm.dma_attachment = dma_attachment;
+	reg->gpu_alloc->imported.umm.current_mapping_usage_count = 0;
+	reg->gpu_alloc->imported.umm.need_sync = need_sync;
+	reg->gpu_alloc->imported.umm.kctx = kctx;
+	reg->extension = 0;
+
 	reg->cpu_alloc = kbase_mem_phy_alloc_get(reg->gpu_alloc);
 
 	if (kbase_update_region_flags(kctx, reg, *flags) != 0)
 		goto error_out;
-
-	/* No pages to map yet */
-	reg->gpu_alloc->nents = 0;
 
 	reg->flags &= ~KBASE_REG_FREE;
 	reg->flags |= KBASE_REG_GPU_NX; /* UMM is always No eXecute */
@@ -1545,15 +1543,6 @@ static struct kbase_va_region *kbase_mem_from_umm(struct kbase_context *kctx, in
 
 	if (padding)
 		reg->flags |= KBASE_REG_IMPORT_PAD;
-
-	reg->gpu_alloc->type = KBASE_MEM_TYPE_IMPORTED_UMM;
-	reg->gpu_alloc->imported.umm.sgt = NULL;
-	reg->gpu_alloc->imported.umm.dma_buf = dma_buf;
-	reg->gpu_alloc->imported.umm.dma_attachment = dma_attachment;
-	reg->gpu_alloc->imported.umm.current_mapping_usage_count = 0;
-	reg->gpu_alloc->imported.umm.need_sync = need_sync;
-	reg->gpu_alloc->imported.umm.kctx = kctx;
-	reg->extension = 0;
 
 	if (!IS_ENABLED(CONFIG_MALI_DMA_BUF_MAP_ON_DEMAND)) {
 		int err;
@@ -1572,9 +1561,6 @@ static struct kbase_va_region *kbase_mem_from_umm(struct kbase_context *kctx, in
 
 	return reg;
 
-error_out:
-	kbase_mem_phy_alloc_put(reg->gpu_alloc);
-	kbase_mem_phy_alloc_put(reg->cpu_alloc);
 no_alloc:
 	kfree(reg);
 
@@ -1582,6 +1568,12 @@ dma_buf_exit:
 	dma_buf_detach(dma_buf, dma_attachment);
 	dma_buf_put(dma_buf);
 
+	return NULL;
+
+error_out:
+	kbase_mem_phy_alloc_put(reg->gpu_alloc);
+	kbase_mem_phy_alloc_put(reg->cpu_alloc);
+	kfree(reg);
 	return NULL;
 }
 
@@ -1903,7 +1895,6 @@ u64 kbase_mem_alias(struct kbase_context *kctx, u64 *flags, u64 stride, u64 nent
 		/* return a cookie */
 		gpu_va = find_first_bit(kctx->cookies, BITS_PER_LONG);
 		bitmap_clear(kctx->cookies, gpu_va, 1);
-		BUG_ON(kctx->pending_regions[gpu_va]);
 		kctx->pending_regions[gpu_va] = reg;
 
 		/* relocate to correct base */
@@ -2044,7 +2035,6 @@ int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type,
 		/* return a cookie */
 		*gpu_va = find_first_bit(kctx->cookies, BITS_PER_LONG);
 		bitmap_clear(kctx->cookies, *gpu_va, 1);
-		BUG_ON(kctx->pending_regions[*gpu_va]);
 		kctx->pending_regions[*gpu_va] = reg;
 
 		/* relocate to correct base */
@@ -2573,7 +2563,6 @@ static int kbase_cpu_mmap(struct kbase_context *kctx, struct kbase_va_region *re
 		 * kbase_mem_pool which would be
 		 * suitable for mapping uncached.
 		 */
-		BUG_ON(kaddr);
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	}
 

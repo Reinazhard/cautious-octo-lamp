@@ -473,16 +473,18 @@ static unsigned long kbase_mem_pool_reclaim_count_objects(struct shrinker *s,
 
 	pool = KBASE_GET_KBASE_DATA_FROM_SHRINKER(s, struct kbase_mem_pool, reclaim);
 
-	kbase_mem_pool_lock(pool);
-	if (pool->dont_reclaim && !pool->dying) {
-		kbase_mem_pool_unlock(pool);
+	/* We do not need to take the mem pool lock in this function as
+	 * it needs to be fast not accurate.
+	 * It acts as a hint to the kernel to trigger scan_objects which
+	 * will be accurate as it takes the lock.
+	 */
+	if (READ_ONCE(pool->dont_reclaim) && !READ_ONCE(pool->dying)) {
 		/* Tell shrinker to skip reclaim
 		 * even though freeable pages are available
 		 */
 		return 0;
 	}
-	pool_size = kbase_mem_pool_size(pool);
-	kbase_mem_pool_unlock(pool);
+	pool_size = READ_ONCE(pool->cur_size);
 
 	return pool_size;
 }

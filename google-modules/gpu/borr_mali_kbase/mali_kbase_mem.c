@@ -873,6 +873,9 @@ static int kbase_do_syncset(struct kbase_context *kctx, struct basep_syncset *ss
 	if (!(reg->flags & KBASE_REG_CPU_CACHED))
 		goto out_unlock;
 
+	if (reg->flags & KBASE_REG_DONT_NEED)
+		goto out_unlock;
+
 	start = (uintptr_t)sset->user_addr;
 	size = (size_t)sset->size;
 
@@ -1926,7 +1929,7 @@ void kbase_mem_kref_free(struct kref *kref)
 		/* raw pages, external cleanup */
 		break;
 	case KBASE_MEM_TYPE_IMPORTED_UMM:
-		if (!IS_ENABLED(CONFIG_MALI_DMA_BUF_MAP_ON_DEMAND)) {
+		if (!IS_ENABLED(CONFIG_MALI_DMA_BUF_MAP_ON_DEMAND) && alloc->imported.umm.sgt) {
 			WARN_ONCE(alloc->imported.umm.current_mapping_usage_count != 1,
 				  "WARNING: expected exactly 1 mapping, got %d",
 				  alloc->imported.umm.current_mapping_usage_count);
@@ -1940,8 +1943,11 @@ void kbase_mem_kref_free(struct kref *kref)
 #endif
 			kbase_remove_dma_buf_usage(alloc->imported.umm.kctx, alloc);
 		}
-		dma_buf_detach(alloc->imported.umm.dma_buf, alloc->imported.umm.dma_attachment);
-		dma_buf_put(alloc->imported.umm.dma_buf);
+		if (alloc->imported.umm.dma_buf && alloc->imported.umm.dma_attachment) {
+			dma_buf_detach(alloc->imported.umm.dma_buf,
+				       alloc->imported.umm.dma_attachment);
+			dma_buf_put(alloc->imported.umm.dma_buf);
+		}
 		break;
 	case KBASE_MEM_TYPE_IMPORTED_USER_BUF:
 		switch (alloc->imported.user_buf.state) {
@@ -2120,13 +2126,6 @@ bool kbase_check_alloc_flags(unsigned long flags)
 	/* BASE_MEM_IMPORT_SYNC_ON_MAP_UNMAP is only valid for imported memory
 	 */
 	if ((flags & BASE_MEM_IMPORT_SYNC_ON_MAP_UNMAP) == BASE_MEM_IMPORT_SYNC_ON_MAP_UNMAP)
-		return false;
-
-	/* Should not combine BASE_MEM_COHERENT_LOCAL with
-	 * BASE_MEM_COHERENT_SYSTEM
-	 */
-	if ((flags & (BASE_MEM_COHERENT_LOCAL | BASE_MEM_COHERENT_SYSTEM)) ==
-	    (BASE_MEM_COHERENT_LOCAL | BASE_MEM_COHERENT_SYSTEM))
 		return false;
 
 #if MALI_USE_CSF
