@@ -243,7 +243,7 @@ static int change_i2c_pinctrl_state(struct exynos5_i2c *i2c, const char *state)
 	struct pinctrl *default_i2c_pinctrl;
 	int status = 0;
 
-	default_i2c_pinctrl = devm_pinctrl_get(i2c->dev);
+	default_i2c_pinctrl = pinctrl_get(i2c->dev);
 	if (IS_ERR(default_i2c_pinctrl)) {
 		dev_err(i2c->dev, "Can't get i2c pinctrl!!!\n");
 		return -1;
@@ -256,12 +256,15 @@ static int change_i2c_pinctrl_state(struct exynos5_i2c *i2c, const char *state)
 					      i2c_pinctrl_state);
 		if (status) {
 			dev_err(i2c->dev, "Can't set i2c pins to state %s!!!\n", state);
+			pinctrl_put(default_i2c_pinctrl);
 			return -1;
 		}
 	} else {
 		dev_err(i2c->dev, "Can't get %s pinstate!!!\n", state);
+		pinctrl_put(default_i2c_pinctrl);
 		return -1;
 	}
+	pinctrl_put(default_i2c_pinctrl);
 	return 0;
 }
 
@@ -825,6 +828,7 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 	int ret = 0;
 	int operation_mode = i2c->operation_mode;
 	bool xfer_timeout;
+	bool idle_timeout;
 	struct cpumask cpu_mask;
 
 	i2c->msg = msgs;
@@ -956,7 +960,8 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 		i2c->has_trailing_bytes = false;
 	}
 
-	if (exynos_i2c_wait_for_master_idle(i2c)) {
+	idle_timeout = exynos_i2c_wait_for_master_idle(i2c);
+	if (idle_timeout) {
 		trans_status = readl(i2c->regs + HSI2C_TRANS_STATUS);
 		dev_err(i2c->dev, "SDA check timeout HSI2C_TRANS_STATUS = 0x%8lx\n",
 				trans_status);
@@ -973,7 +978,8 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 	}
 
 	if (ret) {
-		dump_i2c_register(i2c);
+		if (ret != -ENXIO || xfer_timeout || idle_timeout)
+			dump_i2c_register(i2c);
 		exynos5_i2c_reset(i2c);
 	}
 
