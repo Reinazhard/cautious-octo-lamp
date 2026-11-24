@@ -217,6 +217,11 @@ static int kbasep_migrate_page_pt_mapped(struct page *old_page, struct page *new
 
 	spin_lock(&page_md->migrate_lock);
 
+	if (PAGE_STATUS_GET(page_md->status) == FREE_PT_ISOLATED_IN_PROGRESS) {
+		ret = -EAGAIN;
+		goto early_exit;
+	}
+
 	if (WARN_ONCE(PAGE_STATUS_GET(page_md->status) != PT_MAPPED,
 		      "Page metadata status %d doesn't match expected value %d",
 		      PAGE_STATUS_GET(page_md->status), PT_MAPPED)) {
