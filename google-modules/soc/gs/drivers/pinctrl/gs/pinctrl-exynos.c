@@ -809,7 +809,8 @@ void exynos_pinctrl_suspend(struct samsung_pinctrl_drv_data *drvdata)
 			exynos_eint_flt_config(EXYNOS_EINT_FLTCON_EN,
 					       0, 0, d, bank);
 
-			if (!irq_chip) {
+			if (!irq_chip && drvdata->retention_ctrl &&
+			    bank->irq_chip->set_eint_wakeup_mask) {
 				irq_chip = bank->irq_chip;
 				irq_chip->set_eint_wakeup_mask(drvdata,
 							       irq_chip);
