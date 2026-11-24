@@ -284,7 +284,7 @@ void gpu_dvfs_event_power_off(struct kbase_device *kbdev)
 	mutex_unlock(&pc->dvfs.lock);
 
 	queue_delayed_work(pc->dvfs.clockdown_wq, &pc->dvfs.clockdown_work,
-		pc->dvfs.clockdown_hysteresis);
+		msecs_to_jiffies(pc->dvfs.clockdown_hysteresis));
 }
 
 /**

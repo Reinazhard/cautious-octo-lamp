@@ -80,6 +80,13 @@ extern struct kbase_platform_funcs_conf platform_funcs;
  */
 #define DEFAULT_PM_POWEROFF_TICK_SHADER (5)
 
+/*
+ * Tolerate 5 consecutive idle shader tick expirations before adaptive PM
+ * collapses poweroff hysteresis to 0 ticks, avoiding shader power-gating
+ * churn during bursty frame rendering.
+ */
+#define DEFAULT_PM_ADAPTIVE_HYSTERESIS (5)
+
 /* Linux includes */
 #ifdef CONFIG_MALI_MIDGARD_DVFS
 #include <linux/atomic.h>

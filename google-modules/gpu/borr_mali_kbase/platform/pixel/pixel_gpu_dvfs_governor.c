@@ -162,7 +162,7 @@ gpu_dvfs_governor_quickstep_use_mcu_util(struct kbase_device *kbdev,
 				tbl[level].util_max, mcu_util,
 				tbl[level].mcu_util_max);
 			level -= step_up;
-			pc->dvfs.governor.delay = tbl[level].hysteresis / 2;
+			pc->dvfs.governor.delay = max_t(int, tbl[level].hysteresis / 2, 2);
 		} else {
 			dev_dbg(kbdev->dev,
 				"DVFS +1: %d -> %d (util: %d / %d mcu: %d / %d) \n",
@@ -324,7 +324,7 @@ static int gpu_dvfs_governor_quickstep(struct kbase_device *kbdev,
 			dev_dbg(kbdev->dev, "DVFS +%d: %d -> %d (u: %d / %d)\n",
 				step_up, level, level - step_up, util, tbl[level].util_max);
 			level -= step_up;
-			pc->dvfs.governor.delay = tbl[level].hysteresis / 2;
+			pc->dvfs.governor.delay = max_t(int, tbl[level].hysteresis / 2, 2);
 		} else {
 			dev_dbg(kbdev->dev, "DVFS +1: %d -> %d (u: %d / %d)\n",
 				level, level - 1, util, tbl[level].util_max);
