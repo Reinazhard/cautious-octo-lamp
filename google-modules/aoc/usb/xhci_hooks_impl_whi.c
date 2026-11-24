@@ -86,6 +86,9 @@ static bool is_compatible_with_usb_audio_offload(struct usb_device *udev)
 	int i, j, k;
 	bool is_audio = false;
 
+	if (!udev || !udev->config)
+		return false;
+
 	config = udev->config;
 	for (i = 0; i < config->desc.bNumInterfaces; i++) {
 		intfc = config->intf_cache[i];
@@ -166,6 +169,9 @@ static int xhci_udev_notify(struct notifier_block *self, unsigned long action,
 			    void *dev)
 {
 	struct usb_device *udev = dev;
+
+	if (!offload_data)
+		return NOTIFY_OK;
 
 	switch (action) {
 	case USB_DEVICE_ADD:
@@ -264,6 +270,7 @@ static int usb_audio_offload_init(struct xhci_hcd *xhci)
 	if (ret) {
 		dev_err(dev, "Could not get reserved memory\n");
 		kfree(offload_data);
+		offload_data = NULL;
 		return ret;
 	}
 
@@ -306,6 +313,7 @@ release_rmem:
 
 free_data:
 	kfree(offload_data);
+	offload_data = NULL;
 
 	return ret;
 #endif
@@ -323,8 +331,8 @@ static int usb_audio_offload_setup(struct xhci_hcd *xhci)
 
 static void usb_audio_offload_cleanup(struct xhci_hcd *xhci)
 {
-#if IS_ENABLED(CONFIG_USB_XHCI_GOOG_DMA)
 	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
+#if IS_ENABLED(CONFIG_USB_XHCI_GOOG_DMA)
 	struct iommu_domain	*domain;
 	struct reserved_mem	*rmem;
 	struct device_node	*np;
@@ -372,9 +380,9 @@ static void usb_audio_offload_cleanup(struct xhci_hcd *xhci)
 		if (ret < 0)
 			dev_err(dev, "iommu_map error: %d\n", ret);
 	}
+#endif
 
 	of_reserved_mem_device_release(dev);
-#endif
 
 	kfree(offload_data);
 	offload_data = NULL;
