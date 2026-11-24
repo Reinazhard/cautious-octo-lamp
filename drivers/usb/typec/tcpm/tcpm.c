@@ -35,6 +35,7 @@
 #include <linux/usb/typec_altmode.h>
 
 #include <uapi/linux/sched/types.h>
+#include <trace/hooks/typec.h>
 
 #define FOREACH_STATE(S)			\
 	S(INVALID_STATE),			\
@@ -843,6 +844,12 @@ static void _tcpm_log(struct tcpm_port *port, const char *fmt, va_list args)
 	char tmpbuffer[LOG_BUFFER_ENTRY_SIZE];
 	u64 ts_nsec = local_clock();
 	unsigned long rem_nsec;
+	bool bypass = false;
+
+	vsnprintf(tmpbuffer, sizeof(tmpbuffer), fmt, args);
+	trace_android_vh_typec_tcpm_log(tmpbuffer, &bypass);
+	if (bypass)
+		return;
 
 	mutex_lock(&port->logbuffer_lock);
 	if (!port->logbuffer[port->logbuffer_head]) {
@@ -853,8 +860,6 @@ static void _tcpm_log(struct tcpm_port *port, const char *fmt, va_list args)
 			return;
 		}
 	}
-
-	vsnprintf(tmpbuffer, sizeof(tmpbuffer), fmt, args);
 
 	if (tcpm_log_full(port)) {
 		port->logbuffer_head = max(port->logbuffer_head - 1, 0);
@@ -3566,6 +3571,10 @@ static void tcpm_pd_data_request(struct tcpm_port *port,
 			port->source_caps[i] = le32_to_cpu(msg->payload[i]);
 
 		port->nr_source_caps = cnt;
+
+		trace_android_vh_typec_store_partner_src_caps(port,
+							      &port->nr_source_caps,
+							      &port->source_caps);
 
 		tcpm_log_source_caps(port);
 
@@ -8141,26 +8150,42 @@ static void tcpm_fw_get_timings(struct tcpm_port *port, struct fwnode_handle *fw
 	u32 val;
 
 	ret = fwnode_property_read_u32(fwnode, "sink-wait-cap-time-ms", &val);
-	if (!ret)
+	if (!ret) {
 		port->timings.sink_wait_cap_time = val;
-	else
+	} else {
 		port->timings.sink_wait_cap_time = PD_T_SINK_WAIT_CAP;
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[port->state],
+						      SINK_WAIT_CAP,
+						      &port->timings.sink_wait_cap_time);
+	}
 
 	ret = fwnode_property_read_u32(fwnode, "ps-source-off-time-ms", &val);
-	if (!ret)
+	if (!ret) {
 		port->timings.ps_src_off_time = val;
-	else
+	} else {
 		port->timings.ps_src_off_time = PD_T_PS_SOURCE_OFF;
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[port->state],
+						      SOURCE_OFF,
+						      &port->timings.ps_src_off_time);
+	}
 
 	ret = fwnode_property_read_u32(fwnode, "cc-debounce-time-ms", &val);
-	if (!ret)
+	if (!ret) {
 		port->timings.cc_debounce_time = val;
-	else
+	} else {
 		port->timings.cc_debounce_time = PD_T_CC_DEBOUNCE;
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[port->state],
+						      CC_DEBOUNCE,
+						      &port->timings.cc_debounce_time);
+	}
 
 	ret = fwnode_property_read_u32(fwnode, "sink-bc12-completion-time-ms", &val);
 	if (!ret)
 		port->timings.snk_bc12_cmpletion_time = val;
+	else
+		trace_android_vh_typec_tcpm_get_timer(tcpm_states[port->state],
+						      SINK_DISCOVERY_BC12,
+						      &port->timings.snk_bc12_cmpletion_time);
 }
 
 static void tcpm_fw_get_pd_ident(struct tcpm_port *port)
