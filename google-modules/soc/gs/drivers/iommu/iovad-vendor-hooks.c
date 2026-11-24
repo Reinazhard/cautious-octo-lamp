@@ -9,6 +9,8 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <trace/hooks/iommu.h>
+#include <linux/of.h>
+#include <linux/spinlock.h>
 
 union iovad_vendor_hooks {
 	struct  {
@@ -22,13 +24,75 @@ union iovad_vendor_hooks {
 
 static_assert(sizeof(union iovad_vendor_hooks) == 8);
 
+#define MAX_IOVAD_ENTRIES 8
+
+struct iovad_hook_entry {
+	const struct iova_domain *iovad;
+	union iovad_vendor_hooks hooks;
+};
+
+static struct iovad_hook_entry iovad_entries[MAX_IOVAD_ENTRIES];
+static int nr_iovad_entries;
+static DEFINE_SPINLOCK(iovad_entries_lock);
+
+/*
+ * Wait-free reader for alloc_iova() hot paths (may run in IRQ context).
+ * Pairs with smp_store_release() in iovad_hooks_store().
+ */
+static union iovad_vendor_hooks iovad_hooks_load(const struct iova_domain *iovad)
+{
+	union iovad_vendor_hooks hooks = { .val = 0 };
+	int i, n = smp_load_acquire(&nr_iovad_entries);
+
+	for (i = 0; i < n; i++) {
+		if (READ_ONCE(iovad_entries[i].iovad) == iovad) {
+			hooks.val = READ_ONCE(iovad_entries[i].hooks.val);
+			break;
+		}
+	}
+	return hooks;
+}
+
+static void iovad_hooks_store(struct device *dev, const struct iova_domain *iovad,
+			      union iovad_vendor_hooks hooks)
+{
+	unsigned long flags;
+	int i;
+
+	/* Fast path: domain needs no overrides and no prior entry could exist */
+	if (!hooks.val && !READ_ONCE(nr_iovad_entries))
+		return;
+
+	spin_lock_irqsave(&iovad_entries_lock, flags);
+	for (i = 0; i < nr_iovad_entries; i++) {
+		if (iovad_entries[i].iovad == iovad) {
+			WRITE_ONCE(iovad_entries[i].hooks.val, hooks.val);
+			goto out;
+		}
+	}
+
+	if (!hooks.val)
+		goto out;
+
+	if (nr_iovad_entries < MAX_IOVAD_ENTRIES) {
+		WRITE_ONCE(iovad_entries[nr_iovad_entries].iovad, iovad);
+		WRITE_ONCE(iovad_entries[nr_iovad_entries].hooks.val, hooks.val);
+		smp_store_release(&nr_iovad_entries, nr_iovad_entries + 1);
+	} else {
+		dev_warn(dev, "IOVA vendor hooks table full (max %d)\n",
+			 MAX_IOVAD_ENTRIES);
+	}
+out:
+	spin_unlock_irqrestore(&iovad_entries_lock, flags);
+}
+
 static void iommu_limit_align_shift(void *unused, struct iova_domain *iovad, unsigned long size,
 				    unsigned long *shift)
 {
 	unsigned long max_align_shift;
 	union iovad_vendor_hooks iovad_hooks;
 
-	iovad_hooks.val = iovad->android_vendor_data1;
+	iovad_hooks = iovad_hooks_load(iovad);
 	// if not set "iommu-max-align-shift", keep *shift untouched and return
 	if (!iovad_hooks.enable_max_align)
 		return;
@@ -142,7 +206,7 @@ static void iommu_alloc_insert_iova(void *unused, struct iova_domain *iovad, uns
 	if (!iovad || !ret)
 		return;
 
-	iovad_hooks.val = iovad->android_vendor_data1;
+	iovad_hooks = iovad_hooks_load(iovad);
 	if (!iovad_hooks.enable_best_fit) {
 		// use default
 		*ret = 1;
@@ -169,7 +233,7 @@ static void iommu_iovad_init_alloc_algo(void *unused, struct device *dev, struct
 		dev_info(dev, "IOVA max alignment shift %u\n", iovad_hooks.max_align_shift);
 	}
 
-	iovad->android_vendor_data1 = iovad_hooks.val;
+	iovad_hooks_store(dev, iovad, iovad_hooks);
 }
 
 static int __init iovad_vendor_hooks_init(void)
