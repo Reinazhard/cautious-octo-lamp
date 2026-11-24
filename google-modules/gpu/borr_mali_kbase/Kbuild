@@ -108,10 +108,11 @@ CONFIG_MALI_DEVFREQ := y
 CONFIG_MALI_REAL_HW := y
 ccflags-y += -DCONFIG_MALI_REAL_HW=1
 ccflags-y += -DCONFIG_MALI_PIXEL_GPU_QOS=1
+ccflags-y += -DCONFIG_MALI_PIXEL_GPU_BTS=1
 ccflags-y += -DCONFIG_MALI_PIXEL_GPU_THERMAL=1
 ccflags-y += -DCONFIG_MALI_PIXEL_GPU_SLC=1
 
-ifneq ($(CONFIG_MALI_KUTF), n)
+ifeq ($(CONFIG_MALI_KUTF), y)
     MALI_KERNEL_TEST_API ?= 1
 else
     MALI_KERNEL_TEST_API ?= 0
@@ -228,7 +229,6 @@ ifneq ($(CONFIG_MALI_CSF_SUPPORT),y)
         mali_kbase_kinstr_jm.o
 
     mali_kbase-$(CONFIG_SYNC_FILE) += \
-        mali_kbase_fence_ops.o \
         mali_kbase_fence.o
 endif
 

@@ -79,6 +79,7 @@ void kbase_kinstr_prfcnt_suspend(struct kbase_kinstr_prfcnt_context *kinstr_ctx)
  */
 void kbase_kinstr_prfcnt_resume(struct kbase_kinstr_prfcnt_context *kinstr_ctx);
 
+#if MALI_KERNEL_TEST_API
 /**
  * kbasep_kinstr_prfcnt_get_block_info_list() - Get list of all block types
  *                                              with their information.
@@ -150,6 +151,7 @@ int kbasep_kinstr_prfcnt_client_create(struct kbase_kinstr_prfcnt_context *kinst
  */
 int kbasep_kinstr_prfcnt_cmd(struct kbase_kinstr_prfcnt_client *cli,
 			     struct prfcnt_control_cmd *control_cmd);
+#endif /* MALI_KERNEL_TEST_API */
 
 /**
  * kbasep_kinstr_prfcnt_client_destroy() - Destroy a kinstr_prfcnt client.
