@@ -560,33 +560,34 @@ static int exynos_atomic_helper_wait_for_fences(struct drm_device *dev,
 				struct drm_crtc_state *new_crtc_state;
 
 				new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
-				if (!new_crtc_state ||
-					!new_crtc_state->enable || !new_crtc_state->active)
-					continue;
-				new_exynos_crtc_state = to_exynos_crtc_state(new_crtc_state);
-				if (!new_exynos_crtc_state->skip_update &&
-					   cfg->mode.op_mode != DECON_VIDEO_MODE) {
-					new_exynos_crtc_state->skip_update = true;
-					pr_warn("%s: skip frame update at %s\n",
-									__func__, crtc->name);
+				if (new_crtc_state && new_crtc_state->enable &&
+				    new_crtc_state->active) {
+					new_exynos_crtc_state = to_exynos_crtc_state(new_crtc_state);
+					if (!new_exynos_crtc_state->skip_update &&
+					    cfg->mode.op_mode != DECON_VIDEO_MODE) {
+						new_exynos_crtc_state->skip_update = true;
+						pr_warn("%s: skip frame update at %s\n",
+							__func__, crtc->name);
+					}
 				}
 			}
 			print_drm_plane_state_info(&p, new_plane_state);
 
-			spin_lock_irq(dma_fence_spinlock(fence));
+			rcu_read_lock();
 			drm_printf(&p, "fence: %s-%s %llu-%llu status:%s\n",
-				fence->ops ? fence->ops->get_driver_name(fence) : "none",
-				fence->ops ? fence->ops->get_timeline_name(fence) : "none",
+				(__force const char *)dma_fence_driver_name(fence),
+				(__force const char *)dma_fence_timeline_name(fence),
 				fence->context, fence->seqno,
-				dma_fence_get_status_locked(fence) < 0 ? "error" : "active");
+				dma_fence_get_status(fence) < 0 ? "error" : "active");
 			if (test_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags)) {
-				struct timespec64 ts64 = ktime_to_timespec64(fence->timestamp);
+				struct timespec64 ts64 =
+					ktime_to_timespec64(dma_fence_timestamp(fence));
 				drm_printf(&p, "fence: timestamp:%lld.%09ld\n",
 					(s64)ts64.tv_sec, ts64.tv_nsec);
 			}
+			rcu_read_unlock();
 			if (fence->error)
 				drm_printf(&p, "fence: err=%d\n", fence->error);
-			spin_unlock_irq(dma_fence_spinlock(fence));
 
 			tmo = 0;
 			err = -ETIMEDOUT;

@@ -232,6 +232,10 @@ static void writeback_atomic_commit(struct drm_connector *connector,
 
 	if (wb->state == WB_STATE_OFF) {
 		pr_info("writeback(dpp%d) disabled(%d)\n", wb->id, wb->state);
+		if (state->writeback_job) {
+			drm_writeback_queue_job(wb_conn, state);
+			drm_writeback_signal_completion(wb_conn, -ECANCELED);
+		}
 		return;
 	}
 

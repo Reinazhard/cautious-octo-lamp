@@ -474,6 +474,9 @@ static void exynos_plane_atomic_update(struct drm_plane *plane,
 	if (!state->crtc)
 		return;
 
+	if (to_exynos_crtc_state(state->crtc->state)->skip_update)
+		return;
+
 	exynos_crtc = to_exynos_crtc(state->crtc);
 
 	if (!state->visible)
@@ -488,6 +491,9 @@ static void exynos_plane_atomic_disable(struct drm_plane *plane,
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);
 
 	if (!old_state || !old_state->crtc)
+		return;
+
+	if (to_exynos_crtc_state(old_state->crtc->state)->skip_update)
 		return;
 
 	exynos_plane_disable(plane, old_state->crtc);
