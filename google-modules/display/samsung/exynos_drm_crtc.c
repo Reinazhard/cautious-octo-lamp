@@ -429,11 +429,9 @@ exynos_drm_crtc_duplicate_state(struct drm_crtc *crtc)
 	int i;
 
 	exynos_crtc_state = to_exynos_crtc_state(crtc->state);
-	copy = kzalloc(sizeof(*copy), GFP_KERNEL);
+	copy = kmemdup(exynos_crtc_state, sizeof(*copy), GFP_KERNEL);
 	if (!copy)
 		return NULL;
-
-	memcpy(copy, exynos_crtc_state, sizeof(*copy));
 
 	if (copy->cgc_lut)
 		drm_property_blob_get(copy->cgc_lut);

@@ -1936,7 +1936,7 @@ static int dsim_reg_set_ulps(u32 id, u32 en, u32 lanes)
 			return ret;
 
 		/* wait at least 1ms : Twakeup time for MARK1 state  */
-		udelay(1000);
+		usleep_range(1000, 1100);
 
 		/* Clear ULPS exit request */
 		dsim_reg_exit_ulps(id, 0);

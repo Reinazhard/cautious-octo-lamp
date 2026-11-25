@@ -2065,9 +2065,9 @@ int decon_reg_wait_update_done_timeout(u32 id, unsigned long timeout_us)
 	u32 val;
 	int ret;
 
-	ret = readl_poll_timeout_atomic(
+	ret = readl_poll_timeout(
 			decon_regs_desc(id)->regs + SHD_REG_UP_REQ, val,
-			!val, 10, timeout_us);
+			!val, 50, timeout_us);
 	if (ret) {
 		cal_log_err(id, "timeout of updating decon registers (0x%x)\n", val);
 

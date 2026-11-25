@@ -137,7 +137,10 @@ static inline void _tracing_mark_write(char type, int pid, int value, const char
  * Used to trace a variable or counter with an integer value
  */
 #define DPU_ATRACE_INT_PID(name, value, pid) \
-	_tracing_mark_write('C', pid, value, name)
+	do { \
+		if (trace_tracing_mark_write_enabled()) \
+			_tracing_mark_write('C', pid, value, name); \
+	} while (0)
 
 /**
  * DPU_ATRACE_INT() - used to trace an integer value
@@ -157,7 +160,10 @@ static inline void _tracing_mark_write(char type, int pid, int value, const char
  * but may be used to keep track of the duration of more high-level operations.
  */
 #define DPU_ATRACE_BEGIN(...) \
-	_tracing_mark_write('B', current->tgid, 0, __VA_ARGS__)
+	do { \
+		if (trace_tracing_mark_write_enabled()) \
+			_tracing_mark_write('B', current->tgid, 0, __VA_ARGS__); \
+	} while (0)
 
 /**
  * DPU_ATRACE_END() - used to trace end of a scope
@@ -167,7 +173,10 @@ static inline void _tracing_mark_write(char type, int pid, int value, const char
  * but may be used to keep track of the duration of more high-level operations.
  */
 #define DPU_ATRACE_END(...) \
-	_tracing_mark_write('E', current->tgid, 0, "")
+	do { \
+		if (trace_tracing_mark_write_enabled()) \
+			_tracing_mark_write('E', current->tgid, 0, ""); \
+	} while (0)
 
 /**
  * DPU_ATRACE_INSTANT_PID() - used to trace an instantaneous event
@@ -178,7 +187,10 @@ static inline void _tracing_mark_write(char type, int pid, int value, const char
  * Used to trace an instantaneous event with a string value
  */
 #define DPU_ATRACE_INSTANT_PID(name, pid) \
-	_tracing_mark_write('I', pid, 0, name)
+	do { \
+		if (trace_tracing_mark_write_enabled()) \
+			_tracing_mark_write('I', pid, 0, name); \
+	} while (0)
 
 /**
  * DPU_ATRACE_INSTANT() - used to trace an instantaneous event

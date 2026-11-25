@@ -609,11 +609,6 @@ static int dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 	} else {
 		config->is_block = false;
 	}
-#if IS_ENABLED(CONFIG_ARM_EXYNOS_DEVFREQ)
-	config->rcv_num = exynos_devfreq_get_domain_freq(DEVFREQ_DISP) ? : 0x7FFFFFFF;
-#else
-	config->rcv_num = 0x7FFFFFFF;
-#endif
 
 	return 0;
 }
@@ -1121,6 +1116,12 @@ static int dpp_update(struct dpp_device *dpp,
 	ret = dpp_convert_plane_state_to_config(config, state, mode);
 	if (ret)
 		return ret;
+
+#if IS_ENABLED(CONFIG_ARM_EXYNOS_DEVFREQ)
+	config->rcv_num = exynos_devfreq_get_domain_freq(DEVFREQ_DISP) ? : 0x7FFFFFFF;
+#else
+	config->rcv_num = 0x7FFFFFFF;
+#endif
 
 	config->in_bpc = exynos_crtc_state->in_bpc == 8 ? DPP_BPC_8 : DPP_BPC_10;
 	dpp_debug(dpp, "in/force bpc(%d/%d)\n", exynos_crtc_state->in_bpc,

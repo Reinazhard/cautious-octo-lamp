@@ -77,8 +77,6 @@ int hibernation_block(struct exynos_hibernation *hiber)
 
 	block_cnt = atomic_inc_return(&hiber->block_cnt);
 	DPU_ATRACE_INT_PID("hiber_blk_cnt", block_cnt, hiber->decon->thread->pid);
-	kthread_mod_delayed_work(&hiber->decon->worker, &hiber->dwork,
-			msecs_to_jiffies(HIBERNATION_ENTRY_MIN_TIME_MS));
 
 	return block_cnt;
 }

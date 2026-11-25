@@ -31,11 +31,9 @@ exynos_drm_plane_duplicate_state(struct drm_plane *plane)
 	struct exynos_drm_plane_state *copy;
 
 	old_exynos_state = to_exynos_plane_state(old_state);
-	copy = kzalloc(sizeof(*old_exynos_state), GFP_KERNEL);
+	copy = kmemdup(old_exynos_state, sizeof(*old_exynos_state), GFP_KERNEL);
 	if (!copy)
 		return NULL;
-
-	memcpy(copy, old_exynos_state, sizeof(*old_exynos_state));
 
 	if (copy->eotf_lut)
 		drm_property_blob_get(copy->eotf_lut);

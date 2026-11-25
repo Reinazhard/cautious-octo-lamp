@@ -379,16 +379,13 @@ static void exynos_atomic_bts_pre_update(struct drm_device *dev,
 
 			plane_state_to_win_config(win_config, new_plane_state, dpp);
 
-			decon->dpp[i]->dbg_dma_addr =
+			dpp->dbg_dma_addr =
 				exynos_drm_fb_dma_addr(new_plane_state->fb, 0);
 		}
 
 		if ((old_plane_state->crtc != new_plane_state->crtc) &&
-		    old_plane_state->crtc) {
-			decon = crtc_to_decon(old_plane_state->crtc);
-
-			decon->dpp[i]->dbg_dma_addr = 0;
-		}
+		    old_plane_state->crtc)
+			dpp->dbg_dma_addr = 0;
 	}
 
 	for_each_oldnew_connector_in_state(old_state, conn, old_conn_state,
