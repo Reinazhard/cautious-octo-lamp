@@ -35,78 +35,81 @@
 static inline int mfc_core_wait_fw_status(struct mfc_core *core)
 {
 	struct mfc_dev *dev = core->dev;
-	unsigned int status;
 	unsigned long timeout;
 
-	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->wait_fw_status)) {
-		status = MFC_CORE_READL(MFC_REG_FIRMWARE_STATUS_INFO);
-		if (status & 0x1)
+	if (!MFC_FEATURE_SUPPORT(dev, dev->pdata->wait_fw_status))
+		return 0;
+
+	timeout = jiffies + msecs_to_jiffies(MFC_BW_TIMEOUT);
+	for (;;) {
+		if (MFC_CORE_READL(MFC_REG_FIRMWARE_STATUS_INFO) & 0x1)
 			return 0;
-
-		timeout = jiffies + msecs_to_jiffies(MFC_BW_TIMEOUT);
-		do {
-			if (time_after(jiffies, timeout)) {
-				mfc_core_err("Timeout while waiting MFC F/W done\n");
-				return -EIO;
-			}
-			status = MFC_CORE_READL(MFC_REG_FIRMWARE_STATUS_INFO);
-		} while ((status & 0x1) == 0);
+		if (time_after(jiffies, timeout)) {
+			if (MFC_CORE_READL(MFC_REG_FIRMWARE_STATUS_INFO) & 0x1)
+				return 0;
+			mfc_core_err("Timeout while waiting MFC F/W done\n");
+			return -EIO;
+		}
+		cpu_relax();
 	}
-
-	return 0;
 }
 
 static inline int mfc_core_wait_nal_q_status(struct mfc_core *core)
 {
 	struct mfc_dev *dev = core->dev;
-	unsigned int status;
 	unsigned long timeout;
 
-	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->wait_nalq_status)) {
-		status = MFC_CORE_READL(MFC_REG_FIRMWARE_STATUS_INFO);
-		if (status & 0x2)
+	if (!MFC_FEATURE_SUPPORT(dev, dev->pdata->wait_nalq_status))
+		return 0;
+
+	timeout = jiffies + msecs_to_jiffies(MFC_BW_TIMEOUT);
+	for (;;) {
+		if (MFC_CORE_READL(MFC_REG_FIRMWARE_STATUS_INFO) & 0x2)
 			return 0;
-
-		timeout = jiffies + msecs_to_jiffies(MFC_BW_TIMEOUT);
-		do {
-			if (time_after(jiffies, timeout)) {
-				mfc_core_err("Timeout while waiting NALQ status\n");
-				return -EIO;
-			}
-			status = MFC_CORE_READL(MFC_REG_FIRMWARE_STATUS_INFO);
-		} while ((status & 0x2) == 0);
+		if (time_after(jiffies, timeout)) {
+			if (MFC_CORE_READL(MFC_REG_FIRMWARE_STATUS_INFO) & 0x2)
+				return 0;
+			mfc_core_err("Timeout while waiting NALQ status\n");
+			return -EIO;
+		}
+		cpu_relax();
 	}
-
-	return 0;
 }
 
 static inline int mfc_core_wait_pending(struct mfc_core *core)
 {
-	unsigned int status;
 	unsigned long timeout;
 
 	/* Check F/W wait status */
 	timeout = jiffies + msecs_to_jiffies(MFC_BW_TIMEOUT);
-	do {
+	for (;;) {
+		if (MFC_CORE_READL(MFC_REG_FIRMWARE_STATUS_INFO) & 0x1)
+			break;
 		if (time_after(jiffies, timeout)) {
+			if (MFC_CORE_READL(MFC_REG_FIRMWARE_STATUS_INFO) & 0x1)
+				break;
 			mfc_core_err("Timeout while waiting MFC F/W done\n");
 			return -EIO;
 		}
-		status = MFC_CORE_READL(MFC_REG_FIRMWARE_STATUS_INFO);
-	} while ((status & 0x1) == 0);
+		cpu_relax();
+	}
 
 	/* Check H/W pending status */
 	timeout = jiffies + msecs_to_jiffies(MFC_BW_TIMEOUT);
-	do {
+	for (;;) {
+		if (MFC_CORE_READL(MFC_REG_MFC_RPEND) == 0)
+			break;
 		if (time_after(jiffies, timeout)) {
+			if (MFC_CORE_READL(MFC_REG_MFC_RPEND) == 0)
+				break;
 			mfc_core_err("Timeout while pendng clear\n");
 			mfc_core_err("MFC access pending R: %#x, BUS: %#x\n",
 					MFC_CORE_READL(MFC_REG_MFC_RPEND),
 					MFC_CORE_READL(MFC_REG_MFC_BUS_STATUS));
 			return -EIO;
 		}
-		status = MFC_CORE_READL(MFC_REG_MFC_RPEND);
-	} while (status != 0);
+		cpu_relax();
+	}
 
 	MFC_TRACE_CORE("** pending wait done\n");
 
@@ -115,7 +118,6 @@ static inline int mfc_core_wait_pending(struct mfc_core *core)
 
 static inline int mfc_core_stop_bus(struct mfc_core *core)
 {
-	unsigned int status;
 	unsigned long timeout;
 
 	/* Reset */
@@ -123,15 +125,17 @@ static inline int mfc_core_stop_bus(struct mfc_core *core)
 
 	timeout = jiffies + msecs_to_jiffies(MFC_BW_TIMEOUT);
 	/* Check bus status */
-	do {
+	for (;;) {
+		if (MFC_CORE_READL(MFC_REG_MFC_BUS_RESET_CTRL) & 0x2)
+			return 0;
 		if (time_after(jiffies, timeout)) {
+			if (MFC_CORE_READL(MFC_REG_MFC_BUS_RESET_CTRL) & 0x2)
+				return 0;
 			mfc_core_err("Timeout while resetting MFC.\n");
 			return -EIO;
 		}
-		status = MFC_CORE_READL(MFC_REG_MFC_BUS_RESET_CTRL);
-	} while ((status & 0x2) == 0);
-
-	return 0;
+		cpu_relax();
+	}
 }
 
 static inline void mfc_core_start_bus(struct mfc_core *core)
@@ -160,8 +164,14 @@ static inline void mfc_core_risc_off(struct mfc_core *core)
 
 	timeout = jiffies + msecs_to_jiffies(MFC_BW_TIMEOUT);
 	/* Check pending status */
-	do {
+	for (;;) {
+		status = MFC_CORE_READL(MFC_REG_MFC_BUS_STATUS);
+		if (status == 0)
+			break;
 		if (time_after(jiffies, timeout)) {
+			status = MFC_CORE_READL(MFC_REG_MFC_BUS_STATUS);
+			if (status == 0)
+				break;
 			mfc_core_err("Timeout while pendng clear\n");
 			mfc_core_err("MFC access pending state: %#x\n", status);
 			mfc_core_err("MFC access pending R: %#x, W: %#x\n",
@@ -169,8 +179,8 @@ static inline void mfc_core_risc_off(struct mfc_core *core)
 					MFC_CORE_READL(MFC_REG_MFC_WPEND));
 			break;
 		}
-		status = MFC_CORE_READL(MFC_REG_MFC_BUS_STATUS);
-	} while (status != 0);
+		cpu_relax();
+	}
 
 	MFC_CORE_WRITEL(0x0, MFC_REG_RISC_ON);
 }
