@@ -36,6 +36,7 @@ static inline void mfc_perf_measure_on(struct mfc_core *core) {}
 static inline void mfc_perf_measure_off(struct mfc_core *core) {}
 static inline void mfc_perf_trace(struct mfc_ctx *ctx, char* tag, int counter)
 {
+#ifndef NOTRACE
 	char trace_name[32];
 	if (ctx->crop_width != 0 && ctx->crop_height != 0) {
 		scnprintf(trace_name, sizeof(trace_name), "mfc-%s-%s-%dx%d#%d-%.*s",
@@ -48,13 +49,16 @@ static inline void mfc_perf_trace(struct mfc_ctx *ctx, char* tag, int counter)
 			ctx->type == MFCINST_ENCODER ? ctx->dst_fmt->name: ctx->src_fmt->name);
 		__ATRACE_INT_PID(0, trace_name, counter);
 	}
+#endif
 }
 
 static inline void mfc_perf_core_trace(char* tag, int counter)
 {
+#ifndef NOTRACE
 	char trace_name[32];
 	scnprintf(trace_name, sizeof(trace_name), "mfc-core-%s", tag);
 	__ATRACE_INT_PID(0, trace_name, counter);
+#endif
 }
 
 #else

@@ -114,10 +114,17 @@ static inline int mfc_bufcon_get_buf_count(struct dma_buf *dmabuf)
 
 static inline void mfc_print_dpb_table(struct mfc_ctx *ctx)
 {
+#ifdef DEBUG
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_buf *mfc_buf = NULL;
 	unsigned long flags;
 	int i, found = 0, in_nal_q = 0;
+
+	if (likely(!((logging_option & MFC_LOGGING_PRINTK) && (debug_level >= 3)) &&
+		   !(ctx->dev->memlog.log_enable &&
+		     (logging_option & MFC_LOGGING_MEMLOG_PRINTF) &&
+		     (memlog_level >= 3))))
+		return;
 
 	mfc_debug(3, "[DPB] dynamic_used: %#lx, queued: %#lx, table_used: %#lx\n",
 			dec->dynamic_used, dec->queued_dpb, dec->dpb_table_used);
@@ -150,6 +157,7 @@ static inline void mfc_print_dpb_table(struct mfc_ctx *ctx)
 				dec->dpb[i].queued ? "Q" : "DQ",
 				in_nal_q ? " in NALQ" : "");
 	}
+#endif
 }
 
 struct vb2_mem_ops *mfc_mem_ops(void);
