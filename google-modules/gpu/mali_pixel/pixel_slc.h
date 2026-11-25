@@ -7,6 +7,7 @@
 #ifndef _PIXEL_SLC_H_
 #define _PIXEL_SLC_H_
 
+#include <linux/mutex.h>
 #include <soc/google/pt.h>
 
 /**
@@ -49,8 +50,11 @@ struct slc_partition {
 	/** @refcount: Reference count for this partition */
 	atomic_t refcount;
 
-	/** @lock: Lock protecting enable/disable ops on this partition */
+	/** @lock: Lock protecting partition requirement state */
 	spinlock_t lock;
+
+	/** @hw_lock: Mutex serializing sleepable SLC hardware enable/disable ops */
+	struct mutex hw_lock;
 
 	/** @signal: Partition enable/disable signal from SLC governor */
 	u64 signal;
