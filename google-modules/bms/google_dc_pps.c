@@ -239,20 +239,23 @@ bool pps_prog_check_online(struct pd_pps_data *pps_data,
 
 		pps_data->stage = pps_is_avail(pps_data, tcpm_psy);
 		if (pps_data->stage != PPS_AVAILABLE) {
-			pr_debug("%s: not available\n", __func__);
+			pr_warn("%s: %s not available\n", __func__,
+				pps_name(tcpm_psy));
 			goto not_supp;
 		}
 
 		rc = pps_ping(pps_data, tcpm_psy);
 		if (rc < 0) {
-			pr_debug("%s: ping failed %d\n", __func__, rc);
+			pr_warn("%s: %s ping failed %d\n", __func__,
+				pps_name(tcpm_psy), rc);
 			goto not_supp;
 		}
 
 		pps_data->last_update = get_boot_sec();
 		rc = pps_get_src_cap(pps_data, tcpm_psy);
 		if (rc < 0) {
-			pr_debug("%s: no source caps %d\n", __func__, rc);
+			pr_warn("%s: %s no source caps %d\n", __func__,
+				pps_name(tcpm_psy), rc);
 			goto not_supp;
 		}
 
