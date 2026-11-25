@@ -3978,6 +3978,10 @@ error:
 			pca9468->charging_state, pca9468->timer_period, ret);
 
 	pca9468_stop_charging(pca9468);
+	pca9468_vote_dc_avail(pca9468, 0);
+	mutex_lock(&pca9468->lock);
+	pca9468->charging_state = DC_STATE_ERROR;
+	mutex_unlock(&pca9468->lock);
 }
 
 /* delayed work function for pps periodic timer */
