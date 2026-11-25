@@ -10,7 +10,7 @@
 &max77759_chg {
 	max77759,bst-on-gpio = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>;
 	max77759,bst-sel-gpio = <&s2mpg10_gpio 3 GPIO_ACTIVE_HIGH>;
-	max77759,extbst-ctl = <&max77759_tcpc_gpio 0 GPIO_ACTIVE_HIGH>;
+	max77759,extbst-ctl-gpio = <&max77759_tcpc_gpio 0 GPIO_ACTIVE_HIGH>;
 	max77759,extbst-mode-gpio = <&s2mpg10_gpio 4 GPIO_ACTIVE_HIGH>;
 	max77759,ls1-en-gpio = <&max20339_gpio 0 GPIO_ACTIVE_HIGH>;
 	max77759,ls2-en-gpio = <&max20339_gpio 1 GPIO_ACTIVE_HIGH>;
