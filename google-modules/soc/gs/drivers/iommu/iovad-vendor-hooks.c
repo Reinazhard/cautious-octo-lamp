@@ -134,7 +134,8 @@ static void __iova_insert_rbtree(struct rb_root *root, struct iova *iova, struct
 
 static int __alloc_and_insert_iova_best_fit(struct iova_domain *iovad, unsigned long size,
 					    unsigned long limit_pfn, struct iova *new,
-					    bool size_aligned)
+					    bool size_aligned,
+					    union iovad_vendor_hooks iovad_hooks)
 {
 	struct rb_node *curr, *prev;
 	struct iova *curr_iova, *prev_iova;
@@ -147,38 +148,60 @@ static int __alloc_and_insert_iova_best_fit(struct iova_domain *iovad, unsigned 
 	if (size_aligned) {
 		unsigned long shift = fls_long(size - 1);
 
-		trace_android_rvh_iommu_limit_align_shift(iovad, size, &shift);
+		if (iovad_hooks.enable_max_align) {
+			unsigned long max_align_shift =
+				iovad_hooks.max_align_shift + PAGE_SHIFT - iova_shift(iovad);
+
+			shift = min_t(unsigned long, max_align_shift, shift);
+		}
 		align_mask <<= shift;
 	}
 
-	/* Walk the tree backwards */
+	/* Walk the tree backwards from the lowest node >= limit_pfn */
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 	curr = &iovad->anchor.node;
+	if (limit_pfn < iovad->anchor.pfn_lo) {
+		struct rb_node *node = iovad->rbroot.rb_node;
+
+		while (node) {
+			curr_iova = rb_entry(node, struct iova, node);
+			if (curr_iova->pfn_lo >= limit_pfn) {
+				curr = node;
+				node = node->rb_left;
+			} else {
+				node = node->rb_right;
+			}
+		}
+	}
 	prev = rb_prev(curr);
 	for (; prev; curr = prev, prev = rb_prev(curr)) {
 		curr_iova = rb_entry(curr, struct iova, node);
 		prev_iova = rb_entry(prev, struct iova, node);
 
 		limit_pfn = min(limit_pfn, curr_iova->pfn_lo);
-		new_pfn = (limit_pfn - size) & align_mask;
-		gap = curr_iova->pfn_lo - prev_iova->pfn_hi - 1;
-		if ((limit_pfn >= size) && (new_pfn > prev_iova->pfn_hi) && (gap < candidate_gap)) {
-			candidate_gap = gap;
-			candidate_pfn = new_pfn;
-			candidate_rb_parent = curr;
-			if (gap == size)
-				goto insert;
+		if (limit_pfn > prev_iova->pfn_hi && limit_pfn >= size) {
+			new_pfn = (limit_pfn - size) & align_mask;
+			gap = limit_pfn - prev_iova->pfn_hi - 1;
+			if (new_pfn > prev_iova->pfn_hi && gap < candidate_gap) {
+				candidate_gap = gap;
+				candidate_pfn = new_pfn;
+				candidate_rb_parent = curr;
+				if (gap == size)
+					goto insert;
+			}
 		}
 	}
 
 	curr_iova = rb_entry(curr, struct iova, node);
 	limit_pfn = min(limit_pfn, curr_iova->pfn_lo);
-	new_pfn = (limit_pfn - size) & align_mask;
-	gap = curr_iova->pfn_lo - iovad->start_pfn;
-	if (limit_pfn >= size && new_pfn >= iovad->start_pfn && gap < candidate_gap) {
-		candidate_gap = gap;
-		candidate_pfn = new_pfn;
-		candidate_rb_parent = curr;
+	if (limit_pfn >= size && limit_pfn >= iovad->start_pfn) {
+		new_pfn = (limit_pfn - size) & align_mask;
+		gap = limit_pfn - iovad->start_pfn;
+		if (new_pfn >= iovad->start_pfn && gap < candidate_gap) {
+			candidate_gap = gap;
+			candidate_pfn = new_pfn;
+			candidate_rb_parent = curr;
+		}
 	}
 
 insert:
@@ -213,7 +236,8 @@ static void iommu_alloc_insert_iova(void *unused, struct iova_domain *iovad, uns
 		return;
 	}
 
-	*ret = __alloc_and_insert_iova_best_fit(iovad, size, limit_pfn, new_iova, size_aligned);
+	*ret = __alloc_and_insert_iova_best_fit(iovad, size, limit_pfn, new_iova,
+						size_aligned, iovad_hooks);
 }
 
 static void iommu_iovad_init_alloc_algo(void *unused, struct device *dev, struct iova_domain *iovad)
