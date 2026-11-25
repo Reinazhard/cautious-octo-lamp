@@ -3260,7 +3260,15 @@ struct kbase_va_region *kbase_jit_allocate(struct kbase_context *kctx,
 								 KBASE_JIT_REPORT_ON_ALLOC_OR_FREE);
 			}
 #endif /* MALI_JIT_PRESSURE_LIMIT_BASE */
+			if (!(reg->flags & KBASE_REG_DONT_NEED)) {
+				kbase_gpu_vm_lock(kctx);
+				kbase_mem_evictable_make(reg->gpu_alloc);
+				kbase_gpu_vm_unlock(kctx);
+			}
 			mutex_lock(&kctx->jit_evict_lock);
+			if ((reg->flags & KBASE_REG_DONT_NEED) &&
+			    list_empty(&reg->gpu_alloc->evict_node))
+				list_add(&reg->gpu_alloc->evict_node, &kctx->evict_list);
 			list_move(&reg->jit_node, &kctx->jit_pool_head);
 			mutex_unlock(&kctx->jit_evict_lock);
 			reg = NULL;

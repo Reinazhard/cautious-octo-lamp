@@ -1627,6 +1627,10 @@ int kbase_jd_init(struct kbase_context *kctx)
 	pcm_device = kctx->kbdev->pcm_dev;
 	kctx->jctx.max_priority = KBASE_JS_ATOM_SCHED_PRIO_REALTIME;
 
+#if IS_ENABLED(CONFIG_SYNC_FILE)
+	u64 fence_context = dma_fence_context_alloc(BASE_JD_ATOM_COUNT);
+#endif
+
 	for (i = 0; i < BASE_JD_ATOM_COUNT; i++) {
 		init_waitqueue_head(&kctx->jctx.atoms[i].completed);
 
@@ -1638,7 +1642,7 @@ int kbase_jd_init(struct kbase_context *kctx)
 		kctx->jctx.atoms[i].status = KBASE_JD_ATOM_STATE_UNUSED;
 
 #if IS_ENABLED(CONFIG_SYNC_FILE)
-		kctx->jctx.atoms[i].dma_fence.context = dma_fence_context_alloc(1);
+		kctx->jctx.atoms[i].dma_fence.context = fence_context + i;
 #endif
 	}
 

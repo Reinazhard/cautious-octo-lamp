@@ -3060,7 +3060,7 @@ void kbase_js_sched(struct kbase_device *kbdev, unsigned int js_mask)
 					spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 					rt_mutex_unlock(&kctx->jctx.sched_info.ctx.jsctx_mutex);
 					if (ctx_count_changed)
-						kbase_backend_ctx_count_changed(kctx->kbdev);
+						kbase_js_sync_timers(kbdev);
 					if (!first_deferred_ctx)
 						first_deferred_ctx = kctx;
 					continue;

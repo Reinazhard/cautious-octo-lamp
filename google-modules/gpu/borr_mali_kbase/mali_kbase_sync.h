@@ -72,15 +72,19 @@ struct kbase_sync_fence_info {
 int kbase_sync_fence_stream_create(const char *name, int *const out_fd);
 
 #if !MALI_USE_CSF
+struct sync_file;
+
 /**
  * kbase_sync_fence_out_create - Create an explicit output fence to specified atom
  *
- * @katom: Atom to assign the new explicit fence to
- * @stream_fd: File descriptor for stream object to create fence on
+ * @katom:         Atom to assign the new explicit fence to
+ * @stream_fd:     File descriptor for stream object to create fence on
+ * @out_sync_file: Output pointer receiving the created sync_file (caller must fd_install)
  *
- * Return: Valid file descriptor to fence or < 0 on error
+ * Return: Valid unused file descriptor to fence or < 0 on error
  */
-int kbase_sync_fence_out_create(struct kbase_jd_atom *katom, int stream_fd);
+int kbase_sync_fence_out_create(struct kbase_jd_atom *katom, int stream_fd,
+				struct sync_file **out_sync_file);
 
 /**
  * kbase_sync_fence_in_from_fd() - Assigns an existing fence to specified atom

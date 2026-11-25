@@ -24,6 +24,7 @@
 #include <linux/dma-buf.h>
 #include <asm/cacheflush.h>
 #if IS_ENABLED(CONFIG_SYNC_FILE)
+#include <linux/sync_file.h>
 #include <mali_kbase_sync.h>
 #include <mali_kbase_fence.h>
 #endif
@@ -226,13 +227,17 @@ static int kbase_dump_cpu_gpu_time(struct kbase_jd_atom *katom)
 void kbase_soft_event_wait_callback(struct kbase_jd_atom *katom)
 {
 	struct kbase_context *kctx = katom->kctx;
+	struct kbase_device *kbdev = kctx->kbdev;
+	bool resched;
 
 	rt_mutex_lock(&kctx->jctx.lock);
 	kbasep_remove_waiting_soft_job(katom);
 	kbase_finish_soft_job(katom);
-	if (kbase_jd_done_nolock(katom, true))
-		kbase_js_sched_all(kctx->kbdev);
+	resched = kbase_jd_done_nolock(katom, true);
 	rt_mutex_unlock(&kctx->jctx.lock);
+
+	if (resched)
+		kbase_js_sched_all(kbdev);
 }
 #endif
 
@@ -357,7 +362,7 @@ static void kbase_fence_debug_wait_timeout(struct kbase_jd_atom *katom)
 
 struct kbase_fence_debug_work {
 	struct kbase_jd_atom *katom;
-	struct work_struct work;
+	struct kthread_work work;
 };
 
 static void kbase_fence_debug_wait_timeout_worker(struct kthread_work *work)
@@ -1590,27 +1595,24 @@ int kbase_prepare_soft_job(struct kbase_jd_atom *katom)
 #if IS_ENABLED(CONFIG_SYNC_FILE)
 	case BASE_JD_REQ_SOFT_FENCE_TRIGGER: {
 		struct base_fence fence;
+		struct sync_file *sync_file;
 		int fd;
 
 		if (copy_from_user(&fence, (__user void *)(uintptr_t)katom->jc, sizeof(fence)) != 0)
 			return -EINVAL;
 
-		fd = kbase_sync_fence_out_create(katom, fence.basep.stream_fd);
+		fd = kbase_sync_fence_out_create(katom, fence.basep.stream_fd, &sync_file);
 		if (fd < 0)
 			return -EINVAL;
 
 		fence.basep.fd = fd;
 		if (copy_to_user((__user void *)(uintptr_t)katom->jc, &fence, sizeof(fence)) != 0) {
+			put_unused_fd(fd);
+			fput(sync_file->file);
 			kbase_sync_fence_out_remove(katom);
-			/* fd should have been closed here, but there's
-				 * no good way of doing that. Since
-				 * copy_to_user() very rarely fails, and the fd
-				 * will get closed on process termination this
-				 * won't be a problem.
-				 */
-			fence.basep.fd = -EINVAL;
 			return -EINVAL;
 		}
+		fd_install((unsigned int)fd, sync_file->file);
 	} break;
 	case BASE_JD_REQ_SOFT_FENCE_WAIT: {
 		struct base_fence fence;

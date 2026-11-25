@@ -557,7 +557,7 @@ struct kbase_jd_atom {
 		struct dma_fence_cb fence_cb;
 		bool fence_cb_added;
 
-		unsigned int context;
+		u64 context;
 		atomic_t seqno;
 	} dma_fence;
 #endif /* CONFIG_SYNC_FILE */

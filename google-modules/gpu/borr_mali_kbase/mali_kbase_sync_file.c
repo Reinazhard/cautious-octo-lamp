@@ -53,7 +53,8 @@ int kbase_sync_fence_stream_create(const char *name, int *const out_fd)
 }
 
 #if !MALI_USE_CSF
-int kbase_sync_fence_out_create(struct kbase_jd_atom *katom, int stream_fd)
+int kbase_sync_fence_out_create(struct kbase_jd_atom *katom, int stream_fd,
+				struct sync_file **out_sync_file)
 {
 	struct dma_fence *fence;
 	struct sync_file *sync_file;
@@ -91,7 +92,7 @@ int kbase_sync_fence_out_create(struct kbase_jd_atom *katom, int stream_fd)
 		return fd;
 	}
 
-	fd_install((unsigned int)fd, sync_file->file);
+	*out_sync_file = sync_file;
 
 	return fd;
 }

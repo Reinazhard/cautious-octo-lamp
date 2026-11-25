@@ -1302,7 +1302,7 @@ void kbase_gpu_complete_hw(struct kbase_device *kbdev, unsigned int js, u32 comp
 				kbase_gpu_dequeue_atom(kbdev, i, end_timestamp);
 
 				if (katom_idx1 && kbase_rb_atom_might_depend(katom, katom_idx1) &&
-				    katom_idx0->gpu_rb_state != KBASE_ATOM_GPU_RB_SUBMITTED) {
+				    katom_idx1->gpu_rb_state != KBASE_ATOM_GPU_RB_SUBMITTED) {
 					/* Dequeue katom_idx1 from ringbuffer */
 					kbase_gpu_dequeue_atom(kbdev, i, end_timestamp);
 
