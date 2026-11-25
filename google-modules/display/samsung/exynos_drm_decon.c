@@ -1073,14 +1073,16 @@ static void decon_wait_earliest_process_time(
 		usleep_range(delay_until_process, delay_until_process + 10);
 		DPU_ATRACE_END("wait for earliest process time");
 
-		if (ktime_to_us(ktime_sub(expected_present_time, ktime_get())) <
+		if (unlikely(trace_tracing_mark_write_enabled()) &&
+		    ktime_to_us(ktime_sub(expected_present_time, ktime_get())) <
 		    WARNING_THRESHOLD_US) {
+			static atomic64_t failure_times = ATOMIC64_INIT(0);
 			char trace_str[64];
-			static uint64_t failure_times = 0;
+			u64 cnt = (u64)atomic64_inc_return(&failure_times);
 
 			scnprintf(trace_str, sizeof(trace_str),
 				  "waiting for expected present time: %d us failure:%llu\n",
-				  delay_until_process, ++failure_times);
+				  delay_until_process, cnt);
 			pr_debug("%s", trace_str);
 			DPU_ATRACE_INSTANT(trace_str);
 		}
