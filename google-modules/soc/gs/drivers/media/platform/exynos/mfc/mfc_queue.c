@@ -978,11 +978,11 @@ int mfc_check_buf_mb_flag(struct mfc_core_ctx *core_ctx, enum mfc_mb_flag f)
 	unsigned long flags;
 	struct mfc_buf *mfc_buf = NULL;
 
-	spin_lock_irqsave(&core_ctx->buf_queue_lock, flags);
+	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
 
 	if (list_empty(&core_ctx->src_buf_queue.head)) {
 		mfc_debug(2, "src_buf_queue is empty\n");
-		spin_unlock_irqrestore(&core_ctx->buf_queue_lock, flags);
+		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 		return -EINVAL;
 	}
 
@@ -992,12 +992,12 @@ int mfc_check_buf_mb_flag(struct mfc_core_ctx *core_ctx, enum mfc_mb_flag f)
 
 	if (mfc_check_mb_flag(mfc_buf, f)) {
 		mfc_debug(2, "find flag %d\n", f);
-		spin_unlock_irqrestore(&core_ctx->buf_queue_lock, flags);
+		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 		return 1;
 	}
 
 	mfc_debug(4, "no flag %d\n", f);
-	spin_unlock_irqrestore(&core_ctx->buf_queue_lock, flags);
+	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 
 	return 0;
 }

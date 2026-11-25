@@ -129,11 +129,14 @@ int mfc_core_get_hwlock_dev_migrate(struct mfc_core *core, struct mfc_core_ctx *
 			((core->hwlock.transfer_owner == 1) && (core->hwlock.dev == 1)),
 			msecs_to_jiffies(MFC_HWLOCK_TIMEOUT));
 
-		/* save migrate info */
-		core->hwlock.migrate = 1;
-		core->hwlock.mig_core_ctx = core_ctx;
-
+		spin_lock_irqsave(&core->hwlock.lock, flags);
+		if (ret != 0) {
+			/* save migrate info */
+			core->hwlock.migrate = 1;
+			core->hwlock.mig_core_ctx = core_ctx;
+		}
 		core->hwlock.transfer_owner = 0;
+		spin_unlock_irqrestore(&core->hwlock.lock, flags);
 		__mfc_remove_listable_wq_core(core);
 		if (ret == 0) {
 			mfc_err("Woken up but timed out\n");
@@ -205,7 +208,9 @@ int mfc_core_get_hwlock_dev(struct mfc_core *core)
 			((core->hwlock.transfer_owner == 1) && (core->hwlock.dev == 1)),
 			msecs_to_jiffies(MFC_HWLOCK_TIMEOUT));
 
+		spin_lock_irqsave(&core->hwlock.lock, flags);
 		core->hwlock.transfer_owner = 0;
+		spin_unlock_irqrestore(&core->hwlock.lock, flags);
 		__mfc_remove_listable_wq_core(core);
 		if (ret == 0) {
 			mfc_core_err("Woken up but timed out\n");
@@ -291,7 +296,9 @@ int mfc_core_get_hwlock_ctx(struct mfc_core_ctx *core_ctx)
 			((core->hwlock.transfer_owner == 1) && (test_bit(core_ctx->num, &core->hwlock.bits))),
 			msecs_to_jiffies(MFC_HWLOCK_TIMEOUT));
 
+		spin_lock_irqsave(&core->hwlock.lock, flags);
 		core->hwlock.transfer_owner = 0;
+		spin_unlock_irqrestore(&core->hwlock.lock, flags);
 		__mfc_remove_listable_wq_ctx(core_ctx);
 		if (ret == 0) {
 			mfc_err("Woken up but timed out\n");

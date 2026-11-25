@@ -962,6 +962,7 @@ static int mfc_core_suspend(struct device *device)
 	ret = mfc_core_run_sleep(core);
 	if (ret) {
 		mfc_core_err("Failed core_run_sleep\n");
+		mfc_core_release_hwlock_dev(core);
 		return -EFAULT;
 	}
 
@@ -1042,6 +1043,7 @@ static int mfc_core_resume(struct device *device)
 	ret = mfc_core_run_wakeup(core);
 	if (ret) {
 		mfc_core_err("Failed core_run_wakeup\n");
+		mfc_core_release_hwlock_dev(core);
 		return -EFAULT;
 	}
 

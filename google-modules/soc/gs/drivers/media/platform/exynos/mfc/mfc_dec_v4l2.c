@@ -1010,6 +1010,8 @@ static int mfc_dec_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		mfc_debug(4, "dec src buf[%d] DQ\n", buf->index);
 	} else {
 		ret = vb2_dqbuf(&ctx->vq_dst, buf, file->f_flags & O_NONBLOCK);
+		if (ret)
+			return ret;
 		mfc_debug(4, "dec dst buf[%d] DQ\n", buf->index);
 
 		if (buf->index >= MFC_MAX_BUFFERS) {

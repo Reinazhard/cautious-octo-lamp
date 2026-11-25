@@ -268,9 +268,10 @@ wait_done:
 void mfc_wake_up_core(struct mfc_core *core, unsigned int reason,
 		unsigned int err)
 {
-	core->int_condition = 1;
 	core->int_reason = reason;
 	core->int_err = err;
+	smp_wmb();
+	WRITE_ONCE(core->int_condition, 1);
 	wake_up(&core->cmd_wq);
 }
 
@@ -278,9 +279,10 @@ void mfc_wake_up_core(struct mfc_core *core, unsigned int reason,
 void mfc_wake_up_core_ctx(struct mfc_core_ctx *core_ctx, unsigned int reason,
 		unsigned int err)
 {
-	core_ctx->int_condition = 1;
 	core_ctx->int_reason = reason;
 	core_ctx->int_err = err;
+	smp_wmb();
+	WRITE_ONCE(core_ctx->int_condition, 1);
 	wake_up(&core_ctx->cmd_wq);
 }
 

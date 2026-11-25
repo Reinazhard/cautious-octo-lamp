@@ -478,8 +478,8 @@ err_fw_load:
 	}
 
 err_power_on:
-	core->core_ctx[ctx->num] = 0;
 	kfree(core->core_ctx[ctx->num]);
+	core->core_ctx[ctx->num] = NULL;
 
 err_init_inst:
 	core->num_inst--;
@@ -680,13 +680,18 @@ int mfc_core_instance_open(struct mfc_core *core, struct mfc_ctx *ctx)
 	}
 
 	if (ctx->type == MFCINST_DECODER) {
-		if (__mfc_core_instance_open_dec(ctx, core_ctx))
+		if (__mfc_core_instance_open_dec(ctx, core_ctx)) {
+			mfc_core_release_hwlock_ctx(core_ctx);
 			return -EAGAIN;
+		}
 	} else if (ctx->type == MFCINST_ENCODER) {
-		if (__mfc_core_instance_open_enc(ctx, core_ctx))
+		if (__mfc_core_instance_open_enc(ctx, core_ctx)) {
+			mfc_core_release_hwlock_ctx(core_ctx);
 			return -ENOMEM;
+		}
 	} else {
 		mfc_err("invalid codec type: %d\n", ctx->type);
+		mfc_core_release_hwlock_ctx(core_ctx);
 		return -EINVAL;
 	}
 
