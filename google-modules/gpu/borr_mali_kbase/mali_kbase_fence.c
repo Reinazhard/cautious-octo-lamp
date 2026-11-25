@@ -27,9 +27,6 @@
 
 #include <linux/version_compat_defs.h>
 
-/* Spin lock protecting all Mali fences as fence->lock. */
-static DEFINE_SPINLOCK(kbase_fence_lock);
-
 struct dma_fence *kbase_fence_out_new(struct kbase_jd_atom *katom)
 {
 	struct dma_fence *fence;
@@ -40,7 +37,7 @@ struct dma_fence *kbase_fence_out_new(struct kbase_jd_atom *katom)
 	if (!fence)
 		return NULL;
 
-	dma_fence_init(fence, &kbase_fence_ops, &kbase_fence_lock, katom->dma_fence.context,
+	dma_fence_init(fence, &kbase_fence_ops, NULL, katom->dma_fence.context,
 		       (u64)atomic_inc_return(&katom->dma_fence.seqno));
 
 	katom->dma_fence.fence = fence;

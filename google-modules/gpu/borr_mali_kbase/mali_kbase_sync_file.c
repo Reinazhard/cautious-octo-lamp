@@ -149,17 +149,8 @@ static void kbase_fence_wait_callback(struct dma_fence *fence, struct dma_fence_
 	struct kbase_jd_atom *katom = container_of(cb, struct kbase_jd_atom, dma_fence.fence_cb);
 	struct kbase_context *kctx = katom->kctx;
 
-	CSTD_UNUSED(fence);
-
 	/* Cancel atom if fence is erroneous */
-	if (dma_fence_is_signaled(katom->dma_fence.fence_in) &&
-#if (KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE || \
-     (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE && \
-      KERNEL_VERSION(4, 9, 68) <= LINUX_VERSION_CODE))
-	    katom->dma_fence.fence_in->error < 0)
-#else
-	    katom->dma_fence.fence_in->status < 0)
-#endif
+	if (fence->error < 0)
 		katom->event_code = BASE_JD_EVENT_JOB_CANCELLED;
 
 	/* To prevent a potential deadlock we schedule the work onto the

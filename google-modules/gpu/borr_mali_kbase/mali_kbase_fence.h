@@ -162,7 +162,8 @@ static inline void kbase_fence_in_remove(struct kbase_jd_atom *katom)
  */
 static inline bool kbase_fence_out_is_ours(struct kbase_jd_atom *katom)
 {
-	return katom->dma_fence.fence && katom->dma_fence.fence->ops == &kbase_fence_ops;
+	return katom->dma_fence.fence &&
+	       rcu_access_pointer(katom->dma_fence.fence->ops) == &kbase_fence_ops;
 }
 
 /**

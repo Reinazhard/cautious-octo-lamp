@@ -98,41 +98,16 @@ int kbase_event_dequeue(struct kbase_context *kctx, struct base_jd_event_v2 *uev
 KBASE_EXPORT_TEST_API(kbase_event_dequeue);
 
 /**
- * kbase_event_process_noreport_worker - Worker for processing atoms that do not
- *                                       return an event but do have external
- *                                       resources
- * @data:  Work structure
- */
-static void kbase_event_process_noreport_worker(struct kthread_work *data)
-{
-	struct kbase_jd_atom *katom = container_of(data, struct kbase_jd_atom, work);
-	struct kbase_context *kctx = katom->kctx;
-
-	if (katom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES)
-		kbase_jd_free_external_resources(katom);
-
-	rt_mutex_lock(&kctx->jctx.lock);
-	kbase_event_process(kctx, katom);
-	rt_mutex_unlock(&kctx->jctx.lock);
-}
-
-/**
  * kbase_event_process_noreport - Process atoms that do not return an event
  * @kctx:  Context pointer
  * @katom: Atom to be processed
  *
- * Atoms that do not have external resources will be processed immediately.
- * Atoms that do have external resources will be processed on a kthread, in
- * order to avoid locking issues.
+ * External resources are already unmapped in kbase_jd_post_external_resources(),
+ * so all noreport atoms can be finalized immediately under jctx.lock.
  */
 static void kbase_event_process_noreport(struct kbase_context *kctx, struct kbase_jd_atom *katom)
 {
-	if (katom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES) {
-		kthread_init_work(&katom->work, kbase_event_process_noreport_worker);
-		kthread_queue_work(&kctx->kbdev->event_worker, &katom->work);
-	} else {
-		kbase_event_process(kctx, katom);
-	}
+	kbase_event_process(kctx, katom);
 }
 
 /**

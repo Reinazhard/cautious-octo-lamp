@@ -47,6 +47,7 @@ static const char *kbase_fence_get_timeline_name(struct dma_fence *fence)
 }
 #endif /* MALI_USE_CSF */
 
+#if MALI_USE_CSF
 static bool kbase_fence_enable_signaling(struct dma_fence *fence)
 {
 	CSTD_UNUSED(fence);
@@ -54,7 +55,6 @@ static bool kbase_fence_enable_signaling(struct dma_fence *fence)
 	return true;
 }
 
-#if MALI_USE_CSF
 static void kbase_fence_release(struct dma_fence *fence)
 {
 	struct kbase_kcpu_dma_fence *kcpu_fence = (struct kbase_kcpu_dma_fence *)fence;
@@ -71,10 +71,8 @@ const struct dma_fence_ops kbase_fence_ops = { .wait = dma_fence_default_wait,
 					       .release = kbase_fence_release };
 #else
 extern const struct dma_fence_ops kbase_fence_ops; /* silence checker warning */
-const struct dma_fence_ops kbase_fence_ops = { .wait = dma_fence_default_wait,
-					       .get_driver_name = kbase_fence_get_driver_name,
-					       .get_timeline_name = kbase_fence_get_timeline_name,
-					       .enable_signaling = kbase_fence_enable_signaling };
+const struct dma_fence_ops kbase_fence_ops = { .get_driver_name = kbase_fence_get_driver_name,
+					       .get_timeline_name = kbase_fence_get_timeline_name };
 #endif /* MALI_USE_CSF */
 
 KBASE_EXPORT_TEST_API(kbase_fence_ops);
