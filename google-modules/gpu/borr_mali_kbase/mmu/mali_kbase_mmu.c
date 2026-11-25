@@ -446,25 +446,6 @@ static inline void mmu_invalidate_on_teardown(struct kbase_device *kbdev,
 	mmu_invalidate(kbdev, kctx, as_nr, &op_param);
 }
 
-/* Perform a flush/invalidate on a particular address space
- */
-static void mmu_flush_invalidate_as(struct kbase_device *kbdev, struct kbase_as *as,
-				    const struct kbase_mmu_hw_op_param *op_param)
-{
-	unsigned long flags;
-
-	/* AS transaction begin */
-	mutex_lock(&kbdev->mmu_hw_mutex);
-	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-
-	if (kbdev->pm.backend.gpu_ready && kbase_mmu_hw_do_flush(kbdev, as, op_param))
-		dev_err(kbdev->dev, "Flush for GPU page table update did not complete");
-
-	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-	mutex_unlock(&kbdev->mmu_hw_mutex);
-	/* AS transaction end */
-}
-
 /**
  * mmu_flush_invalidate() - Perform a flush operation on GPU caches.
  * @kbdev:      The Kbase device.
@@ -473,9 +454,11 @@ static void mmu_flush_invalidate_as(struct kbase_device *kbdev, struct kbase_as 
  * @op_param: Non-NULL pointer to struct containing information about the MMU
  *            operation to perform.
  *
- * This function performs the cache flush operation described by @op_param.
- * The function retains a reference to the given @kctx and releases it
- * after performing the flush operation.
+ * This function performs the cache flush operation described by @op_param
+ * directly under mmu_hw_mutex and hwaccess_lock whenever @kctx (if non-NULL)
+ * currently holds a hardware address space slot (including cached as_free
+ * contexts), avoiding JS queue/runpool lock bounce and closing the stale-TLB
+ * window when PTEs change while kctx->refcount is 0.
  *
  * If operation is set to KBASE_MMU_OP_FLUSH_PT then this function will issue
  * a cache flush + invalidate to the L2 caches and invalidate the TLBs.
@@ -487,35 +470,27 @@ static void mmu_flush_invalidate_as(struct kbase_device *kbdev, struct kbase_as 
 static void mmu_flush_invalidate(struct kbase_device *kbdev, struct kbase_context *kctx, int as_nr,
 				 const struct kbase_mmu_hw_op_param *op_param)
 {
-	bool ctx_is_in_runpool;
+	unsigned long flags;
 
 	/* Early out if there is nothing to do */
 	if (op_param->nr == 0)
 		return;
 
-	/* If no context is provided then MMU operation is performed on address
-	 * space which does not belong to user space context. Otherwise, retain
-	 * refcount to context provided and release after flush operation.
-	 */
-	if (!kctx) {
-		mmu_flush_invalidate_as(kbdev, &kbdev->as[as_nr], op_param);
-	} else {
-#if !MALI_USE_CSF
-		rt_mutex_lock(&kbdev->js_data.queue_mutex);
-		ctx_is_in_runpool = kbase_ctx_sched_inc_refcount(kctx);
-		rt_mutex_unlock(&kbdev->js_data.queue_mutex);
-#else
-		ctx_is_in_runpool = kbase_ctx_sched_inc_refcount_if_as_valid(kctx);
-#endif /* !MALI_USE_CSF */
+	/* AS transaction begin */
+	mutex_lock(&kbdev->mmu_hw_mutex);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
-		if (ctx_is_in_runpool) {
-			KBASE_DEBUG_ASSERT(kctx->as_nr != KBASEP_AS_NR_INVALID);
-
-			mmu_flush_invalidate_as(kbdev, &kbdev->as[kctx->as_nr], op_param);
-
-			release_ctx(kbdev, kctx);
-		}
+	if (kbdev->pm.backend.gpu_ready &&
+	    (!kctx || ((kctx->as_nr != KBASEP_AS_NR_INVALID) &&
+		       (kbdev->as_to_kctx[kctx->as_nr] == kctx)))) {
+		as_nr = kctx ? kctx->as_nr : as_nr;
+		if (kbase_mmu_hw_do_flush(kbdev, &kbdev->as[as_nr], op_param))
+			dev_err(kbdev->dev, "Flush for GPU page table update did not complete");
 	}
+
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+	mutex_unlock(&kbdev->mmu_hw_mutex);
+	/* AS transaction end */
 }
 
 /**
