@@ -69,6 +69,7 @@ void kbase_context_debugfs_term(struct kbase_context *const kctx)
 KBASE_EXPORT_SYMBOL(kbase_context_debugfs_term);
 #endif /* CONFIG_DEBUG_FS */
 
+#ifdef CONFIG_MALI_DEBUG
 /* b458836425 extended diagnostics */
 struct free_caller {
 	struct kbase_context *kctx;
@@ -78,6 +79,7 @@ struct free_caller {
 struct free_caller ctx_free_fifo[128];
 int ctx_free_next;
 static DEFINE_SPINLOCK(ctx_free_lock);
+#endif
 
 static int kbase_context_kbase_kinstr_jm_init(struct kbase_context *kctx)
 {
@@ -129,6 +131,7 @@ static void kbase_context_flush_jobs(struct kbase_context *kctx)
  */
 static void kbase_context_free(struct kbase_context *kctx)
 {
+#ifdef CONFIG_MALI_DEBUG
 	unsigned long flags = 0;
 	struct kbase_context *kctx_old = NULL;
 
@@ -157,6 +160,10 @@ static void kbase_context_free(struct kbase_context *kctx)
 		kbase_timeline_post_kbase_context_destroy(kctx_old);
 		vfree(kctx_old);
 	}
+#else
+	kbase_timeline_post_kbase_context_destroy(kctx);
+	vfree(kctx);
+#endif
 }
 
 static const struct kbase_context_init context_init[] = {

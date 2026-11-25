@@ -2961,6 +2961,9 @@ static void trace_jit_stats(struct kbase_context *kctx, u32 bin_id, u32 max_allo
 	u32 va_pages = 0;
 	u32 ph_pages = 0;
 
+	if (likely(!(atomic_read(&kbdev->timeline_flags) & TLSTREAM_ENABLED)))
+		return;
+
 	mutex_lock(&kctx->jit_evict_lock);
 	list_for_each_entry(walker, &kctx->jit_active_head, jit_node) {
 		if (walker->jit_bin_id != bin_id)

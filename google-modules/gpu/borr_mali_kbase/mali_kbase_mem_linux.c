@@ -2451,12 +2451,9 @@ static vm_fault_t kbase_cpu_vm_fault(struct vm_fault *vmf)
 	if (map->alloc->reg && (map->alloc->reg->flags & KBASE_REG_DONT_NEED))
 		goto exit;
 
-	/* We are inserting all valid pages from the start of CPU mapping and
-	 * not from the fault location (the mmap handler was previously doing
-	 * the same).
-	 */
-	i = map_start_pgoff;
-	addr = (pgoff_t)(vma->vm_start >> PAGE_SHIFT);
+	/* Insert from the faulting page forward instead of restarting at offset 0. */
+	i = fault_pgoff;
+	addr = (pgoff_t)(vmf->address >> PAGE_SHIFT);
 	mgm_dev = map->kctx->kbdev->mgm_dev;
 
 	/* If page migration is enabled, these pages might have metadata:
@@ -3240,6 +3237,18 @@ static int kbase_vmap_phy_pages(struct kbase_context *kctx, struct kbase_va_regi
 	if (!page_array)
 		return -ENOMEM;
 
+	/*
+	 * Fast path for cached single-page kernel mappings (e.g. JIT read/write):
+	 * arm64 has no HIGHMEM so page_address() gives a Normal WB linear mapping
+	 * without vmap_area_lock or cross-CPU TLB shootdown IPIs. Uncached
+	 * (!KBASE_REG_CPU_CACHED) regions must still use write-combine vmap().
+	 */
+	if (page_count == 1 && (reg->flags & KBASE_REG_CPU_CACHED) && !track_vmap_count) {
+		cpu_addr = page_address(as_page(page_array[page_index]));
+		vmap_flags |= KBASE_VMAP_FLAG_DIRECT_MAP;
+		goto map_setup;
+	}
+
 	pages = kmalloc_array(page_count, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
 		return -ENOMEM;
@@ -3297,6 +3306,7 @@ static int kbase_vmap_phy_pages(struct kbase_context *kctx, struct kbase_va_regi
 	}
 	kfree(migration_counted_pages);
 
+map_setup:
 	map->offset_in_page = offset_in_page;
 	map->cpu_alloc = reg->cpu_alloc;
 	map->cpu_pages = &kbase_get_cpu_phy_pages(reg)[page_index];
@@ -3404,7 +3414,8 @@ static void kbase_vunmap_phy_pages(struct kbase_context *kctx, struct kbase_vmap
 {
 	void *addr = (void *)((uintptr_t)map->addr & PAGE_MASK);
 
-	vunmap(addr);
+	if (!(map->flags & KBASE_VMAP_FLAG_DIRECT_MAP))
+		vunmap(addr);
 
 	/* If page migration is enabled, decrement the number of VMA mappings
 	 * for all physical pages. Now is a good time to do it because references

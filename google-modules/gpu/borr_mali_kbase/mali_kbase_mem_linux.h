@@ -231,6 +231,9 @@ typedef unsigned int kbase_vmap_flag;
  */
 #define KBASE_VMAP_FLAG_PERMANENT_MAP_ACCOUNTING (((kbase_vmap_flag)1) << 1)
 
+/* Mapping uses linear-map page_address() directly (no vmap/vunmap). */
+#define KBASE_VMAP_FLAG_DIRECT_MAP (((kbase_vmap_flag)1) << 3)
+
 /* Set of flags that can be passed into kbase_vmap-related functions */
 #define KBASE_VMAP_INPUT_FLAGS (KBASE_VMAP_FLAG_PERMANENT_MAP_ACCOUNTING)
 

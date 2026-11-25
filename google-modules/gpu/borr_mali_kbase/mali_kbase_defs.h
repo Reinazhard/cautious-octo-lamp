@@ -566,8 +566,8 @@ struct kbase_pm_device_data {
  *                             this pool is full. Can be NULL if there is no next pool.
  * @dying:                     true if the pool is being terminated, and any ongoing
  *                             operations should be abandoned
- * @dont_reclaim:              true if the shrinker is forbidden from reclaiming memory from
- *                             this pool, eg during a grow operation
+ * @dont_reclaim:              > 0 while the shrinker is forbidden from reclaiming
+ *                             memory from this pool, e.g. during a grow operation
  */
 struct kbase_mem_pool {
 	struct kbase_device *kbdev;
@@ -583,7 +583,7 @@ struct kbase_mem_pool {
 	struct kbase_mem_pool *next_pool;
 
 	bool dying;
-	bool dont_reclaim;
+	atomic_t dont_reclaim;
 };
 
 /**
