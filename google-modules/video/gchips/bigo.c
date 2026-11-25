@@ -105,7 +105,7 @@ static inline int on_first_instance_open(struct bigo_core *core)
 		goto exit;
 	}
 
-	sched_set_normal(core->worker_thread, -10);
+	sched_set_fifo_low(core->worker_thread);
 
 	rc = bigo_pt_client_enable(core);
 	if (rc) {
