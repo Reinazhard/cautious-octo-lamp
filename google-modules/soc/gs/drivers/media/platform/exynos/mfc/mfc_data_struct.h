@@ -2127,6 +2127,9 @@ struct mfc_dec {
 	/* for Dynamic DPB */
 	struct dpb_table dpb[MFC_MAX_DPBS];
 	struct mutex dpb_mutex;
+	spinlock_t unmap_lock;
+	struct list_head unmap_list;
+	struct work_struct unmap_work;
 	unsigned long dpb_table_used;
 	struct dec_dpb_ref_info *ref_info;
 	struct stored_dpb_info ref_buf[MFC_MAX_BUFFERS];

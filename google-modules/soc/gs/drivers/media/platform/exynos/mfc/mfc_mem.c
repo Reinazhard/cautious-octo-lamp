@@ -339,6 +339,111 @@ err_get_daddr:
 }
 #endif
 
+struct mfc_dpb_unmap_entry {
+	struct list_head list;
+	int num_planes;
+	bool skip_lazy_unmap;
+	struct dma_buf *dmabufs[MFC_MAX_PLANES];
+	struct dma_buf_attachment *attach[MFC_MAX_PLANES];
+	struct sg_table *sgt[MFC_MAX_PLANES];
+};
+
+static void __mfc_unmap_dpb_entry(struct mfc_dpb_unmap_entry *entry)
+{
+	int i;
+
+	for (i = 0; i < entry->num_planes; i++) {
+#if IS_ENABLED(CONFIG_MFC_USE_DMA_SKIP_LAZY_UNMAP)
+		if (entry->attach[i] && entry->skip_lazy_unmap)
+			entry->attach[i]->dma_map_attrs |= DMA_ATTR_SKIP_LAZY_UNMAP;
+#endif
+		if (entry->sgt[i]) {
+			dma_resv_lock(entry->dmabufs[i]->resv, NULL);
+			dma_buf_unmap_attachment(entry->attach[i], entry->sgt[i],
+					DMA_BIDIRECTIONAL);
+			dma_resv_unlock(entry->dmabufs[i]->resv);
+		}
+		if (entry->attach[i])
+			dma_buf_detach(entry->dmabufs[i], entry->attach[i]);
+		if (entry->dmabufs[i])
+			dma_buf_put(entry->dmabufs[i]);
+	}
+	kfree(entry);
+}
+
+void mfc_dpb_unmap_worker(struct work_struct *work)
+{
+	struct mfc_dec *dec = container_of(work, struct mfc_dec, unmap_work);
+	struct mfc_dpb_unmap_entry *entry, *tmp;
+	LIST_HEAD(local_list);
+	unsigned long flags;
+
+	spin_lock_irqsave(&dec->unmap_lock, flags);
+	list_splice_init(&dec->unmap_list, &local_list);
+	spin_unlock_irqrestore(&dec->unmap_lock, flags);
+
+	list_for_each_entry_safe(entry, tmp, &local_list, list) {
+		list_del(&entry->list);
+		__mfc_unmap_dpb_entry(entry);
+	}
+}
+
+void mfc_put_iovmm_deferred(struct mfc_ctx *ctx, struct dpb_table *dpb, int num_planes, int index)
+{
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_dec *dec = ctx->dec_priv;
+	struct mfc_dpb_unmap_entry *entry;
+	unsigned long flags;
+	int i;
+
+	if (!dec || num_planes <= 0 || num_planes > MFC_MAX_PLANES) {
+		mfc_put_iovmm(ctx, dpb, num_planes, index);
+		return;
+	}
+
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry) {
+		mfc_put_iovmm(ctx, dpb, num_planes, index);
+		return;
+	}
+
+	MFC_TRACE_CTX("DPB[%d] fd: %d addr: %#llx put(%d)\n",
+			index, dpb[index].fd[0], dpb[index].addr[0], dpb[index].mapcnt);
+
+	entry->num_planes = num_planes;
+	entry->skip_lazy_unmap = (dev->skip_lazy_unmap || ctx->skip_lazy_unmap);
+
+	for (i = 0; i < num_planes; i++) {
+		entry->dmabufs[i] = dpb[index].dmabufs[i];
+		entry->attach[i] = dpb[index].attach[i];
+		entry->sgt[i] = dpb[index].sgt[i];
+
+		dpb[index].fd[i] = -1;
+		dpb[index].addr[i] = 0;
+		dpb[index].attach[i] = NULL;
+		dpb[index].dmabufs[i] = NULL;
+		dpb[index].sgt[i] = NULL;
+	}
+
+	dpb[index].new_fd = -1;
+	dpb[index].mapcnt--;
+	mfc_debug(2, "[IOVMM] index %d mapcnt %d\n", index, dpb[index].mapcnt);
+
+	if (dpb[index].mapcnt != 0) {
+		snprintf(dev->dev_crash_info, MFC_CRASH_INFO_LEN,
+			"[IOVMM] DPB[%d] %#llx invalid mapcnt %d\n",
+			index, dpb[index].addr[0], dpb[index].mapcnt);
+		mfc_ctx_err("%s", dev->dev_crash_info);
+		call_dop(dev, dump_and_stop_debug_mode, dev);
+		dpb[index].mapcnt = 0;
+	}
+
+	spin_lock_irqsave(&dec->unmap_lock, flags);
+	list_add_tail(&entry->list, &dec->unmap_list);
+	spin_unlock_irqrestore(&dec->unmap_lock, flags);
+	schedule_work(&dec->unmap_work);
+}
+
 void mfc_put_iovmm(struct mfc_ctx *ctx, struct dpb_table *dpb, int num_planes, int index)
 {
 	struct mfc_dev *dev = ctx->dev;
@@ -510,6 +615,7 @@ void mfc_cleanup_iovmm(struct mfc_ctx *ctx)
 	}
 
 	mutex_unlock(&dec->dpb_mutex);
+	flush_work(&dec->unmap_work);
 }
 
 void mfc_cleanup_iovmm_except_used(struct mfc_ctx *ctx)
@@ -540,6 +646,7 @@ void mfc_cleanup_iovmm_except_used(struct mfc_ctx *ctx)
 	}
 
 	mutex_unlock(&dec->dpb_mutex);
+	flush_work(&dec->unmap_work);
 }
 
 int mfc_iommu_map_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf)

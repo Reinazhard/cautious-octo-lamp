@@ -202,6 +202,9 @@ static int __mfc_init_dec_ctx(struct mfc_ctx *ctx)
 	dec->dpb_table_used = 0;
 	dec->sh_handle_dpb.fd = -1;
 	mutex_init(&dec->dpb_mutex);
+	spin_lock_init(&dec->unmap_lock);
+	INIT_LIST_HEAD(&dec->unmap_list);
+	INIT_WORK(&dec->unmap_work, mfc_dpb_unmap_worker);
 	mutex_init(&ctx->cpb_mutex);
 
 	mfc_init_dpb_table(ctx);

@@ -2287,7 +2287,7 @@ static void __mfc_core_nal_q_handle_released_buf(struct mfc_core *core, struct m
 				 * the released DPB is deleted from dpb_table
 				 */
 				dec->dpb_table_used &= ~(1UL << i);
-				mfc_put_iovmm(ctx, dec->dpb, ctx->dst_fmt->mem_planes, i);
+				mfc_put_iovmm_deferred(ctx, dec->dpb, ctx->dst_fmt->mem_planes, i);
 			} else {
 				mfc_debug(3, "[NALQ][REFINFO] Queued DPB[%d] reused fd: %d\n",
 						i, dec->dpb[i].fd[0]);
@@ -2310,7 +2310,7 @@ static void __mfc_core_nal_q_handle_released_buf(struct mfc_core *core, struct m
 			mfc_debug(3, "[NALQ][REFINFO] display DPB[%d] released fd: %d\n",
 					i, dec->dpb[i].fd[0]);
 			dec->dpb_table_used &= ~(1UL << i);
-			mfc_put_iovmm(ctx, dec->dpb, ctx->dst_fmt->mem_planes, i);
+			mfc_put_iovmm_deferred(ctx, dec->dpb, ctx->dst_fmt->mem_planes, i);
 		}
 		dec->display_index = -1;
 	}
@@ -2596,13 +2596,13 @@ void __mfc_core_nal_q_handle_frame(struct mfc_core *core, struct mfc_core_ctx *c
 				>> MFC_REG_DEC_STATUS_NUM_OF_TILE_SHIFT)
 				& MFC_REG_DEC_STATUS_NUM_OF_TILE_MASK) >= 4)) {
 		dec->num_of_tile_over_4 = 1;
-		//mfc_qos_on(ctx);
+		WRITE_ONCE(ctx->update_framerate, true);
 	}
 	if (!dec->super64_bframe && IS_SUPER64_BFRAME(ctx,
 				(pOutStr->HevcInfo & MFC_REG_D_HEVC_INFO_LCU_SIZE_MASK),
 				(pOutStr->DecodedFrameType & MFC_REG_DECODED_FRAME_MASK))) {
 		dec->super64_bframe = 1;
-		//mfc_qos_on(ctx);
+		WRITE_ONCE(ctx->update_framerate, true);
 	}
 
 	switch (dst_frame_status) {

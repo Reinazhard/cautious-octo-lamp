@@ -185,6 +185,8 @@ static inline int mfc_bufcon_get_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_
 #endif
 
 void mfc_put_iovmm(struct mfc_ctx *ctx, struct dpb_table *dpb, int num_planes, int index);
+void mfc_put_iovmm_deferred(struct mfc_ctx *ctx, struct dpb_table *dpb, int num_planes, int index);
+void mfc_dpb_unmap_worker(struct work_struct *work);
 void mfc_get_iovmm(struct mfc_ctx *ctx, struct vb2_buffer *vb, struct dpb_table *dpb);
 void mfc_init_dpb_table(struct mfc_ctx *ctx);
 void mfc_cleanup_iovmm(struct mfc_ctx *ctx);

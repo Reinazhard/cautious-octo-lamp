@@ -623,7 +623,7 @@ static void __mfc_handle_released_buf(struct mfc_core *core, struct mfc_ctx *ctx
 				 * the released DPB is deleted from dpb_table
 				 */
 				dec->dpb_table_used &= ~(1UL << i);
-				mfc_put_iovmm(ctx, dec->dpb, ctx->dst_fmt->mem_planes, i);
+				mfc_put_iovmm_deferred(ctx, dec->dpb, ctx->dst_fmt->mem_planes, i);
 			} else {
 				mfc_debug(3, "[REFINFO] Queued DPB[%d] reuse fd: %d\n",
 						i, dec->dpb[i].fd[0]);
@@ -646,7 +646,7 @@ static void __mfc_handle_released_buf(struct mfc_core *core, struct mfc_ctx *ctx
 			mfc_debug(3, "[REFINFO] display DPB[%d] released fd: %d\n",
 					i, dec->dpb[i].fd[0]);
 			dec->dpb_table_used &= ~(1UL << i);
-			mfc_put_iovmm(ctx, dec->dpb, ctx->dst_fmt->mem_planes, i);
+			mfc_put_iovmm_deferred(ctx, dec->dpb, ctx->dst_fmt->mem_planes, i);
 		}
 		dec->display_index = -1;
 	}

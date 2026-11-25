@@ -300,7 +300,9 @@ static void __mfc_qos_set(struct mfc_core *core, struct mfc_ctx *ctx,
 			qos_table[i].freq_mif);
 
 #ifdef CONFIG_MFC_USE_BTS
-	if (curr_mfc_bw->peak != core->mfc_bw.peak) {
+	if (curr_mfc_bw->peak != core->mfc_bw.peak ||
+	    curr_mfc_bw->read != core->mfc_bw.read ||
+	    curr_mfc_bw->write != core->mfc_bw.write) {
 		core->mfc_bw.peak = curr_mfc_bw->peak;
 		core->mfc_bw.read = curr_mfc_bw->read;
 		core->mfc_bw.write = curr_mfc_bw->write;
@@ -914,6 +916,9 @@ void mfc_core_qos_idle_worker(struct work_struct *work)
 bool mfc_core_qos_idle_trigger(struct mfc_core *core, struct mfc_ctx *ctx)
 {
 	bool update_idle = false;
+
+	if (likely(READ_ONCE(core->idle_mode) == MFC_IDLE_MODE_NONE))
+		return false;
 
 	mutex_lock(&core->idle_qos_mutex);
 	if (core->idle_mode == MFC_IDLE_MODE_IDLE) {
