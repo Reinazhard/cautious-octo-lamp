@@ -2629,6 +2629,13 @@ static inline base_mem_alloc_flags kbase_mem_group_id_set(int id)
 	return BASE_MEM_GROUP_ID_SET(id);
 }
 
+#if IS_ENABLED(CONFIG_LARGE_PAGE_SUPPORT)
 bool kbase_is_large_pages_enabled(void);
+#else
+static inline bool kbase_is_large_pages_enabled(void)
+{
+	return false;
+}
+#endif
 
 #endif /* _KBASE_MEM_H_ */

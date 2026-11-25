@@ -70,11 +70,13 @@ void kbase_set_page_movable(struct page *p, const struct movable_operations *ops
 }
 #endif
 
+#if (KERNEL_VERSION(6, 17, 0) > LINUX_VERSION_CODE) && !IS_ENABLED(CONFIG_MALI_PIXEL_GPU_PM)
 bool kbase_is_page_migration_enabled(void)
 {
 	return static_branch_unlikely(&page_migration_static_key);
 }
 KBASE_EXPORT_TEST_API(kbase_is_page_migration_enabled);
+#endif
 
 bool kbase_alloc_page_metadata(struct kbase_device *kbdev, struct page *p, dma_addr_t dma_addr,
 			       u8 group_id)
@@ -866,10 +868,11 @@ void kbase_mem_migrate_init(struct kbase_device *kbdev)
 
 	spin_lock_init(&mem_migrate->free_pages_lock);
 	INIT_LIST_HEAD(&mem_migrate->free_pages_list);
-
-	mem_migrate->free_pages_workq =
-		alloc_workqueue("free_pages_workq", WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
 	INIT_WORK(&mem_migrate->free_pages_work, kbase_free_pages_worker);
+
+	if (kbase_is_page_migration_enabled())
+		mem_migrate->free_pages_workq =
+			alloc_workqueue("free_pages_workq", WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
 }
 
 void kbase_mem_migrate_term(struct kbase_device *kbdev)

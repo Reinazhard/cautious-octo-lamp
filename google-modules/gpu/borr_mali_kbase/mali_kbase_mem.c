@@ -189,11 +189,13 @@ static void kbasep_mem_page_size_init(struct kbase_device *kbdev)
 		large_page_conf = LARGE_PAGE_OFF;
 }
 
+#if IS_ENABLED(CONFIG_LARGE_PAGE_SUPPORT)
 inline bool kbase_is_large_pages_enabled(void)
 {
 	return static_branch_unlikely(&large_pages_static_key);
 }
 KBASE_EXPORT_TEST_API(kbase_is_large_pages_enabled);
+#endif
 
 int kbase_mem_init(struct kbase_device *kbdev)
 {

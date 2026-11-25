@@ -95,7 +95,14 @@ void kbase_set_page_movable(struct page *p, const struct movable_operations *ops
 bool kbase_alloc_page_metadata(struct kbase_device *kbdev, struct page *p, dma_addr_t dma_addr,
 			       u8 group_id);
 
+#if (KERNEL_VERSION(6, 17, 0) > LINUX_VERSION_CODE) && !IS_ENABLED(CONFIG_MALI_PIXEL_GPU_PM)
 bool kbase_is_page_migration_enabled(void);
+#else
+static inline bool kbase_is_page_migration_enabled(void)
+{
+	return false;
+}
+#endif
 
 /**
  * kbase_free_page_later - Defer freeing of given page.
